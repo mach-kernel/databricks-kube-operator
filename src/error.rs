@@ -1,11 +1,12 @@
-use std::fmt::Display;
 use std::error::Error;
+use std::fmt::Display;
 
 use crate::config::CONFIGMAP_NAME;
 
 #[derive(Debug)]
 pub enum DatabricksKubeError {
     ConfigMapMissingError,
+    CRDMissingError(String),
 }
 
 impl Display for DatabricksKubeError {
@@ -14,6 +15,10 @@ impl Display for DatabricksKubeError {
             DatabricksKubeError::ConfigMapMissingError => format!(
                 "Timed out while waiting for config map: {}",
                 *CONFIGMAP_NAME
+            ),
+            DatabricksKubeError::CRDMissingError(crd) => format!(
+                "Timed out while waiting for CRD: {}\n\nGet all CRDs by running:\ncargo run --bin crd_gen",
+                crd
             )
         };
         write!(f, "{}", msg)

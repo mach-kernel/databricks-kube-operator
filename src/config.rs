@@ -1,4 +1,7 @@
-use k8s_openapi::api::core::v1::ConfigMap;
+use k8s_openapi::{
+    api::core::v1::ConfigMap,
+    apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
+};
 use kube::{
     runtime::wait::{await_condition, conditions},
     Api, Client,
@@ -44,4 +47,23 @@ pub async fn ensure_configmap(client: Client) -> Result<ConfigMap, DatabricksKub
         .last()
         .flatten()
         .ok_or(DatabricksKubeError::ConfigMapMissingError)
+}
+
+pub async fn ensure_crd(
+    name: &str,
+    client: Client,
+) -> Result<CustomResourceDefinition, DatabricksKubeError> {
+    let crd_api = Api::<CustomResourceDefinition>::all(client);
+
+    let config_map = await_condition(crd_api, name, conditions::is_crd_established());
+
+    log::info!("Waiting for CRD: {}", name);
+
+    timeout(Duration::from_secs(15), config_map)
+        .await
+        .into_iter()
+        .flatten()
+        .last()
+        .flatten()
+        .ok_or(DatabricksKubeError::CRDMissingError(name.to_string()))
 }
