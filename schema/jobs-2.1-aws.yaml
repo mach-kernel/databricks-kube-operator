@@ -1139,6 +1139,8 @@ components:
             cost-center: engineering
             team: jobs
           default: {}
+          additionalProperties:
+            type: string
           description: >-
             A map of tags associated with the job. These are forwarded to the
             cluster as cluster tags for jobs clusters, and are subject to the
@@ -2426,6 +2428,8 @@ components:
           example:
             name: task
             data: dbfs:/path/to/data.json
+          additionalProperties:
+            type: string
           description: >-
             Command-line parameters passed to Python wheel task in the form of
             `["--name=task", "--data=dbfs:/path/to/data.json"]`. Leave it empty
@@ -2448,6 +2452,8 @@ components:
           example:
             name: John Doe
             age: 35
+          additionalProperties:
+            type: object
           description: >-
             Parameters to be used for each run of this job. The SQL alert task
             does not support custom parameters.
@@ -2843,7 +2849,6 @@ components:
           items:
             type: string
         custom_tags:
-          type: array
           description: >-
             An object containing a set of tags for cluster resources. Databricks
             tags all cluster resources (such as AWS instances and EBS volumes)
@@ -2857,8 +2862,7 @@ components:
             compute-optimized and memory-optimized
 
             * Databricks allows at most 45 custom tags
-          items:
-            $ref: '#/components/schemas/ClusterTag'
+          $ref: '#/components/schemas/ClusterTag'
         cluster_log_conf:
           description: >-
             The configuration for delivering Spark logs to a long-term storage

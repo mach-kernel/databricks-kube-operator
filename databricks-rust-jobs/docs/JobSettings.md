@@ -5,7 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **name** | Option<**String**> | An optional name for the job. | [optional][default to Untitled]
-**tags** | Option<[**serde_json::Value**](.md)> | A map of tags associated with the job. These are forwarded to the cluster as cluster tags for jobs clusters, and are subject to the same limitations as cluster tags. A maximum of 25 tags can be added to the job. | [optional][default to {}]
+**tags** | Option<**::std::collections::HashMap<String, String>**> | A map of tags associated with the job. These are forwarded to the cluster as cluster tags for jobs clusters, and are subject to the same limitations as cluster tags. A maximum of 25 tags can be added to the job. | [optional][default to {}]
 **tasks** | Option<[**Vec<crate::models::JobTaskSettings>**](JobTaskSettings.md)> | A list of task specifications to be executed by this job. | [optional]
 **job_clusters** | Option<[**Vec<crate::models::JobCluster>**](JobCluster.md)> | A list of job cluster specifications that can be shared and reused by tasks of this job. Libraries cannot be declared in a shared job cluster. You must declare dependent libraries in task settings. | [optional]
 **email_notifications** | Option<[**crate::models::JobEmailNotifications**](JobEmailNotifications.md)> |  | [optional]
