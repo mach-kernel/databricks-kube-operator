@@ -35,6 +35,8 @@ pub async fn ensure_configmap(client: Client) -> Result<ConfigMap, DatabricksKub
         },
     );
 
+    log::info!("Waiting for settings in config map: {}", *CONFIGMAP_NAME);
+
     timeout(Duration::from_secs(15), config_map)
         .await
         .into_iter()

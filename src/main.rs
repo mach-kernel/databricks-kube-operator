@@ -8,10 +8,11 @@ use env_logger::Env;
 use kube::{Client};
 use git_version::git_version;
 use crate::error::DatabricksKubeError;
+use anyhow::Result;
 
 
 #[tokio::main]
-async fn main() -> Result<(), DatabricksKubeError> {
+async fn main() -> Result<()> {
     env_logger::init();
     log::info!("boot! (build: {})", git_version!());
     

@@ -12,6 +12,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0"
 databricks_rust_jobs = { path = "databricks-rust-jobs" }
 env_logger = { version = "0.9.1" }
 git-version = "0.3.5"
