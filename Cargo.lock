@@ -227,6 +227,7 @@ dependencies = [
  "anyhow",
  "databricks_rust_jobs",
  "env_logger",
+ "futures",
  "git-version",
  "k8s-openapi",
  "kube",
