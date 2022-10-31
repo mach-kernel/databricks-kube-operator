@@ -13,6 +13,7 @@ use kube::{
     Api, Client,
 };
 use lazy_static::lazy_static;
+use std::sync::Arc;
 use std::{collections::BTreeMap, env, time::Duration};
 use tokio::time::timeout;
 
@@ -23,8 +24,9 @@ lazy_static! {
         env::var("DATABRICKS_KUBE_CONFIGMAP").unwrap_or("databricks-kube-operator".to_owned());
 }
 
+#[derive(Debug, Clone)]
 pub struct Config {
-    store: Store<ConfigMap>,
+    store: Arc<Store<ConfigMap>>,
 }
 
 impl Config {
@@ -58,7 +60,7 @@ impl Config {
 
     async fn watch_configmap(
         cm_api: Api<ConfigMap>,
-    ) -> Result<Store<ConfigMap>, DatabricksKubeError> {
+    ) -> Result<Arc<Store<ConfigMap>>, DatabricksKubeError> {
         let params = ListParams {
             field_selector: Some(format!("metadata.name={}", *CONFIGMAP_NAME)),
             ..ListParams::default()
@@ -94,7 +96,7 @@ impl Config {
             }
         });
 
-        Ok(reader)
+        Ok(Arc::new(reader))
     }
 
     async fn ensure_crd(

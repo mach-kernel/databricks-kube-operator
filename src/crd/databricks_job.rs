@@ -11,5 +11,5 @@ use schemars::JsonSchema;
     namespaced
 )]
 pub struct DatabricksJobSpec {
-    job: Job,
+    pub job: Job,
 }
