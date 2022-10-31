@@ -40,7 +40,7 @@ impl From<Job> for DatabricksJob {
 }
 
 impl RemoteResource<Job> for DatabricksJob {
-    fn list_all(
+    fn remote_list_all(
         config: Configuration,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {
         try_stream! {

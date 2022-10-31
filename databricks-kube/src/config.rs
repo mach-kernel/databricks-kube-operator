@@ -24,8 +24,9 @@ lazy_static! {
         env::var("DATABRICKS_KUBE_CONFIGMAP").unwrap_or("databricks-kube-operator".to_owned());
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Config {
+    pub client: Client,
     store: Arc<Store<ConfigMap>>,
 }
 
@@ -38,6 +39,12 @@ impl Config {
             .next()
     }
 
+    pub async fn get_databricks_url_token(&self) -> Option<(String, String)> {
+        let url = self.get_configmap_key("databricks_url").await?;
+        let token = self.get_configmap_key("access_token").await?;
+        Some((url, token))
+    }
+
     pub async fn latest_config(&self) -> Option<BTreeMap<String, String>> {
         self.store
             .state()
@@ -48,14 +55,14 @@ impl Config {
 
     pub async fn new(client: Client) -> Result<Config, DatabricksKubeError> {
         let cm_api = Api::<ConfigMap>::default_namespaced(client.clone());
-        let crd_api = Api::<CustomResourceDefinition>::all(client);
+        let crd_api = Api::<CustomResourceDefinition>::all(client.clone());
 
         Self::ensure_crd("databricksjobs.com.dstancu", crd_api).await?;
         Self::ensure_configmap(cm_api.clone()).await?;
 
         let store = Self::watch_configmap(cm_api).await?;
 
-        Ok(Self { store })
+        Ok(Self { client, store })
     }
 
     async fn watch_configmap(
