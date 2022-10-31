@@ -1,10 +1,21 @@
 use std::error::Error;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use crate::config::CONFIGMAP_NAME;
 
+use databricks_rust_jobs::apis::Error as JobsAPIError;
+impl<T> From<JobsAPIError<T>> for DatabricksKubeError
+where
+    T: Debug,
+{
+    fn from(e: JobsAPIError<T>) -> Self {
+        Self::APIError(format!("{}", e))
+    }
+}
+
 #[derive(Debug)]
 pub enum DatabricksKubeError {
+    APIError(String),
     ConfigMapMissingError,
     CRDMissingError(String),
 }
@@ -19,6 +30,10 @@ impl Display for DatabricksKubeError {
             DatabricksKubeError::CRDMissingError(crd) => format!(
                 "Timed out while waiting for CRD: {}\n\nGet all CRDs by running:\ncargo run --bin crd_gen",
                 crd
+            ),
+            DatabricksKubeError::APIError(err )=> format!(
+                "Error calling Databricks API:\n{}",
+                err
             )
         };
         write!(f, "{}", msg)

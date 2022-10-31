@@ -1,0 +1,27 @@
+[[bin]]
+name = "crd_gen"
+path = "src/crdgen.rs"
+
+[package]
+name = "databricks_kube"
+default-run = "databricks_kube"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+async-stream = "0.3.3"
+databricks_rust_jobs = { path = "../databricks-rust-jobs" }
+env_logger = { version = "0.9.1" }
+futures = "0.3"
+git-version = "0.3.5"
+kube = { version = "0.76.0", features = ["runtime", "derive", "client"] }
+k8s-openapi = { version = "0.16.0", features = ["v1_25"] }
+lazy_static = "1.4.0"
+log = "0.4.17"
+serde = { version = "1.0.147", features = ["derive"] }
+serde_json = "1.0.87"
+serde_yaml = "0.9.14"
+schemars = "0.8.11"
+tokio = { version = "1.19.2", features = ["macros", "rt-multi-thread"] }
+tokio-stream = "0.1.11"
