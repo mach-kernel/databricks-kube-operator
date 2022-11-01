@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{Debug, Display};
 
-use crate::config::CONFIGMAP_NAME;
+use crate::context::CONFIGMAP_NAME;
 
 use databricks_rust_jobs::apis::Error as JobsAPIError;
 impl<T> From<JobsAPIError<T>> for DatabricksKubeError

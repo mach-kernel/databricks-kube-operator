@@ -25,12 +25,12 @@ lazy_static! {
 }
 
 #[derive(Clone)]
-pub struct Config {
+pub struct Context {
     pub client: Client,
     store: Arc<Store<ConfigMap>>,
 }
 
-impl Config {
+impl Context {
     pub async fn get_configmap_key(&self, key: &str) -> Option<String> {
         self.latest_config()
             .await
@@ -53,7 +53,7 @@ impl Config {
             .next()
     }
 
-    pub async fn new(client: Client) -> Result<Config, DatabricksKubeError> {
+    pub async fn new(client: Client) -> Result<Context, DatabricksKubeError> {
         let cm_api = Api::<ConfigMap>::default_namespaced(client.clone());
         let crd_api = Api::<CustomResourceDefinition>::all(client.clone());
 

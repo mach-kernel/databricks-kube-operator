@@ -1,4 +1,4 @@
-use crate::{config::Config, error::DatabricksKubeError};
+use crate::{context::Context, error::DatabricksKubeError};
 
 use databricks_rust_jobs::apis::configuration::Configuration;
 use futures::TryStreamExt;
@@ -23,7 +23,7 @@ use futures::FutureExt;
 /// TDynamic is variable CRD metadata type for kube::Resource (varies)
 async fn sync_task<TAPIType, TCRDType, TDynamic>(
     interval_period: Duration,
-    config: Config,
+    context: Context,
 ) -> Result<(), DatabricksKubeError>
 where
     TCRDType: From<TAPIType>,
@@ -42,12 +42,12 @@ where
     TAPIType: 'static,
 {
     let mut duration = interval(interval_period);
-    let kube_api = Api::<TCRDType>::default_namespaced(config.client.clone());
+    let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
 
     loop {
         duration.tick().await;
 
-        let maybe_creds = config.get_databricks_url_token().await;
+        let maybe_creds = context.get_databricks_url_token().await;
         if maybe_creds.is_none() {
             continue;
         }
@@ -92,7 +92,7 @@ where
 /// Implement this on the macroexpanded CRD type, against the SDK type
 pub trait RemoteResource<TAPIType: 'static> {
     fn spawn_remote_sync_task<TDynamic>(
-        config: Config,
+        context: Context,
     ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + 'static>>
     where
         Self: From<TAPIType>,
@@ -112,11 +112,11 @@ pub trait RemoteResource<TAPIType: 'static> {
     {
         sync_task::<TAPIType, Self, TDynamic>(
             Duration::from_secs(60),
-            config,
+            context,
         ).boxed()
     }
 
-    fn default_error_policy<TDynamic>(obj: Arc<Self>, err: &Error, _ctx: Arc<Config>) -> Action
+    fn default_error_policy<TDynamic>(obj: Arc<Self>, err: &Error, _ctx: Arc<Context>) -> Action
     where
         Self: From<TAPIType>,
         Self: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,

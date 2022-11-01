@@ -1,4 +1,4 @@
-mod config;
+mod context;
 mod crds;
 mod error;
 mod traits;
