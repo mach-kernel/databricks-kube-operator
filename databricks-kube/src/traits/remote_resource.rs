@@ -1,15 +1,13 @@
-use crate::{config::Config, crds::databricks_job::DatabricksJobSpec, error::DatabricksKubeError};
-use async_stream::try_stream;
+use crate::{config::Config, error::DatabricksKubeError};
+
 use databricks_rust_jobs::{
-    apis::{configuration::Configuration, default_api},
-    models::{Job, JobsList200Response},
+    apis::{configuration::Configuration},
 };
-use futures::{FutureExt, Stream};
-use futures::{StreamExt, TryStreamExt};
-use k8s_openapi::{Metadata, NamespaceResourceScope};
+use futures::{Stream};
+use futures::{TryStreamExt};
+use k8s_openapi::{NamespaceResourceScope};
 use kube::{
     api::PostParams,
-    core::{DynamicObject, DynamicResourceScope},
     Api, CustomResourceExt, Resource,
 };
 use serde::{de::DeserializeOwned, Serialize};
