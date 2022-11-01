@@ -1,3 +1,4 @@
+use databricks_rust_jobs::apis::configuration::Configuration;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::{
     api::core::v1::ConfigMap,
@@ -31,6 +32,16 @@ pub struct Context {
 }
 
 impl Context {
+    pub async fn make_jobs_rest_config(&self) -> Option<Configuration> {
+        let (url, token) = self.get_databricks_url_token().await?;
+
+        Some(Configuration {
+            base_path: url,
+            bearer_access_token: Some(token),
+            ..Configuration::default()
+        })
+    }
+
     pub async fn get_configmap_key(&self, key: &str) -> Option<String> {
         self.latest_config()
             .await

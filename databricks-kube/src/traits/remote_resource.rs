@@ -1,8 +1,8 @@
 use crate::{context::Context, error::DatabricksKubeError};
 
 use databricks_rust_jobs::apis::configuration::Configuration;
+use futures::Stream;
 use futures::TryStreamExt;
-use futures::{Stream};
 use k8s_openapi::NamespaceResourceScope;
 
 use kube::runtime::controller::Action;
@@ -12,10 +12,11 @@ use kube::{api::PostParams, Api, CustomResourceExt, Resource};
 use serde::{de::DeserializeOwned, Serialize};
 use std::hash::Hash;
 use std::{fmt::Debug, pin::Pin, time::Duration};
-use tokio::{time::interval};
+use tokio::time::interval;
 
-use std::sync::Arc;
 use futures::FutureExt;
+use kube::ResourceExt;
+use std::sync::Arc;
 
 /// Generic sync task for pushing remote API resources into K8S
 /// TAPIType is OpenAPI generated
@@ -32,6 +33,7 @@ where
     TCRDType: Default,
     TCRDType: Clone,
     TCRDType: CustomResourceExt,
+    TCRDType: ResourceExt,
     TCRDType: Debug,
     TCRDType: DeserializeOwned,
     TCRDType: Send,
@@ -47,24 +49,20 @@ where
     loop {
         duration.tick().await;
 
-        let maybe_creds = context.get_databricks_url_token().await;
-        if maybe_creds.is_none() {
+        let maybe_rest_config = context.make_jobs_rest_config().await;
+
+        if maybe_rest_config.is_none() {
+            log::info!("Waiting for REST configuration...");
             continue;
         }
 
-        let (url, token) = maybe_creds.unwrap();
+        let rest_config = maybe_rest_config.unwrap();
 
-        let databricks_config = Configuration {
-            base_path: url,
-            bearer_access_token: Some(token),
-            ..Configuration::default()
-        };
-
-        let mut resource_stream = TCRDType::remote_list_all(databricks_config);
+        let mut resource_stream = TCRDType::remote_list_all(rest_config);
 
         while let Ok(Some(api_resource)) = resource_stream.try_next().await {
             let resource_as_kube: TCRDType = api_resource.into();
-            let name = resource_as_kube.meta().name.clone().unwrap();
+            let name = resource_as_kube.name_unchecked();
             let kube_resource = kube_api.get(&name).await;
 
             if kube_resource.is_err() {
@@ -82,7 +80,7 @@ where
                 log::info!(
                     "Created {} {}",
                     TCRDType::api_resource().kind,
-                    new_kube_resource.meta().name.clone().unwrap(),
+                    new_kube_resource.name_unchecked(),
                 );
             }
         }
@@ -110,10 +108,7 @@ pub trait RemoteResource<TAPIType: 'static> {
         TDynamic: 'static,
         TAPIType: Send,
     {
-        sync_task::<TAPIType, Self, TDynamic>(
-            Duration::from_secs(60),
-            context,
-        ).boxed()
+        sync_task::<TAPIType, Self, TDynamic>(Duration::from_secs(60), context).boxed()
     }
 
     fn default_error_policy<TDynamic>(obj: Arc<Self>, err: &Error, _ctx: Arc<Context>) -> Action
@@ -123,6 +118,7 @@ pub trait RemoteResource<TAPIType: 'static> {
         Self: Default,
         Self: Clone,
         Self: CustomResourceExt,
+        Self: ResourceExt,
         Self: Debug,
         Self: DeserializeOwned,
         Self: Send,
@@ -139,7 +135,7 @@ pub trait RemoteResource<TAPIType: 'static> {
             "Reconciliation failed for {} {} -- with error {} -- retrying in 30s",
             Self::api_resource().kind,
             err,
-            obj.meta().name.clone().unwrap()
+            obj.name_unchecked()
         );
         Action::requeue(Duration::from_secs(30))
     }

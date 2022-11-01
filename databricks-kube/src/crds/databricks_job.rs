@@ -14,7 +14,6 @@ use databricks_rust_jobs::{
 };
 use std::pin::Pin;
 
-
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
     group = "com.dstancu",
