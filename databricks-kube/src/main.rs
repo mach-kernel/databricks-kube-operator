@@ -1,5 +1,4 @@
 mod context;
-mod controllers;
 mod crds;
 pub mod error;
 pub mod traits;
@@ -13,10 +12,10 @@ use git_version::git_version;
 use kube::Client;
 
 use crate::context::Context;
+use crate::traits::synced_api_resource::SyncedAPIResource;
 use crds::databricks_job::DatabricksJob;
 
-use crate::traits::remote_resource::RemoteResource;
-use controllers::databricks_job;
+// use controllers::databricks_job;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -29,8 +28,8 @@ async fn main() -> Result<()> {
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     join_all(vec![
-        DatabricksJob::spawn_remote_sync_task(ctx.clone()),
-        databricks_job::spawn_controller(ctx.clone()).boxed(),
+        DatabricksJob::spawn_remote_ingest_task(ctx.clone()),
+        DatabricksJob::spawn_controller(ctx.clone()),
     ])
     .await;
 

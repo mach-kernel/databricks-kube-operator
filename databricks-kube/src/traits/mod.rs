@@ -1,1 +1,1 @@
-pub mod remote_resource;
+pub mod synced_api_resource;

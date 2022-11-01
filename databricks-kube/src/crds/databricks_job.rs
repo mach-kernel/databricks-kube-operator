@@ -1,12 +1,15 @@
 use async_stream::try_stream;
 
-use databricks_rust_jobs::models::{job::Job, JobsGet200Response};
+use databricks_rust_jobs::models::{
+    job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
+    JobsGet200Response,
+};
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
 
-use crate::{error::DatabricksKubeError, traits::remote_resource::RemoteResource};
+use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource};
 
 use databricks_rust_jobs::{
     apis::{configuration::Configuration, default_api},
@@ -40,7 +43,14 @@ impl From<Job> for DatabricksJob {
     }
 }
 
-impl RemoteResource<Job> for DatabricksJob {
+/// CRD -> API
+impl From<DatabricksJob> for Job {
+    fn from(value: DatabricksJob) -> Self {
+        value.spec().job.clone()
+    }
+}
+
+impl SyncedAPIResource<Job> for DatabricksJob {
     fn remote_list_all(
         config: Configuration,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {
@@ -67,7 +77,7 @@ impl RemoteResource<Job> for DatabricksJob {
         .boxed()
     }
 
-    fn remote_get_self(
+    fn remote_get(
         &self,
         config: Configuration,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {
@@ -92,5 +102,52 @@ impl RemoteResource<Job> for DatabricksJob {
             }
         }
         .boxed()
+    }
+
+    fn remote_create(
+        &self,
+        config: Configuration,
+    ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
+    where
+        Self: Sized,
+    {
+        let job = self.spec().job.clone();
+        let job_settings = job.settings.as_ref().unwrap().clone();
+
+        try_stream! {
+            let JobsCreate200Response { job_id } = default_api::jobs_create(
+                &config,
+
+                /// TODO: unsupported atm
+                // access_control_list: job.access_control_list
+                Some(JobsCreateRequest {
+                    name: job_settings.name,
+                    tags: job_settings.tags,
+                    tasks: job_settings.tasks,
+                    job_clusters: job_settings.job_clusters,
+                    email_notifications: job_settings.email_notifications,
+                    timeout_seconds: job_settings.timeout_seconds,
+                    schedule: job_settings.schedule,
+                    max_concurrent_runs: job_settings.max_concurrent_runs,
+                    git_source: job_settings.git_source,
+                    format: job_settings.format.map(job_settings_to_create_format),
+                    ..JobsCreateRequest::default()
+                })
+            ).map_err(
+                |e| DatabricksKubeError::APIError(e.to_string())
+            ).await?;
+
+            let mut with_response = self.clone();
+            with_response.spec.job = Job { job_id, ..job };
+            yield with_response
+        }
+        .boxed()
+    }
+}
+
+fn job_settings_to_create_format(value: job_settings::Format) -> jobs_create_request::Format {
+    match value {
+        job_settings::Format::MultiTask => jobs_create_request::Format::MultiTask,
+        job_settings::Format::SingleTask => jobs_create_request::Format::SingleTask,
     }
 }
