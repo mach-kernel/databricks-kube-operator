@@ -1,21 +1,23 @@
 mod config;
 mod crds;
+mod controllers;
 pub mod error;
 pub mod traits;
 
+use std::time::Duration;
+
 use anyhow::Result;
 
-
+use futures::{future::join_all, FutureExt};
 use git_version::git_version;
-use kube::{Api, Client};
+use kube::{api::ListParams, runtime::Controller, Api, Client};
 
-
-
-use crate::config::Config;
-use crds::databricks_job::{DatabricksJob};
-
+use crate::{config::Config, error::DatabricksKubeError};
+use crds::databricks_job::DatabricksJob;
 
 use crate::traits::remote_resource::RemoteResource;
+use controllers::databricks_job;
+use std::pin::Pin;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -25,9 +27,13 @@ async fn main() -> Result<()> {
     let kube_client = Client::try_default().await.expect("Must create client");
     let cfg = Config::new(kube_client.clone()).await?;
 
-    let _kube_jobs = Api::<DatabricksJob>::default_namespaced(kube_client);
+    log::info!("Waiting 10s to select init tasks");
+    tokio::time::sleep(Duration::from_secs(10)).await;
 
-    DatabricksJob::task_sync_remote_to_kube(cfg.clone()).await?;
+    join_all(vec![
+        DatabricksJob::spawn_remote_sync_task(cfg.clone()),
+        databricks_job::spawn_controller(cfg.clone()).boxed(),
+    ]).await;
 
     Ok(())
 }

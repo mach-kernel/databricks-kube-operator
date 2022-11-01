@@ -1,9 +1,9 @@
 use async_stream::try_stream;
 
-use databricks_rust_jobs::models::job::Job;
-use futures::{Stream, StreamExt};
+use databricks_rust_jobs::models::{job::Job, JobsGet200Response};
+use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
-use kube::CustomResource;
+use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
 
 use crate::{error::DatabricksKubeError, traits::remote_resource::RemoteResource};
@@ -13,6 +13,7 @@ use databricks_rust_jobs::{
     models::JobsList200Response,
 };
 use std::pin::Pin;
+use std::sync::Arc;
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
@@ -62,6 +63,33 @@ impl RemoteResource<Job> for DatabricksJob {
 
                 let more = has_more.unwrap_or(false);
                 if !more { break; }
+            }
+        }
+        .boxed()
+    }
+
+    fn remote_get_self(
+        &self,
+        config: Configuration,
+    ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {
+        let job_id = self.spec().job.job_id;
+
+        try_stream! {
+            let JobsGet200Response {
+                job_id,
+                creator_user_name,
+                settings,
+                created_time,
+                ..
+            } = default_api::jobs_get(&config, job_id).map_err(
+                |e| DatabricksKubeError::APIError(e.to_string())
+            ).await?;
+
+            yield Job {
+                job_id,
+                creator_user_name,
+                settings,
+                created_time
             }
         }
         .boxed()

@@ -1,19 +1,26 @@
 use crate::{config::Config, error::DatabricksKubeError};
 
-use databricks_rust_jobs::{
-    apis::{configuration::Configuration},
-};
-use futures::{Stream};
-use futures::{TryStreamExt};
-use k8s_openapi::{NamespaceResourceScope};
-use kube::{
-    api::PostParams,
-    Api, CustomResourceExt, Resource,
-};
+use databricks_rust_jobs::apis::configuration::Configuration;
+use futures::TryStreamExt;
+use futures::{Future, Stream};
+use k8s_openapi::NamespaceResourceScope;
+use kube::api::ListParams;
+use kube::runtime::controller::Action;
+use kube::runtime::Controller;
+use kube::Error;
+use kube::{api::PostParams, Api, CustomResourceExt, Resource};
 use serde::{de::DeserializeOwned, Serialize};
+use std::hash::Hash;
 use std::{fmt::Debug, pin::Pin, time::Duration};
 use tokio::{task::JoinHandle, time::interval};
 
+use std::sync::Arc;
+use futures::FutureExt;
+
+/// Generic sync task for pushing remote API resources into K8S
+/// TAPIType is OpenAPI generated
+/// TCRDType is the operator's wrapper
+/// TDynamic is variable CRD metadata type for kube::Resource (varies)
 async fn sync_task<TAPIType, TCRDType, TDynamic>(
     interval_period: Duration,
     config: Config,
@@ -84,9 +91,9 @@ where
 
 /// Implement this on the macroexpanded CRD type, against the SDK type
 pub trait RemoteResource<TAPIType: 'static> {
-    fn task_sync_remote_to_kube<TDynamic>(
+    fn spawn_remote_sync_task<TDynamic>(
         config: Config,
-    ) -> JoinHandle<Result<(), DatabricksKubeError>>
+    ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + 'static>>
     where
         Self: From<TAPIType>,
         Self: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,
@@ -103,13 +110,46 @@ pub trait RemoteResource<TAPIType: 'static> {
         TDynamic: 'static,
         TAPIType: Send,
     {
-        tokio::spawn(sync_task::<TAPIType, Self, TDynamic>(
+        sync_task::<TAPIType, Self, TDynamic>(
             Duration::from_secs(60),
             config,
-        ))
+        ).boxed()
+    }
+
+    fn default_error_policy<TDynamic>(obj: Arc<Self>, err: &Error, _ctx: Arc<Config>) -> Action
+    where
+        Self: From<TAPIType>,
+        Self: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,
+        Self: Default,
+        Self: Clone,
+        Self: CustomResourceExt,
+        Self: Debug,
+        Self: DeserializeOwned,
+        Self: Send,
+        Self: Serialize,
+        Self: Sync,
+        Self: 'static,
+        TDynamic: Default,
+        TDynamic: Eq,
+        TDynamic: Hash,
+        TDynamic: 'static,
+        TAPIType: Send,
+    {
+        log::error!(
+            "Reconciliation failed for {} {} -- with error {} -- retrying in 30s",
+            Self::api_resource().kind,
+            err,
+            obj.meta().name.clone().unwrap()
+        );
+        Action::requeue(Duration::from_secs(30))
     }
 
     fn remote_list_all(
+        config: Configuration,
+    ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
+
+    fn remote_get_self(
+        &self,
         config: Configuration,
     ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
 }
