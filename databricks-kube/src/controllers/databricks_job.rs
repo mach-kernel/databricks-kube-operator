@@ -7,12 +7,12 @@ use crate::error::DatabricksKubeError;
 use crate::traits::remote_resource::RemoteResource;
 use std::sync::Arc;
 use crate::config::Config;
-use futures::{StreamExt, Stream};
-use std::pin::Pin;
+use futures::{StreamExt};
+
 
 async fn reconcile(
     resource: Arc<DatabricksJob>,
-    context: Arc<Config>
+    _context: Arc<Config>
 ) -> Result<Action, Error> {
     log::info!("Called with {:?}", resource);
     Ok(Action::await_change())

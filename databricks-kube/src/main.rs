@@ -10,14 +10,14 @@ use anyhow::Result;
 
 use futures::{future::join_all, FutureExt};
 use git_version::git_version;
-use kube::{api::ListParams, runtime::Controller, Api, Client};
+use kube::{Client};
 
-use crate::{config::Config, error::DatabricksKubeError};
+use crate::{config::Config};
 use crds::databricks_job::DatabricksJob;
 
 use crate::traits::remote_resource::RemoteResource;
 use controllers::databricks_job;
-use std::pin::Pin;
+
 
 #[tokio::main]
 async fn main() -> Result<()> {

@@ -2,17 +2,17 @@ use crate::{config::Config, error::DatabricksKubeError};
 
 use databricks_rust_jobs::apis::configuration::Configuration;
 use futures::TryStreamExt;
-use futures::{Future, Stream};
+use futures::{Stream};
 use k8s_openapi::NamespaceResourceScope;
-use kube::api::ListParams;
+
 use kube::runtime::controller::Action;
-use kube::runtime::Controller;
+
 use kube::Error;
 use kube::{api::PostParams, Api, CustomResourceExt, Resource};
 use serde::{de::DeserializeOwned, Serialize};
 use std::hash::Hash;
 use std::{fmt::Debug, pin::Pin, time::Duration};
-use tokio::{task::JoinHandle, time::interval};
+use tokio::{time::interval};
 
 use std::sync::Arc;
 use futures::FutureExt;

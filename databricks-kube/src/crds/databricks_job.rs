@@ -1,7 +1,7 @@
 use async_stream::try_stream;
 
 use databricks_rust_jobs::models::{job::Job, JobsGet200Response};
-use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt};
+use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
@@ -13,7 +13,7 @@ use databricks_rust_jobs::{
     models::JobsList200Response,
 };
 use std::pin::Pin;
-use std::sync::Arc;
+
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
