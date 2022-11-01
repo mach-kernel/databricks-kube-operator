@@ -4,6 +4,7 @@ use std::fmt::{Debug, Display};
 use crate::context::CONFIGMAP_NAME;
 
 use databricks_rust_jobs::apis::Error as JobsAPIError;
+use tokio_graceful_shutdown::errors::GracefulShutdownError;
 impl<T> From<JobsAPIError<T>> for DatabricksKubeError
 where
     T: Debug,
@@ -19,6 +20,7 @@ pub enum DatabricksKubeError {
     ConfigMapMissingError,
     CredentialsError,
     CRDMissingError(String),
+    Shutdown(String),
 }
 
 impl Display for DatabricksKubeError {
@@ -37,7 +39,10 @@ impl Display for DatabricksKubeError {
                 "Timed out while waiting for CRD: {}\n\nGet all CRDs by running:\ncargo run --bin crd_gen",
                 crd
             ),
-
+            DatabricksKubeError::Shutdown(s) => format!(
+                "Shutdown requested, exit: {}",
+                s
+            )
         };
         write!(f, "{}", msg)
     }

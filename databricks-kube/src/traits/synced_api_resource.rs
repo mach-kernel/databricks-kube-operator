@@ -222,7 +222,7 @@ pub trait SyncedAPIResource<TAPIType: 'static> {
 
     fn spawn_remote_ingest_task<TDynamic>(
         context: Context,
-    ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + 'static>>
+    ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send + 'static>>
     where
         Self: From<TAPIType>,
         Self: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,
