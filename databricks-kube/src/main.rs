@@ -29,7 +29,8 @@ async fn main() -> Result<()> {
     let cfg = Config::new(kube_client.clone()).await?;
 
     let kube_jobs = Api::<DatabricksJob>::default_namespaced(kube_client);
-    DatabricksJob::task_sync_remote_to_kube(cfg.clone());
+
+    DatabricksJob::task_sync_remote_to_kube(cfg.clone()).await?;
 
     Ok(())
 }

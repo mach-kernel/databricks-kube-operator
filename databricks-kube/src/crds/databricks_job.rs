@@ -19,6 +19,7 @@ use std::pin::Pin;
     group = "com.dstancu",
     version = "v1",
     kind = "DatabricksJob",
+    derive = "Default",
     namespaced
 )]
 pub struct DatabricksJobSpec {
