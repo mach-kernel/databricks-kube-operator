@@ -265,10 +265,10 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         TAPIType: RestConfig<TRestConfig>,
     {
         log::error!(
-            "Reconciliation failed for {} {} -- with error {} -- retrying in 30s",
+            "Reconciliation failed for {} {} (retrying in 30s):\n{}",
             Self::api_resource().kind,
+            obj.name_unchecked(),
             err,
-            obj.name_unchecked()
         );
         Action::requeue(Duration::from_secs(30))
     }

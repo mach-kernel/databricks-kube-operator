@@ -134,19 +134,18 @@ impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
             let config = APICredential::get_rest_config(context.clone()).await.unwrap();
 
             let secret_name = self.spec().secret_name.clone().ok_or(DatabricksKubeError::SecretMissingError)?;
+            log::info!("Reading secret {}", secret_name);
 
             let secrets_api = Api::<Secret>::default_namespaced(context.client.clone());
-            let pat_buf = secrets_api
+            let personal_access_token = secrets_api
                 .get(&secret_name)
                 .await
                 .iter()
                 .flat_map(|s| s.data.clone())
                 .flat_map(|m| m.get("personal_access_token").map(Clone::clone))
-                .flat_map(|bs| decode(bs.clone().0).ok())
+                .flat_map(|buf| std::str::from_utf8(&buf.0).ok().map(ToString::to_string))
                 .next()
                 .ok_or(DatabricksKubeError::SecretMissingError)?;
-
-            let personal_access_token = std::str::from_utf8(&pat_buf).unwrap().to_string();
 
             let new_credential = default_api::create_git_credential(
                 &config,
