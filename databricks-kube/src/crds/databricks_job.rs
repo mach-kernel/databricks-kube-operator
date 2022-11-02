@@ -17,7 +17,7 @@ use databricks_rust_jobs::{
 };
 use std::pin::Pin;
 
-use crate::rest_config::RestConfig;
+use crate::traits::rest_config::RestConfig;
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
@@ -121,7 +121,7 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
         try_stream! {
             let config = Job::get_rest_config(context.clone()).await.unwrap();
-            
+
             let JobsCreate200Response { job_id } = default_api::jobs_create(
                 &config,
 

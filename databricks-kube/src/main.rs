@@ -2,7 +2,6 @@ mod context;
 mod crds;
 pub mod error;
 pub mod traits;
-pub mod rest_config;
 
 
 use std::time::Duration;

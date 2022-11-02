@@ -15,7 +15,7 @@ use databricks_rust_git_credentials::{
 use std::{pin::Pin, time::SystemTime};
 
 use databricks_rust_git_credentials::models::GetCredentialsResponse;
-use crate::rest_config::RestConfig;
+use crate::traits::rest_config::RestConfig;
 use crate::context::Context;
 
 

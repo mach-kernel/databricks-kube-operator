@@ -1,5 +1,5 @@
 use crate::{context::Context, error::DatabricksKubeError};
-use crate::rest_config::RestConfig;
+use crate::traits::rest_config::RestConfig;
 
 
 use futures::Stream;
