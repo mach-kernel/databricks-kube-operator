@@ -1,2 +1,2 @@
 [workspace]
-members = ["databricks-kube", "databricks-rust-jobs"]
+members = ["databricks-kube", "databricks-rust-jobs", "databricks-rust-git-credentials"]

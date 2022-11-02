@@ -19,7 +19,7 @@ use std::pin::Pin;
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
-    group = "com.dstancu",
+    group = "com.dstancu.databricks",
     version = "v1",
     kind = "DatabricksJob",
     derive = "Default",
@@ -50,7 +50,7 @@ impl From<DatabricksJob> for Job {
     }
 }
 
-impl SyncedAPIResource<Job> for DatabricksJob {
+impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
     fn remote_list_all(
         config: Configuration,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {

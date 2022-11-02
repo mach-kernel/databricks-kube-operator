@@ -4,12 +4,23 @@ use std::fmt::{Debug, Display};
 use crate::context::CONFIGMAP_NAME;
 
 use databricks_rust_jobs::apis::Error as JobsAPIError;
-use tokio_graceful_shutdown::errors::GracefulShutdownError;
+use databricks_rust_git_credentials::apis::Error as GitCredentialAPIError;
+
+
 impl<T> From<JobsAPIError<T>> for DatabricksKubeError
 where
     T: Debug,
 {
     fn from(e: JobsAPIError<T>) -> Self {
+        Self::APIError(format!("{}", e))
+    }
+}
+
+impl<T> From<GitCredentialAPIError<T>> for DatabricksKubeError
+where
+    T: Debug,
+{
+    fn from(e: GitCredentialAPIError<T>) -> Self {
         Self::APIError(format!("{}", e))
     }
 }

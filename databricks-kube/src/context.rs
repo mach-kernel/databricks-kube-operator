@@ -1,4 +1,6 @@
-use databricks_rust_jobs::apis::configuration::Configuration;
+use databricks_rust_jobs::apis::configuration::Configuration as JobClientConfig;
+use databricks_rust_git_credentials::apis::configuration::Configuration as GitCredentialClientConfig;
+
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::{
     api::core::v1::ConfigMap,
@@ -32,16 +34,6 @@ pub struct Context {
 }
 
 impl Context {
-    pub async fn make_jobs_rest_config(&self) -> Option<Configuration> {
-        let (url, token) = self.get_databricks_url_token().await?;
-
-        Some(Configuration {
-            base_path: url,
-            bearer_access_token: Some(token),
-            ..Configuration::default()
-        })
-    }
-
     pub async fn get_configmap_key(&self, key: &str) -> Option<String> {
         self.latest_config()
             .await
@@ -68,7 +60,8 @@ impl Context {
         let cm_api = Api::<ConfigMap>::default_namespaced(client.clone());
         let crd_api = Api::<CustomResourceDefinition>::all(client.clone());
 
-        Self::ensure_crd("databricksjobs.com.dstancu", crd_api).await?;
+        Self::ensure_crd("databricksjobs.com.dstancu.databricks", crd_api.clone()).await?;
+        Self::ensure_crd("gitcredentials.com.dstancu.databricks", crd_api).await?;
         Self::ensure_configmap(cm_api.clone()).await?;
 
         let store = Self::watch_configmap(cm_api).await?;

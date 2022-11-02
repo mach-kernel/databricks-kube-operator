@@ -280,6 +280,7 @@ dependencies = [
  "anyhow",
  "assert-json-diff",
  "async-stream",
+ "databricks_rust_git_credentials",
  "databricks_rust_jobs",
  "env_logger",
  "futures",
@@ -295,6 +296,19 @@ dependencies = [
  "tokio",
  "tokio-graceful-shutdown",
  "tokio-stream",
+]
+
+[[package]]
+name = "databricks_rust_git_credentials"
+version = "2.1.0"
+dependencies = [
+ "reqwest",
+ "schemars",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "url",
+ "uuid",
 ]
 
 [[package]]

@@ -1,6 +1,11 @@
 # databricks-kube-operator
 
-A [kube-rs](https://kube.rs/) operator for the [Databricks Jobs 2.1 API](https://docs.databricks.com/dev-tools/api/latest/jobs.html).
+A [kube-rs](https://kube.rs/) operator for the Databricks API:
+
+- [Databricks Jobs 2.1 API](https://docs.databricks.com/dev-tools/api/latest/jobs.html).
+  - `DatabricksJob`
+- [Databricks Git Credentials 2.0 API](https://docs.databricks.com/dev-tools/api/latest/gitcredentials.html)
+  - `GitCredential`
 
 WIP, with more fun stuff daily!
 
@@ -47,13 +52,23 @@ TODO: Fork or fix generator/template issues instead of sed.
 ```bash
 # Hey!! This uses GNU sed
 # brew install gnu-sed
-openapi-generator generate -g rust -i schema/jobs-2.1-aws.yaml -c schema/openapi-generator.yaml -o dbr
+
+# Jobs API
+openapi-generator generate -g rust -i openapi/jobs-2.1-aws.yaml -c openapi/config-jobs.yaml -o dbr_jobs
 
 # Derive JsonSchema for all models and add schemars as dep
-gsed -i -e 's/derive(Clone/derive(JsonSchema, Clone/' dbr/src/models/*
-gsed -i -e 's/\/\*/use schemars::JsonSchema;\n\/\*/' dbr/src/models/*
-gsed -r -i -e 's/(\[dependencies\])/\1\nschemars = "0.8.11"/' dbr/Cargo.toml
+gsed -i -e 's/derive(Clone/derive(JsonSchema, Clone/' dbr_jobs/src/models/*
+gsed -i -e 's/\/\*/use schemars::JsonSchema;\n\/\*/' dbr_jobs/src/models/*
+gsed -r -i -e 's/(\[dependencies\])/\1\nschemars = "0.8.11"/' dbr_jobs/Cargo.toml
 
 # Missing import?
 gsed -r -i -e 's/(use reqwest;)/\1\nuse crate::models::ViewsToExport;/' dbr/src/apis/default_api.rs
+
+# Git Credentials API
+openapi-generator generate -g rust -i openapi/gitcredentials-2.0-aws.yaml -c openapi/config-git.yaml -o dbr_git
+
+# Derive JsonSchema for all models and add schemars as dep
+gsed -i -e 's/derive(Clone/derive(JsonSchema, Clone/' dbr_git/src/models/*
+gsed -i -e 's/\/\*/use schemars::JsonSchema;\n\/\*/' dbr_git/src/models/*
+gsed -r -i -e 's/(\[dependencies\])/\1\nschemars = "0.8.11"/' dbr_git/Cargo.toml
 ```

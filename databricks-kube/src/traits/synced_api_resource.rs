@@ -1,4 +1,5 @@
 use crate::{context::Context, error::DatabricksKubeError};
+use crate::rest_config::RestConfig;
 
 use databricks_rust_jobs::apis::configuration::Configuration;
 use futures::Stream;
@@ -25,13 +26,13 @@ use std::sync::Arc;
 /// TAPIType is OpenAPI generated
 /// TCRDType is the operator's wrapper
 /// TDynamic is variable CRD metadata type for kube::Resource (varies)
-async fn ingest_task<TAPIType, TCRDType, TDynamic>(
+async fn ingest_task<TAPIType, TCRDType, TDynamic, TRestConfig>(
     interval_period: Duration,
     context: Context,
 ) -> Result<(), DatabricksKubeError>
 where
     TCRDType: From<TAPIType>,
-    TCRDType: SyncedAPIResource<TAPIType>,
+    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
     TCRDType: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,
     TCRDType: Default,
     TCRDType: Clone,
@@ -45,6 +46,10 @@ where
     TDynamic: Default,
     TDynamic: 'static,
     TAPIType: 'static,
+    TAPIType: RestConfig<TRestConfig>,
+    TRestConfig: Clone,
+    TRestConfig: Send,
+    TRestConfig: Sync,
 {
     let mut duration = interval(interval_period);
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
@@ -52,14 +57,14 @@ where
     loop {
         duration.tick().await;
 
-        let maybe_rest_config = context.make_jobs_rest_config().await;
+        let rest_config = TAPIType::get_rest_config(context.clone()).await;
 
-        if maybe_rest_config.is_none() {
+        if rest_config.is_none() {
             log::info!("Waiting for REST configuration...");
             continue;
         }
 
-        let rest_config = maybe_rest_config.unwrap();
+        let rest_config = rest_config.unwrap();
 
         log::info!(
             "Looking for uningested {}(s)",
@@ -96,7 +101,7 @@ where
     }
 }
 
-async fn reconcile<TAPIType, TCRDType, TDynamic>(
+async fn reconcile<TAPIType, TCRDType, TDynamic, TRestConfig>(
     resource: Arc<TCRDType>,
     context: Arc<Context>,
 ) -> Result<Action, DatabricksKubeError>
@@ -111,7 +116,7 @@ where
     TCRDType: Send,
     TCRDType: Serialize,
     TCRDType: Sync,
-    TCRDType: SyncedAPIResource<TAPIType>,
+    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
     TCRDType: 'static,
     TDynamic: Default,
     TDynamic: Debug,
@@ -122,13 +127,17 @@ where
     TDynamic: 'static,
     TAPIType: Send,
     TAPIType: 'static,
+    TAPIType: RestConfig<TRestConfig>,
+    TRestConfig: Clone,
+    TRestConfig: Send,
+    TRestConfig: Sync
 {
     log::info!(
         "Reconciling {} {}",
         TCRDType::api_resource().kind,
         resource.name_unchecked()
     );
-    let rest_config = context.make_jobs_rest_config().await;
+    let rest_config = TAPIType::get_rest_config(context.as_ref().clone()).await;
 
     if rest_config.is_none() {
         return Ok(Action::requeue(Duration::from_secs(15)));
@@ -178,7 +187,7 @@ where
 }
 
 /// Implement this on the macroexpanded CRD type, against the SDK type
-pub trait SyncedAPIResource<TAPIType: 'static> {
+pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone> {
     fn spawn_controller<TDynamic>(
         context: Context,
     ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send>>
@@ -204,6 +213,9 @@ pub trait SyncedAPIResource<TAPIType: 'static> {
         TDynamic: Sync,
         TDynamic: 'static,
         TAPIType: Send,
+        TAPIType: RestConfig<TRestConfig>,
+        TRestConfig: Clone,
+        TRestConfig: 'static,
     {
         let root_kind_api = Api::<Self>::default_namespaced(context.client.clone());
 
@@ -238,8 +250,10 @@ pub trait SyncedAPIResource<TAPIType: 'static> {
         TDynamic: Default,
         TDynamic: 'static,
         TAPIType: Send,
+        TAPIType: RestConfig<TRestConfig>,
+        TRestConfig: 'static
     {
-        ingest_task::<TAPIType, Self, TDynamic>(Duration::from_secs(60), context).boxed()
+        ingest_task::<TAPIType, Self, TDynamic, TRestConfig>(Duration::from_secs(60), context).boxed()
     }
 
     fn default_error_policy<TDynamic>(
@@ -265,6 +279,7 @@ pub trait SyncedAPIResource<TAPIType: 'static> {
         TDynamic: Hash,
         TDynamic: 'static,
         TAPIType: Send,
+        TAPIType: RestConfig<TRestConfig>,
     {
         log::error!(
             "Reconciliation failed for {} {} -- with error {} -- retrying in 30s",
@@ -276,17 +291,17 @@ pub trait SyncedAPIResource<TAPIType: 'static> {
     }
 
     fn remote_list_all(
-        config: Configuration,
+        config: TRestConfig,
     ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
 
     fn remote_get(
         &self,
-        config: Configuration,
+        config: TRestConfig,
     ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
 
     fn remote_create(
         &self,
-        config: Configuration,
+        config: TRestConfig,
     ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
     where
         Self: Sized;
