@@ -7,6 +7,7 @@ use databricks_rust_jobs::models::{
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
+use kube::ResourceExt;
 use schemars::JsonSchema;
 
 use crate::{
@@ -132,7 +133,7 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
                 /// TODO: unsupported atm
                 // access_control_list: job.access_control_list
                 Some(JobsCreateRequest {
-                    name: job_settings.name,
+                    name: Some(self.name_unchecked()),
                     tags: job_settings.tags,
                     tasks: job_settings.tasks,
                     job_clusters: job_settings.job_clusters,
