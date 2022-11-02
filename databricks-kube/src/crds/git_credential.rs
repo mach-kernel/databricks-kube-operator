@@ -163,4 +163,25 @@ impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
             yield with_response;
         }.boxed()
     }
+
+    fn remote_delete(
+        &self,
+        context: Arc<Context>,
+    ) -> Pin<Box<dyn Stream<Item = Result<(), DatabricksKubeError>> + Send + '_>> {
+        let credential_id = self.spec().credential.credential_id;
+
+        try_stream! {
+            let config = APICredential::get_rest_config(context.clone()).await.unwrap();
+            default_api::delete_git_credential(
+                &config,
+                &credential_id.map(|i| i.to_string()).unwrap()
+            )
+            .map_err(
+                |e| DatabricksKubeError::APIError(e.to_string())
+            ).await?;
+
+            yield ()
+        }
+        .boxed()
+    }
 }

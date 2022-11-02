@@ -20,6 +20,21 @@ use futures::StreamExt;
 use kube::ResourceExt;
 use std::sync::Arc;
 
+// let owner = self
+//     .annotations()
+//     .get("databricks-operator/owner")
+//     .map(Clone::clone)
+//     .unwrap_or("operator".to_string());
+
+// if owner != "operator" {
+//     log::warn!(
+//         "Tried to call remote_delete() on {} {} with owner {}"
+
+//     ),
+//     yield ();
+//     return;
+// }
+
 /// Generic sync task for pushing remote API resources into K8S
 /// TAPIType is OpenAPI generated
 /// TCRDType is the operator's wrapper
@@ -63,7 +78,7 @@ where
         let mut resource_stream = TCRDType::remote_list_all(context.clone());
 
         while let Ok(Some(api_resource)) = resource_stream.try_next().await {
-            let resource_as_kube: TCRDType = api_resource.into();
+            let mut resource_as_kube: TCRDType = api_resource.into();
             let name = resource_as_kube.name_unchecked();
             let kube_resource = kube_api.get(&name).await;
 
@@ -74,6 +89,10 @@ where
                     name
                 );
             }
+
+            resource_as_kube
+                .annotations_mut()
+                .insert("databricks-operator/owner".to_string(), "api".to_string());
 
             if let Ok(ref new_kube_resource) = kube_api
                 .create(&PostParams::default(), &resource_as_kube)
@@ -129,9 +148,10 @@ where
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
 
+    // If the resource is annotated as owned by the API, we can recreate it
     if latest_remote.is_err() {
         log::info!(
-            "Resource {} {} exists in K8S but not API",
+            "Resource {} {} exists is missing in Databricks",
             TCRDType::api_resource().kind,
             resource.name_unchecked()
         );
@@ -288,4 +308,9 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
     ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
     where
         Self: Sized;
+
+    fn remote_delete(
+        &self,
+        context: Arc<Context>,
+    ) -> Pin<Box<dyn Stream<Item = Result<(), DatabricksKubeError>> + Send + '_>>;
 }

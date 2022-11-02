@@ -2,12 +2,12 @@ use async_stream::try_stream;
 
 use databricks_rust_jobs::models::{
     job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
-    JobsGet200Response,
+    JobsDeleteRequest, JobsGet200Response,
 };
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
-use kube::{core::object::HasSpec, CustomResource};
 use kube::ResourceExt;
+use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
 
 use crate::{
@@ -152,6 +152,26 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
             let mut with_response = self.clone();
             with_response.spec.job = Job { job_id, ..job };
             yield with_response;
+        }
+        .boxed()
+    }
+
+    fn remote_delete(
+        &self,
+        context: Arc<Context>,
+    ) -> Pin<Box<dyn Stream<Item = Result<(), DatabricksKubeError>> + Send + '_>> {
+        let job_id = self.spec().job.job_id;
+
+        try_stream! {
+            let config = Job::get_rest_config(context.clone()).await.unwrap();
+            default_api::jobs_delete(
+                &config,
+                Some(JobsDeleteRequest { job_id: job_id.unwrap(), })
+            ).map_err(
+                |e| DatabricksKubeError::APIError(e.to_string())
+            ).await?;
+
+            yield ()
         }
         .boxed()
     }

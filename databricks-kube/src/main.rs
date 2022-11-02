@@ -51,7 +51,7 @@ async fn main() -> Result<(), DatabricksKubeError> {
             |_: SubsystemHandle<DatabricksKubeError>| git_credential_ingest,
         )
         .catch_signals()
-        .handle_shutdown_requests(Duration::from_secs(1))
+        .handle_shutdown_requests(Duration::from_secs(5))
         .await
         .map_err(|gse| DatabricksKubeError::Shutdown(gse.to_string()))
 }
