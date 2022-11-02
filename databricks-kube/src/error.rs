@@ -31,6 +31,7 @@ pub enum DatabricksKubeError {
     ConfigMapMissingError,
     CredentialsError,
     CRDMissingError(String),
+    SecretMissingError,
     Shutdown(String),
 }
 
@@ -53,7 +54,8 @@ impl Display for DatabricksKubeError {
             DatabricksKubeError::Shutdown(s) => format!(
                 "Shutdown requested, exit: {}",
                 s
-            )
+            ),
+            DatabricksKubeError::SecretMissingError => "The secret referenced by this resource is missing".to_owned()
         };
         write!(f, "{}", msg)
     }

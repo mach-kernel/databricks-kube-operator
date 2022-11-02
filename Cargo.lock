@@ -280,6 +280,7 @@ dependencies = [
  "anyhow",
  "assert-json-diff",
  "async-stream",
+ "base64",
  "databricks_rust_git_credentials",
  "databricks_rust_jobs",
  "env_logger",

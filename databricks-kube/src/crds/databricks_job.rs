@@ -9,7 +9,9 @@ use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
 
-use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource, context::Context};
+use crate::{
+    context::Context, error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource,
+};
 
 use databricks_rust_jobs::{
     apis::{configuration::Configuration, default_api},
@@ -88,7 +90,7 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
         try_stream! {
             let config = Job::get_rest_config(context.clone()).await.unwrap();
-            
+
             let JobsGet200Response {
                 job_id,
                 creator_user_name,
@@ -146,7 +148,7 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
             let mut with_response = self.clone();
             with_response.spec.job = Job { job_id, ..job };
-            yield with_response
+            yield with_response;
         }
         .boxed()
     }

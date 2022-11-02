@@ -1,6 +1,5 @@
-use crate::{context::Context, error::DatabricksKubeError};
 use crate::traits::rest_config::RestConfig;
-
+use crate::{context::Context, error::DatabricksKubeError};
 
 use futures::Stream;
 use futures::TryStreamExt;
@@ -9,7 +8,6 @@ use k8s_openapi::NamespaceResourceScope;
 use kube::api::ListParams;
 use kube::runtime::controller::Action;
 use kube::runtime::Controller;
-
 
 use kube::{api::PostParams, Api, CustomResourceExt, Resource};
 use serde::{de::DeserializeOwned, Serialize};
@@ -121,20 +119,13 @@ where
     TAPIType: RestConfig<TRestConfig>,
     TRestConfig: Clone,
     TRestConfig: Send,
-    TRestConfig: Sync
+    TRestConfig: Sync,
 {
     log::info!(
         "Reconciling {} {}",
         TCRDType::api_resource().kind,
         resource.name_unchecked()
     );
-    // let rest_config = TAPIType::get_rest_config(context.as_ref().clone()).await;
-
-    // if rest_config.is_none() {
-    //     return Ok(Action::requeue(Duration::from_secs(15)));
-    // }
-
-    // let rest_config = rest_config.unwrap();
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource
         .remote_get(context.as_ref().clone())
@@ -154,7 +145,11 @@ where
             resource.name_unchecked()
         );
 
-        let created = resource.remote_create(context.as_ref().clone()).next().await.unwrap()?;
+        let created = resource
+            .remote_create(context.as_ref().clone())
+            .next()
+            .await
+            .unwrap()?;
 
         log::info!(
             "Created {} {} in Databricks",
@@ -242,9 +237,10 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         TDynamic: 'static,
         TAPIType: Send,
         TAPIType: RestConfig<TRestConfig>,
-        TRestConfig: 'static
+        TRestConfig: 'static,
     {
-        ingest_task::<TAPIType, Self, TDynamic, TRestConfig>(Duration::from_secs(60), context).boxed()
+        ingest_task::<TAPIType, Self, TDynamic, TRestConfig>(Duration::from_secs(60), context)
+            .boxed()
     }
 
     fn default_error_policy<TDynamic>(

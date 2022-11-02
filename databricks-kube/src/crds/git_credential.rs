@@ -6,6 +6,11 @@ use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
 
+use kube::{api::PostParams, Api};
+use k8s_openapi::api::core::v1::Secret;
+use base64::decode;
+
+
 use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource};
 
 use databricks_rust_git_credentials::{
@@ -17,6 +22,9 @@ use std::{pin::Pin, time::SystemTime};
 use databricks_rust_git_credentials::models::GetCredentialsResponse;
 use crate::traits::rest_config::RestConfig;
 use crate::context::Context;
+
+use databricks_rust_git_credentials::models::CreateCredentialRequest;
+use k8s_openapi::ByteString;
 
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
@@ -97,46 +105,47 @@ impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
         .boxed()
     }
 
-    // you have a problem -- go change the interface so this consumes a Context
-    // you will also need to make a k8s api call to read the secrets
     fn remote_create(
         &self,
-        _context: Context,
+        context: Context,
     ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
     where
         Self: Sized,
     {
-        todo!();
-        // let job = self.spec().job.clone();
-        // let job_settings = job.settings.as_ref().unwrap().clone();
+        let credential = self.spec().credential.clone();
 
-        // try_stream! {
-        //     let JobsCreate200Response { job_id } = default_api::jobs_create(
-        //         &config,
+        try_stream! {
+            let config = APICredential::get_rest_config(context.clone()).await.unwrap();
 
-        //         /// TODO: unsupported atm
-        //         // access_control_list: job.access_control_list
-        //         Some(JobsCreateRequest {
-        //             name: job_settings.name,
-        //             tags: job_settings.tags,
-        //             tasks: job_settings.tasks,
-        //             job_clusters: job_settings.job_clusters,
-        //             email_notifications: job_settings.email_notifications,
-        //             timeout_seconds: job_settings.timeout_seconds,
-        //             schedule: job_settings.schedule,
-        //             max_concurrent_runs: job_settings.max_concurrent_runs,
-        //             git_source: job_settings.git_source,
-        //             format: job_settings.format.map(job_settings_to_create_format),
-        //             ..JobsCreateRequest::default()
-        //         })
-        //     ).map_err(
-        //         |e| DatabricksKubeError::APIError(e.to_string())
-        //     ).await?;
+            let secret_name = self.spec().secret_name.clone().ok_or(DatabricksKubeError::SecretMissingError)?;
 
-        //     let mut with_response = self.clone();
-        //     with_response.spec.job = Job { job_id, ..job };
-        //     yield with_response
-        // }
-        // .boxed()
+            let secrets_api = Api::<Secret>::default_namespaced(context.client.clone());
+            let pat_buf = secrets_api
+                .get(&secret_name)
+                .await
+                .iter()
+                .flat_map(|s| s.data.clone())
+                .flat_map(|m| m.get("personal_access_token").map(Clone::clone))
+                .flat_map(|bs| decode(bs.clone().0).ok())
+                .next()
+                .ok_or(DatabricksKubeError::SecretMissingError)?;
+
+            let personal_access_token = std::str::from_utf8(&pat_buf).unwrap().to_string();
+
+            let new_credential = default_api::create_git_credential(
+                &config,
+                CreateCredentialRequest {
+                    personal_access_token,
+                    git_username: credential.git_username.unwrap(),
+                    git_provider: credential.git_provider.unwrap(),
+                }
+            ).map_err(
+                |e| DatabricksKubeError::APIError(e.to_string())
+            ).await?;
+
+            let mut with_response = self.clone();
+            with_response.spec.credential = new_credential;
+            yield with_response;
+        }.boxed()
     }
 }
