@@ -1,31 +1,29 @@
 use async_stream::try_stream;
 
-
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
 
-use kube::{api::PostParams, Api};
-use k8s_openapi::api::core::v1::Secret;
 use base64::decode;
-
+use k8s_openapi::api::core::v1::Secret;
+use kube::{api::PostParams, Api};
 
 use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource};
 
 use databricks_rust_git_credentials::{
     apis::{configuration::Configuration, default_api},
-    models::{GetCredentialResponse as APICredential},
+    models::GetCredentialResponse as APICredential,
 };
 use std::{pin::Pin, time::SystemTime};
 
-use databricks_rust_git_credentials::models::GetCredentialsResponse;
-use crate::traits::rest_config::RestConfig;
 use crate::context::Context;
+use crate::traits::rest_config::RestConfig;
+use databricks_rust_git_credentials::models::GetCredentialsResponse;
 
 use databricks_rust_git_credentials::models::CreateCredentialRequest;
 use k8s_openapi::ByteString;
-
+use std::sync::Arc;
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
@@ -39,7 +37,7 @@ pub struct GitCredentialSpec {
     pub credential: APICredential,
     // The user provides an API token during a create request, but it
     // is otherwise no longer retrievable. Even with Helm/GitOps workflow,
-    // the secret doesn't have to be checked in and could come from AWS 
+    // the secret doesn't have to be checked in and could come from AWS
     // SSM or secrets manager.
     pub secret_name: Option<String>,
 }
@@ -52,10 +50,22 @@ impl From<APICredential> for GitCredential {
         } else if let Some(git_username) = &credential.git_username {
             git_username.clone()
         } else {
-            format!("noname-{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs())
+            format!(
+                "noname-{}",
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+            )
         };
 
-        Self::new(&credential_name, GitCredentialSpec { credential, secret_name: None })
+        Self::new(
+            &credential_name,
+            GitCredentialSpec {
+                credential,
+                secret_name: None,
+            },
+        )
     }
 }
 
@@ -68,7 +78,7 @@ impl From<GitCredential> for APICredential {
 
 impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
     fn remote_list_all(
-        context: Context,
+        context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<APICredential, DatabricksKubeError>> + Send>> {
         try_stream! {
             let config = APICredential::get_rest_config(context.clone()).await.unwrap();
@@ -89,14 +99,20 @@ impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
 
     fn remote_get(
         &self,
-        context: Context,
+        context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<APICredential, DatabricksKubeError>> + Send>> {
-        let credential_id = self.spec().credential.credential_id;
+        let credential_id =
+            self.spec()
+                .credential
+                .credential_id
+                .ok_or(DatabricksKubeError::APIError(
+                    "Remote resource cannot exist".to_string(),
+                ));
 
         try_stream! {
             let config = APICredential::get_rest_config(context.clone()).await.unwrap();
-            
-            let res = default_api::get_git_credential(&config, &credential_id.unwrap().to_string()).map_err(
+
+            let res = default_api::get_git_credential(&config, &credential_id?.to_string()).map_err(
                 |e| DatabricksKubeError::APIError(e.to_string())
             ).await?;
 
@@ -107,7 +123,7 @@ impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
 
     fn remote_create(
         &self,
-        context: Context,
+        context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
     where
         Self: Sized,

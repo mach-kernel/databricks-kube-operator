@@ -21,6 +21,8 @@ use std::pin::Pin;
 
 use crate::traits::rest_config::RestConfig;
 
+use std::sync::Arc;
+
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
     group = "com.dstancu.databricks",
@@ -56,7 +58,7 @@ impl From<DatabricksJob> for Job {
 
 impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
     fn remote_list_all(
-        context: Context,
+        context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {
         try_stream! {
             let mut offset: i32 = 0;
@@ -84,7 +86,7 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
     fn remote_get(
         &self,
-        context: Context,
+        context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {
         let job_id = self.spec().job.job_id;
 
@@ -113,7 +115,7 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
     fn remote_create(
         &self,
-        context: Context,
+        context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
     where
         Self: Sized,

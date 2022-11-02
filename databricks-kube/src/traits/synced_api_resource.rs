@@ -26,7 +26,7 @@ use std::sync::Arc;
 /// TDynamic is variable CRD metadata type for kube::Resource (varies)
 async fn ingest_task<TAPIType, TCRDType, TDynamic, TRestConfig>(
     interval_period: Duration,
-    context: Context,
+    context: Arc<Context>,
 ) -> Result<(), DatabricksKubeError>
 where
     TCRDType: From<TAPIType>,
@@ -127,11 +127,7 @@ where
         resource.name_unchecked()
     );
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
-    let latest_remote = resource
-        .remote_get(context.as_ref().clone())
-        .next()
-        .await
-        .unwrap();
+    let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
 
     if latest_remote.is_err() {
         log::info!(
@@ -146,7 +142,7 @@ where
         );
 
         let created = resource
-            .remote_create(context.as_ref().clone())
+            .remote_create(context.clone())
             .next()
             .await
             .unwrap()?;
@@ -175,7 +171,7 @@ where
 /// Implement this on the macroexpanded CRD type, against the SDK type
 pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone> {
     fn spawn_controller<TDynamic>(
-        context: Context,
+        context: Arc<Context>,
     ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send>>
     where
         Self: From<TAPIType>,
@@ -219,7 +215,7 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
     }
 
     fn spawn_remote_ingest_task<TDynamic>(
-        context: Context,
+        context: Arc<Context>,
     ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send + 'static>>
     where
         Self: From<TAPIType>,
@@ -278,17 +274,17 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
     }
 
     fn remote_list_all(
-        context: Context,
+        context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
 
     fn remote_get(
         &self,
-        context: Context,
+        context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
 
     fn remote_create(
         &self,
-        context: Context,
+        context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
     where
         Self: Sized;

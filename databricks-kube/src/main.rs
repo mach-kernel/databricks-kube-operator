@@ -28,8 +28,6 @@ async fn main() -> Result<(), DatabricksKubeError> {
     let kube_client = Client::try_default().await.expect("Must create client");
     let ctx = Context::new(kube_client.clone()).await?;
 
-    tokio::time::sleep(Duration::from_secs(5)).await;
-
     let job_controller = DatabricksJob::spawn_controller(ctx.clone());
     let job_ingest = DatabricksJob::spawn_remote_ingest_task(ctx.clone());
 

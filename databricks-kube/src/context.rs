@@ -53,7 +53,7 @@ impl Context {
             .next()
     }
 
-    pub async fn new(client: Client) -> Result<Context, DatabricksKubeError> {
+    pub async fn new(client: Client) -> Result<Arc<Context>, DatabricksKubeError> {
         let cm_api = Api::<ConfigMap>::default_namespaced(client.clone());
         let crd_api = Api::<CustomResourceDefinition>::all(client.clone());
 
@@ -63,7 +63,7 @@ impl Context {
 
         let store = Self::watch_configmap(cm_api).await?;
 
-        Ok(Self { client, store })
+        Ok(Self { client, store }.into())
     }
 
     async fn watch_configmap(

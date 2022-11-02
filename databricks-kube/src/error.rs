@@ -3,9 +3,8 @@ use std::fmt::{Debug, Display};
 
 use crate::context::CONFIGMAP_NAME;
 
-use databricks_rust_jobs::apis::Error as JobsAPIError;
 use databricks_rust_git_credentials::apis::Error as GitCredentialAPIError;
-
+use databricks_rust_jobs::apis::Error as JobsAPIError;
 
 impl<T> From<JobsAPIError<T>> for DatabricksKubeError
 where
