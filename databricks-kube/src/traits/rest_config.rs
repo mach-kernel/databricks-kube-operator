@@ -57,7 +57,7 @@ impl RestConfig<GitCredentialClientConfig> for GitCredential {
 
             let (url, token) = context.get_databricks_url_token().await?;
             Some(GitCredentialClientConfig {
-                base_path: url,
+                base_path: format!("{}/2.0", url),
                 bearer_access_token: Some(token),
                 ..GitCredentialClientConfig::default()
             })
