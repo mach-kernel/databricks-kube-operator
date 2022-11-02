@@ -9,13 +9,15 @@ use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
 
-use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource};
+use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource, context::Context};
 
 use databricks_rust_jobs::{
     apis::{configuration::Configuration, default_api},
     models::JobsList200Response,
 };
 use std::pin::Pin;
+
+use crate::rest_config::RestConfig;
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
@@ -52,10 +54,11 @@ impl From<DatabricksJob> for Job {
 
 impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
     fn remote_list_all(
-        config: Configuration,
+        context: Context,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {
         try_stream! {
             let mut offset: i32 = 0;
+            let config = Job::get_rest_config(context.clone()).await.unwrap();
 
             while let JobsList200Response {
                 jobs,
@@ -79,11 +82,13 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
     fn remote_get(
         &self,
-        config: Configuration,
+        context: Context,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {
         let job_id = self.spec().job.job_id;
 
         try_stream! {
+            let config = Job::get_rest_config(context.clone()).await.unwrap();
+            
             let JobsGet200Response {
                 job_id,
                 creator_user_name,
@@ -106,7 +111,7 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
     fn remote_create(
         &self,
-        config: Configuration,
+        context: Context,
     ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
     where
         Self: Sized,
@@ -115,6 +120,8 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
         let job_settings = job.settings.as_ref().unwrap().clone();
 
         try_stream! {
+            let config = Job::get_rest_config(context.clone()).await.unwrap();
+            
             let JobsCreate200Response { job_id } = default_api::jobs_create(
                 &config,
 

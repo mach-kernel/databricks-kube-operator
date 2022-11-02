@@ -1,9 +1,6 @@
 use async_stream::try_stream;
 
-use databricks_rust_jobs::models::{
-    job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
-    JobsGet200Response,
-};
+
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
@@ -18,6 +15,8 @@ use databricks_rust_git_credentials::{
 use std::{pin::Pin, time::SystemTime};
 
 use databricks_rust_git_credentials::models::GetCredentialsResponse;
+use crate::rest_config::RestConfig;
+use crate::context::Context;
 
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
@@ -61,9 +60,11 @@ impl From<GitCredential> for APICredential {
 
 impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
     fn remote_list_all(
-        config: Configuration,
+        context: Context,
     ) -> Pin<Box<dyn Stream<Item = Result<APICredential, DatabricksKubeError>> + Send>> {
         try_stream! {
+            let config = APICredential::get_rest_config(context.clone()).await.unwrap();
+
             while let GetCredentialsResponse {
                 credentials,
                 ..
@@ -80,11 +81,13 @@ impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
 
     fn remote_get(
         &self,
-        config: Configuration,
+        context: Context,
     ) -> Pin<Box<dyn Stream<Item = Result<APICredential, DatabricksKubeError>> + Send>> {
         let credential_id = self.spec().credential.credential_id;
 
         try_stream! {
+            let config = APICredential::get_rest_config(context.clone()).await.unwrap();
+            
             let res = default_api::get_git_credential(&config, &credential_id.unwrap().to_string()).map_err(
                 |e| DatabricksKubeError::APIError(e.to_string())
             ).await?;
@@ -94,9 +97,11 @@ impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
         .boxed()
     }
 
+    // you have a problem -- go change the interface so this consumes a Context
+    // you will also need to make a k8s api call to read the secrets
     fn remote_create(
         &self,
-        config: Configuration,
+        _context: Context,
     ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
     where
         Self: Sized,

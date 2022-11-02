@@ -4,12 +4,12 @@ pub mod error;
 pub mod traits;
 pub mod rest_config;
 
-use std::borrow::Borrow;
+
 use std::time::Duration;
 
 use anyhow::Result;
 
-use futures::{future::join_all, FutureExt};
+
 use git_version::git_version;
 use kube::Client;
 use tokio_graceful_shutdown::{Toplevel, SubsystemHandle};
@@ -22,7 +22,7 @@ use crds::git_credential::GitCredential;
 use error::DatabricksKubeError;
 
 // use controllers::databricks_job;
-use std::sync::Arc;
+
 
 #[tokio::main]
 async fn main() -> Result<(), DatabricksKubeError> {

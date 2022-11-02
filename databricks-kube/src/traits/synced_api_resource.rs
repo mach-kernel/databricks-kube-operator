@@ -1,7 +1,7 @@
 use crate::{context::Context, error::DatabricksKubeError};
 use crate::rest_config::RestConfig;
 
-use databricks_rust_jobs::apis::configuration::Configuration;
+
 use futures::Stream;
 use futures::TryStreamExt;
 use k8s_openapi::NamespaceResourceScope;
@@ -10,7 +10,7 @@ use kube::api::ListParams;
 use kube::runtime::controller::Action;
 use kube::runtime::Controller;
 
-use kube::Error;
+
 use kube::{api::PostParams, Api, CustomResourceExt, Resource};
 use serde::{de::DeserializeOwned, Serialize};
 use std::hash::Hash;
@@ -57,21 +57,12 @@ where
     loop {
         duration.tick().await;
 
-        let rest_config = TAPIType::get_rest_config(context.clone()).await;
-
-        if rest_config.is_none() {
-            log::info!("Waiting for REST configuration...");
-            continue;
-        }
-
-        let rest_config = rest_config.unwrap();
-
         log::info!(
             "Looking for uningested {}(s)",
             TCRDType::api_resource().kind
         );
 
-        let mut resource_stream = TCRDType::remote_list_all(rest_config);
+        let mut resource_stream = TCRDType::remote_list_all(context.clone());
 
         while let Ok(Some(api_resource)) = resource_stream.try_next().await {
             let resource_as_kube: TCRDType = api_resource.into();
@@ -137,16 +128,16 @@ where
         TCRDType::api_resource().kind,
         resource.name_unchecked()
     );
-    let rest_config = TAPIType::get_rest_config(context.as_ref().clone()).await;
+    // let rest_config = TAPIType::get_rest_config(context.as_ref().clone()).await;
 
-    if rest_config.is_none() {
-        return Ok(Action::requeue(Duration::from_secs(15)));
-    }
+    // if rest_config.is_none() {
+    //     return Ok(Action::requeue(Duration::from_secs(15)));
+    // }
 
-    let rest_config = rest_config.unwrap();
+    // let rest_config = rest_config.unwrap();
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource
-        .remote_get(rest_config.clone())
+        .remote_get(context.as_ref().clone())
         .next()
         .await
         .unwrap();
@@ -163,7 +154,7 @@ where
             resource.name_unchecked()
         );
 
-        let created = resource.remote_create(rest_config).next().await.unwrap()?;
+        let created = resource.remote_create(context.as_ref().clone()).next().await.unwrap()?;
 
         log::info!(
             "Created {} {} in Databricks",
@@ -171,7 +162,7 @@ where
             resource.name_unchecked()
         );
 
-        if let Ok(r) = kube_api
+        if let Ok(_r) = kube_api
             .replace(&resource.name_unchecked(), &PostParams::default(), &created)
             .await
         {
@@ -291,17 +282,17 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
     }
 
     fn remote_list_all(
-        config: TRestConfig,
+        context: Context,
     ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
 
     fn remote_get(
         &self,
-        config: TRestConfig,
+        context: Context,
     ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
 
     fn remote_create(
         &self,
-        config: TRestConfig,
+        context: Context,
     ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
     where
         Self: Sized;
