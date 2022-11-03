@@ -46,7 +46,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ghcr.io/databricks-kube-operator
+          images: ghcr.io/${{ github.repository }}
       - uses: actions/download-artifact@v3
         with:
           name: crd_gen
