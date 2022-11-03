@@ -21,21 +21,6 @@ use futures::StreamExt;
 use kube::ResourceExt;
 use std::sync::Arc;
 
-// let owner = self
-//     .annotations()
-//     .get("databricks-operator/owner")
-//     .map(Clone::clone)
-//     .unwrap_or("operator".to_string());
-
-// if owner != "operator" {
-//     log::warn!(
-//         "Tried to call remote_delete() on {} {} with owner {}"
-
-//     ),
-//     yield ();
-//     return;
-// }
-
 /// Generic sync task for pushing remote API resources into K8S
 /// TAPIType is OpenAPI generated
 /// TCRDType is the operator's wrapper
@@ -194,7 +179,7 @@ where
     let latest_remote = latest_remote.unwrap();
     let kube_as_api: TAPIType = resource.as_ref().clone().into();
 
-    if kube_as_api != latest_remote {
+    if latest_remote != kube_as_api {
         log::info!(
             "Resource {} {} drifted!\nDiff (remote, kube):\n{}",
             TCRDType::api_resource().kind,
@@ -206,6 +191,32 @@ where
             )
             .unwrap_err()
         );
+    }
+
+    let owner = resource
+        .annotations()
+        .get("databricks-operator/owner")
+        .map(Clone::clone)
+        .unwrap_or("operator".to_string());
+
+    if (latest_remote != kube_as_api) && (owner == "operator") {
+        log::info!(
+            "Resource {} {} is owned by databricks-kube-operator, reconciling drift...",
+            TCRDType::api_resource().kind,
+            resource.name_unchecked()
+        );
+
+        let updated = resource.remote_update(context.clone()).next().await.unwrap()?;
+        if let Ok(_r) = kube_api
+            .replace(&resource.name_unchecked(), &PostParams::default(), &updated)
+            .await
+        {
+            log::info!(
+                "Updated {} {} in K8S",
+                TCRDType::api_resource().kind,
+                resource.name_unchecked()
+            );
+        }
     }
 
     Ok(Action::await_change())
