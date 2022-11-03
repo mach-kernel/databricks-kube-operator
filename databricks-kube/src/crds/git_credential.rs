@@ -5,9 +5,9 @@ use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
 
-use base64::decode;
+
 use k8s_openapi::api::core::v1::Secret;
-use kube::{api::PostParams, Api};
+use kube::{Api};
 
 use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource};
 
@@ -23,7 +23,7 @@ use databricks_rust_git_credentials::models::GetCredentialsResponse;
 
 use databricks_rust_git_credentials::models::CreateCredentialRequest;
 use databricks_rust_git_credentials::models::UpdateCredentialRequest;
-use k8s_openapi::ByteString;
+
 use std::sync::Arc;
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]

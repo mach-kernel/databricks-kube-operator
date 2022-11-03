@@ -2,7 +2,7 @@ use async_stream::try_stream;
 
 use databricks_rust_jobs::models::{
     job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
-    JobsDeleteRequest, JobsGet200Response, JobsUpdateRequest, JobSettings,
+    JobsDeleteRequest, JobsGet200Response, JobsUpdateRequest,
 };
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
