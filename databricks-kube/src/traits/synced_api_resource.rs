@@ -217,6 +217,12 @@ where
                 resource.name_unchecked()
             );
         }
+    } else if latest_remote != kube_as_api {
+        log::info!(
+            "Resource {} {} is not owned by databricks-kube-operator!\nIngested resources are databricks-operator/owner: api\nCreate your resource with databricks-kube-operator to reconcile.",
+            TCRDType::api_resource().kind,
+            resource.name_unchecked()
+        );
     }
 
     Ok(Action::await_change())
