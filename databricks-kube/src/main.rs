@@ -28,11 +28,11 @@ async fn main() -> Result<(), DatabricksKubeError> {
     let kube_client = Client::try_default().await.expect("Must create client");
     let ctx = Context::new(kube_client.clone()).await?;
 
-    let job_controller = DatabricksJob::spawn_controller(ctx.clone());
-    let job_ingest = DatabricksJob::spawn_remote_ingest_task(ctx.clone());
+    let job_controller = DatabricksJob::controller(ctx.clone());
+    let job_ingest = DatabricksJob::ingest_task(ctx.clone());
 
-    let git_credential_controller = GitCredential::spawn_controller(ctx.clone());
-    let git_credential_ingest = GitCredential::spawn_remote_ingest_task(ctx.clone());
+    let git_credential_controller = GitCredential::controller(ctx.clone());
+    let git_credential_ingest = GitCredential::ingest_task(ctx.clone());
 
     Toplevel::new()
         .start(

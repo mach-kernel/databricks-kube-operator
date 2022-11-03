@@ -6,9 +6,10 @@ use futures::Stream;
 use futures::TryStreamExt;
 use k8s_openapi::NamespaceResourceScope;
 
-use kube::api::ListParams;
+use kube::api::{ListParams, PatchParams, Patch};
 use kube::runtime::controller::Action;
-use kube::runtime::Controller;
+use kube::runtime::watcher::Event;
+use kube::runtime::{Controller, watcher};
 
 use kube::{api::PostParams, Api, CustomResourceExt, Resource};
 use serde::{de::DeserializeOwned, Serialize};
@@ -20,6 +21,8 @@ use futures::FutureExt;
 use futures::StreamExt;
 use kube::ResourceExt;
 use std::sync::Arc;
+use tokio::task::JoinHandle;
+use futures::TryFutureExt;
 
 /// Generic sync task for pushing remote API resources into K8S
 /// TAPIType is OpenAPI generated
@@ -95,6 +98,88 @@ where
     }
 }
 
+async fn spawn_delete_watcher<TAPIType, TCRDType, TDynamic, TRestConfig>(
+    resource: Arc<TCRDType>,
+    context: Arc<Context>,
+) -> JoinHandle<Result<(), DatabricksKubeError>>
+where
+    TCRDType: From<TAPIType>,
+    TCRDType: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,
+    TCRDType: Default,
+    TCRDType: Clone,
+    TCRDType: CustomResourceExt,
+    TCRDType: Debug,
+    TCRDType: DeserializeOwned,
+    TCRDType: Send,
+    TCRDType: Serialize,
+    TCRDType: Sync,
+    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: 'static,
+    TDynamic: Default,
+    TDynamic: Debug,
+    TDynamic: Clone,
+    TDynamic: Unpin,
+    TDynamic: Eq,
+    TDynamic: Hash,
+    TDynamic: 'static,
+    TAPIType: Send,
+    TAPIType: 'static,
+    TAPIType: RestConfig<TRestConfig>,
+    TAPIType: From<TCRDType>,
+    TAPIType: PartialEq,
+    TAPIType: Serialize,
+    TRestConfig: Clone,
+    TRestConfig: Send,
+    TRestConfig: Sync, {
+        let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
+
+        let params = ListParams {
+            field_selector: Some(format!("metadata.name={}", resource.name_unchecked())),
+            ..ListParams::default()
+        };
+
+        tokio::spawn(async move {
+            let mut watcher = watcher::watcher(
+                kube_api,
+                params
+            ).boxed();
+
+            while let Some(event) = watcher.try_next().map_err(|e| DatabricksKubeError::ConfigMapMissingError).await? {
+                if let Event::Deleted(r) = event {
+                    let owner = r
+                        .annotations()
+                        .get("databricks-operator/owner")
+                        .map(Clone::clone)
+                        .unwrap_or("operator".to_string());
+
+                    if owner != "operator" {
+                        break;
+                    }
+
+                    log::info!(
+                        "Removing {} {} from Databricks",
+                        TCRDType::api_resource().kind,
+                        resource.name_unchecked()
+                    );
+
+                    resource.remote_delete(context.clone()).next().await;
+            
+                    log::info!(
+                        "Removed {} {} from Databricks",
+                        TCRDType::api_resource().kind,
+                        resource.name_unchecked()
+                    );
+
+                    context.delete_watchers.remove_entry(&resource.name_unchecked());
+
+                    return Ok(());
+                }
+            }
+
+            Ok(())
+        })
+    }
+
 async fn reconcile<TAPIType, TCRDType, TDynamic, TRestConfig>(
     resource: Arc<TCRDType>,
     context: Arc<Context>,
@@ -129,23 +214,14 @@ where
     TRestConfig: Send,
     TRestConfig: Sync,
 {
-    log::info!(
-        "Reconciling {} {}",
-        TCRDType::api_resource().kind,
-        resource.name_unchecked()
-    );
+
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
 
     // If the resource is annotated as owned by the API, we can recreate it
     if latest_remote.is_err() {
         log::info!(
-            "Resource {} {} exists is missing in Databricks",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked()
-        );
-        log::info!(
-            "Creating {} {} in Databricks",
+            "Resource {} {} is missing in Databricks, creating",
             TCRDType::api_resource().kind,
             resource.name_unchecked()
         );
@@ -162,22 +238,30 @@ where
             resource.name_unchecked()
         );
 
-        if let Ok(_r) = kube_api
+        kube_api
             .replace(&resource.name_unchecked(), &PostParams::default(), &created)
             .await
-        {
-            log::info!(
-                "Updated {} {} in K8S",
-                TCRDType::api_resource().kind,
-                resource.name_unchecked()
-            );
-        }
+            .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
 
-        return Ok(Action::requeue(Duration::from_secs(5)));
+        log::info!(
+            "Updated {} {} in K8S",
+            TCRDType::api_resource().kind,
+            resource.name_unchecked()
+        );
+
+        return Ok(Action::await_change());
+    }
+
+    if context.delete_watchers.lookup(&resource.name_unchecked(), |v| true).is_none() {
+        spawn_delete_watcher(resource.clone(), context.clone()).await;
     }
 
     let latest_remote = latest_remote.unwrap();
-    let kube_as_api: TAPIType = resource.as_ref().clone().into();
+    let kube_as_api: TAPIType = kube_api
+        .get(&resource.name_unchecked())
+        .await
+        .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?
+        .into();
 
     if latest_remote != kube_as_api {
         log::info!(
@@ -207,16 +291,17 @@ where
         );
 
         let updated = resource.remote_update(context.clone()).next().await.unwrap()?;
-        if let Ok(_r) = kube_api
+
+        kube_api
             .replace(&resource.name_unchecked(), &PostParams::default(), &updated)
             .await
-        {
-            log::info!(
-                "Updated {} {} in K8S",
-                TCRDType::api_resource().kind,
-                resource.name_unchecked()
-            );
-        }
+            .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
+
+        log::info!(
+            "Updated {} {} in K8S",
+            TCRDType::api_resource().kind,
+            resource.name_unchecked()
+        );
     } else if latest_remote != kube_as_api {
         log::info!(
             "Resource {} {} is not owned by databricks-kube-operator!\nIngested resources are databricks-operator/owner: api\nCreate your resource with databricks-kube-operator to reconcile.",
@@ -230,7 +315,7 @@ where
 
 /// Implement this on the macroexpanded CRD type, against the SDK type
 pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone> {
-    fn spawn_controller<TDynamic>(
+    fn controller<TDynamic>(
         context: Arc<Context>,
     ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send>>
     where
@@ -269,15 +354,15 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
             .run(reconcile, Self::default_error_policy, context.into())
             .for_each(|r| async move {
                 match r {
-                    Ok(_) => log::info!("Reconcile success!"),
-                    Err(_) => log::info!("Reconcile fail!"),
+                    Ok((object, _)) => log::info!("{} reconciled", object.name),
+                    Err(e) => log::info!("{}", e),
                 }
             })
             .map(|()| Ok(()))
             .boxed()
     }
 
-    fn spawn_remote_ingest_task<TDynamic>(
+    fn ingest_task<TDynamic>(
         context: Arc<Context>,
     ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send + 'static>>
     where

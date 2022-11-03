@@ -32,6 +32,7 @@ pub enum DatabricksKubeError {
     CRDMissingError(String),
     SecretMissingError,
     Shutdown(String),
+    ResourceUpdateError(String),
 }
 
 impl Display for DatabricksKubeError {
@@ -54,7 +55,8 @@ impl Display for DatabricksKubeError {
                 "Shutdown requested, exit: {}",
                 s
             ),
-            DatabricksKubeError::SecretMissingError => "The secret referenced by this resource is missing".to_owned()
+            DatabricksKubeError::SecretMissingError => "The secret referenced by this resource is missing".to_owned(),
+            DatabricksKubeError::ResourceUpdateError(s) => format!("Unable to update K8S Resource {}", s),
         };
         write!(f, "{}", msg)
     }
