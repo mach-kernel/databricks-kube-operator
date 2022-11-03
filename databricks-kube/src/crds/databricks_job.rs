@@ -2,7 +2,7 @@ use async_stream::try_stream;
 
 use databricks_rust_jobs::models::{
     job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
-    JobsDeleteRequest, JobsGet200Response,
+    JobsDeleteRequest, JobsGet200Response, JobsUpdateRequest, JobSettings,
 };
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
@@ -151,6 +151,42 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
             let mut with_response = self.clone();
             with_response.spec.job = Job { job_id, ..job };
+            yield with_response;
+        }
+        .boxed()
+    }
+
+    fn remote_update(
+        &self,
+        context: Arc<Context>,
+    ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
+    where
+        Self: Sized,
+    {
+        let job = self.spec().job.clone();
+        let job_settings = job.settings.as_ref().cloned();
+
+        let job_id = self.spec().job.job_id;
+
+        try_stream! {
+            let config = Job::get_rest_config(context.clone()).await.unwrap();
+
+            default_api::jobs_update(
+                &config,
+
+                /// TODO: unsupported atm
+                // access_control_list: job.access_control_list
+                Some(JobsUpdateRequest {
+                    job_id: job_id.unwrap(),
+                    new_settings: job_settings,
+                    ..JobsUpdateRequest::default()
+                })
+            ).map_err(
+                |e| DatabricksKubeError::APIError(e.to_string())
+            ).await?;
+
+            let mut with_response = self.clone();
+            with_response.spec.job = self.remote_get(context.clone()).next().await.unwrap()?;
             yield with_response;
         }
         .boxed()

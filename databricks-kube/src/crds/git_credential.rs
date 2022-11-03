@@ -22,6 +22,7 @@ use crate::traits::rest_config::RestConfig;
 use databricks_rust_git_credentials::models::GetCredentialsResponse;
 
 use databricks_rust_git_credentials::models::CreateCredentialRequest;
+use databricks_rust_git_credentials::models::UpdateCredentialRequest;
 use k8s_openapi::ByteString;
 use std::sync::Arc;
 
@@ -162,6 +163,53 @@ impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
             with_response.spec.credential = new_credential;
             yield with_response;
         }.boxed()
+    }
+
+    fn remote_update(
+        &self,
+        context: Arc<Context>,
+    ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
+    where
+        Self: Sized,
+    {
+        let credential = self.spec().credential.clone();
+        let credential_id = self.spec().credential.credential_id;
+
+        try_stream! {
+            let config = APICredential::get_rest_config(context.clone()).await.unwrap();
+
+            let secret_name = self.spec().secret_name.clone().ok_or(DatabricksKubeError::SecretMissingError)?;
+            log::info!("Reading secret {}", secret_name);
+
+            let secrets_api = Api::<Secret>::default_namespaced(context.client.clone());
+            let personal_access_token = secrets_api
+                .get(&secret_name)
+                .await
+                .iter()
+                .flat_map(|s| s.data.clone())
+                .flat_map(|m| m.get("personal_access_token").map(Clone::clone))
+                .flat_map(|buf| std::str::from_utf8(&buf.0).ok().map(ToString::to_string))
+                .next()
+                .ok_or(DatabricksKubeError::SecretMissingError)?;
+
+            default_api::update_git_credential(
+                &config,
+                &credential_id.unwrap().to_string(),
+                UpdateCredentialRequest {
+                    git_username: credential.git_username,
+                    git_provider: credential.git_provider,
+                    personal_access_token,
+                    ..UpdateCredentialRequest::default()
+                }
+            ).map_err(
+                |e| DatabricksKubeError::APIError(e.to_string())
+            ).await?;
+
+            let mut with_response = self.clone();
+            with_response.spec.credential = self.remote_get(context.clone()).next().await.unwrap()?;
+            yield with_response;
+        }
+        .boxed()
     }
 
     fn remote_delete(

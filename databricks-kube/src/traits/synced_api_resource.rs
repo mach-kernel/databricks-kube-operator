@@ -1,6 +1,7 @@
 use crate::traits::rest_config::RestConfig;
 use crate::{context::Context, error::DatabricksKubeError};
 
+use assert_json_diff::assert_json_matches_no_panic;
 use futures::Stream;
 use futures::TryStreamExt;
 use k8s_openapi::NamespaceResourceScope;
@@ -136,6 +137,9 @@ where
     TAPIType: Send,
     TAPIType: 'static,
     TAPIType: RestConfig<TRestConfig>,
+    TAPIType: From<TCRDType>,
+    TAPIType: PartialEq,
+    TAPIType: Serialize,
     TRestConfig: Clone,
     TRestConfig: Send,
     TRestConfig: Sync,
@@ -183,6 +187,25 @@ where
                 resource.name_unchecked()
             );
         }
+
+        return Ok(Action::requeue(Duration::from_secs(5)));
+    }
+
+    let latest_remote = latest_remote.unwrap();
+    let kube_as_api: TAPIType = resource.as_ref().clone().into();
+
+    if kube_as_api != latest_remote {
+        log::info!(
+            "Resource {} {} drifted!\nDiff (remote, kube):\n{}",
+            TCRDType::api_resource().kind,
+            resource.name_unchecked(),
+            assert_json_matches_no_panic(
+                &latest_remote,
+                &kube_as_api,
+                assert_json_diff::Config::new(assert_json_diff::CompareMode::Strict)
+            )
+            .unwrap_err()
+        );
     }
 
     Ok(Action::await_change())
@@ -216,6 +239,9 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         TDynamic: 'static,
         TAPIType: Send,
         TAPIType: RestConfig<TRestConfig>,
+        TAPIType: From<Self>,
+        TAPIType: PartialEq,
+        TAPIType: Serialize,
         TRestConfig: Clone,
         TRestConfig: 'static,
     {
@@ -303,6 +329,13 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
     ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
 
     fn remote_create(
+        &self,
+        context: Arc<Context>,
+    ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
+    where
+        Self: Sized;
+
+    fn remote_update(
         &self,
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
