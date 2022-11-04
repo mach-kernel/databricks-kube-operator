@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: databricks-kube-operator
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: databricks-kube-operator
+  replicas: 1
+  serviceName: databricks-kube-operator
+  template:
+    metadata:
+      labels:
+        app: databricks-kube-operator
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: dko
+        image: ghcr.io/mach-kernel/databricks-kube-operator:master
+        imagePullPolicy: Always
+        env:
+          - name: DATABRICKS_KUBE_CONFIGMAP
+            value: {{ .Values.configMapName }}
+          - name: RUST_LOG
+            value: databricks_kube

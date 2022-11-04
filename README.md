@@ -12,9 +12,13 @@ WIP and experimental!
 
 ## Getting Started
 
-Generate and install the CRDs by running the `crd_gen` bin target:
+### Installation
+
+Add the Helm repository:
+
 ```bash
-cargo run --bin crd_gen | kubectl apply -f -
+helm repo add mach https://mach-kernel.github.io/databricks-kube-operator
+helm install databricks-kube-operator mach/databricks-kube-operator
 ```
 
 Create a config map in the same namespace as the operator:
@@ -30,7 +34,51 @@ data:
 EOF
 ```
 
+### Usage
+
+See the examples directory for how to create Databricks resource in Kube. Resources that are created via Kubernetes are owned by the operator -- meaning your checked-in manifests are the source of truth. It will not sync anything other than status back from the API, and overwrite changes made via the UI.
+
+You may provide the `databricks-operator/owner` annotation as shown below (to be explicit). However, all resources created in Kube first (i.e. no associated API object found) are assumed to be owned by the operator. 
+
+```yaml
+apiVersion: com.dstancu.databricks/v1
+kind: GitCredential
+metadata:
+  annotations:
+    databricks-operator/owner: operator
+  name: example-credential
+  namespace: default
+spec:
+  secret_name: my-secret-name
+  credential:
+    git_username: mach-kernel
+    git_provider: gitHub
+```
+
+By default, databricks-kube-operator will also sync existing API resources from Databricks into Kubernetes (goal: surface status). Resources owned by the API are tagged as such with an annotation on ingest:
+
+```yaml
+apiVersion: v1
+items:
+- apiVersion: com.dstancu.databricks/v1
+  kind: DatabricksJob
+  metadata:
+    annotations:
+      databricks-operator/owner: api
+    creationTimestamp: "2022-11-04T21:46:12Z"
+    generation: 1
+    name: hello-world
+    ...
+```
+
 ## Developers
+
+Begin by creating the configmap as per the Helm instructions.
+
+Generate and install the CRDs by running the `crd_gen` bin target:
+```bash
+cargo run --bin crd_gen | kubectl apply -f -
+```
 
 The quickest way to test the operator is with a working [minikube](https://minikube.sigs.k8s.io/docs/start/) cluster:
 
