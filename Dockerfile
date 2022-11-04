@@ -1,7 +1,9 @@
-FROM alpine:latest
+FROM debian:bullseye-slim
 
-RUN apk add --no-cache tini gcompat libgcc
-ENTRYPOINT ["/sbin/tini", "--"]
+RUN apt update
+RUN apt install -y tini
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 WORKDIR /home/operator
 
