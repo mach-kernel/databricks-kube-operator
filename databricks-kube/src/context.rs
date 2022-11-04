@@ -61,7 +61,8 @@ impl Context {
         let crd_api = Api::<CustomResourceDefinition>::all(client.clone());
 
         Self::ensure_crd("databricksjobs.com.dstancu.databricks", crd_api.clone()).await?;
-        Self::ensure_crd("gitcredentials.com.dstancu.databricks", crd_api).await?;
+        Self::ensure_crd("gitcredentials.com.dstancu.databricks", crd_api.clone()).await?;
+        Self::ensure_crd("repos.com.dstancu.databricks", crd_api).await?;
         Self::ensure_configmap(cm_api.clone()).await?;
 
         let store = Self::watch_configmap(cm_api).await?;

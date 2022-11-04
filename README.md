@@ -6,6 +6,7 @@ A [kube-rs](https://kube.rs/) operator for Databricks APIs:
 |---------------------|---------------|
 | Jobs 2.1            | DatabricksJob |
 | Git Credentials 2.0 | GitCredential |
+| Repos 2.0           | Repo          |
 
 WIP and experimental!
 
@@ -72,12 +73,20 @@ gsed -r -i -e 's/(\[dependencies\])/\1\nschemars = "0.8.11"/' dbr_jobs/Cargo.tom
 gsed -r -i -e 's/(use reqwest;)/\1\nuse crate::models::ViewsToExport;/' dbr/src/apis/default_api.rs
 
 # Git Credentials API
-openapi-generator generate -g rust -i openapi/gitcredentials-2.0-aws.yaml -c openapi/config-git.yaml -o dbr_git
+openapi-generator generate -g rust -i openapi/gitcredentials-2.0-aws.yaml -c openapi/config-git.yaml -o dbr_git_creds
 
 # Derive JsonSchema for all models and add schemars as dep
-gsed -i -e 's/derive(Clone/derive(JsonSchema, Clone/' dbr_git/src/models/*
-gsed -i -e 's/\/\*/use schemars::JsonSchema;\n\/\*/' dbr_git/src/models/*
-gsed -r -i -e 's/(\[dependencies\])/\1\nschemars = "0.8.11"/' dbr_git/Cargo.toml
+gsed -i -e 's/derive(Clone/derive(JsonSchema, Clone/' dbr_git_creds/src/models/*
+gsed -i -e 's/\/\*/use schemars::JsonSchema;\n\/\*/' dbr_git_creds/src/models/*
+gsed -r -i -e 's/(\[dependencies\])/\1\nschemars = "0.8.11"/' dbr_git_creds/Cargo.toml
+
+# Repos API
+openapi-generator generate -g rust -i openapi/repos-2.0-aws.yaml -c openapi/config-repos.yaml -o dbr_repo
+
+# Derive JsonSchema for all models and add schemars as dep
+gsed -i -e 's/derive(Clone/derive(JsonSchema, Clone/' dbr_repo/src/models/*
+gsed -i -e 's/\/\*/use schemars::JsonSchema;\n\/\*/' dbr_repo/src/models/*
+gsed -r -i -e 's/(\[dependencies\])/\1\nschemars = "0.8.11"/' dbr_repo/Cargo.toml
 ```
 
 ### Expand CRD macros

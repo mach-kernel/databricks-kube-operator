@@ -286,6 +286,7 @@ dependencies = [
  "async-stream",
  "databricks_rust_git_credentials",
  "databricks_rust_jobs",
+ "databricks_rust_repos",
  "env_logger",
  "flurry",
  "futures",
@@ -319,6 +320,19 @@ dependencies = [
 [[package]]
 name = "databricks_rust_jobs"
 version = "2.1.0"
+dependencies = [
+ "reqwest",
+ "schemars",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "databricks_rust_repos"
+version = "2.0.0"
 dependencies = [
  "reqwest",
  "schemars",

@@ -8,6 +8,7 @@ use std::time::Duration;
 use context::Context;
 use crds::databricks_job::DatabricksJob;
 use crds::git_credential::GitCredential;
+use crds::repo::Repo;
 use error::DatabricksKubeError;
 use traits::synced_api_resource::SyncedAPIResource;
 
@@ -29,6 +30,9 @@ async fn main() -> Result<(), DatabricksKubeError> {
     let git_credential_controller = GitCredential::controller(ctx.clone());
     let git_credential_ingest = GitCredential::ingest_task(ctx.clone());
 
+    let repo_controller = Repo::controller(ctx.clone());
+    let repo_ingest = Repo::ingest_task(ctx.clone());
+
     Toplevel::new()
         .start(
             "job_controller",
@@ -44,6 +48,14 @@ async fn main() -> Result<(), DatabricksKubeError> {
         .start(
             "git_credential_ingest",
             |_: SubsystemHandle<DatabricksKubeError>| git_credential_ingest,
+        )
+        .start(
+            "repo_controller",
+            |_: SubsystemHandle<DatabricksKubeError>| repo_controller,
+        )
+        .start(
+            "repo_ingest",
+            |_: SubsystemHandle<DatabricksKubeError>| repo_ingest,
         )
         .catch_signals()
         .handle_shutdown_requests(Duration::from_secs(1))
