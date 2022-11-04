@@ -1,33 +1,26 @@
-use crate::traits::rest_config::RestConfig;
-use crate::{context::Context, error::DatabricksKubeError};
+use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
+
+use crate::{context::Context, error::DatabricksKubeError, traits::rest_config::RestConfig};
 
 use assert_json_diff::assert_json_matches_no_panic;
-use futures::Stream;
-use futures::TryStreamExt;
+use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 
 use k8s_openapi::NamespaceResourceScope;
 
-use kube::api::ListParams;
-use kube::runtime::controller::Action;
-use kube::runtime::watcher::Event;
-use kube::runtime::{watcher, Controller};
+use kube::{
+    api::ListParams,
+    api::PostParams,
+    runtime::{controller::Action, watcher, watcher::Event, Controller},
+    Api, CustomResourceExt, Resource, ResourceExt,
+};
 
-use kube::{api::PostParams, Api, CustomResourceExt, Resource};
 use serde::{de::DeserializeOwned, Serialize};
-use std::hash::Hash;
-use std::{fmt::Debug, pin::Pin, time::Duration};
-use tokio::time::interval;
-
-use futures::FutureExt;
-use futures::StreamExt;
-use futures::TryFutureExt;
-use kube::ResourceExt;
-use std::sync::Arc;
-use tokio::task::JoinHandle;
+use tokio::{task::JoinHandle, time::interval};
 
 /// Generic sync task for pushing remote API resources into K8S
 /// TAPIType is OpenAPI generated
 /// TCRDType is the operator's wrapper
+#[allow(dead_code)]
 async fn ingest_task<TAPIType, TCRDType, TRestConfig>(
     interval_period: Duration,
     context: Arc<Context>,
@@ -97,6 +90,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 async fn spawn_delete_watcher<TAPIType, TCRDType, TRestConfig>(
     resource: Arc<TCRDType>,
     context: Arc<Context>,
@@ -173,6 +167,7 @@ where
     })
 }
 
+#[allow(dead_code)]
 async fn reconcile<TAPIType, TCRDType, TRestConfig>(
     resource: Arc<TCRDType>,
     context: Arc<Context>,
@@ -197,7 +192,6 @@ where
     TAPIType: Send,
     TAPIType: RestConfig<TRestConfig>,
     TAPIType: Serialize,
-
     TAPIType: 'static,
     TRestConfig: Clone + Sync + Send,
 {

@@ -1,3 +1,8 @@
+use std::{collections::BTreeMap, env, sync::Arc, time::Duration};
+
+use crate::error::DatabricksKubeError;
+
+use flurry::HashMap;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::{
     api::core::v1::ConfigMap,
@@ -13,13 +18,7 @@ use kube::{
     Api, Client,
 };
 use lazy_static::lazy_static;
-use std::sync::Arc;
-use std::{collections::BTreeMap, env, time::Duration};
 use tokio::{task::JoinHandle, time::timeout};
-
-use crate::error::DatabricksKubeError;
-
-use flurry::HashMap;
 
 lazy_static! {
     pub static ref CONFIGMAP_NAME: String =
@@ -56,6 +55,7 @@ impl Context {
             .next()
     }
 
+    #[allow(dead_code)]
     pub async fn new(client: Client) -> Result<Arc<Context>, DatabricksKubeError> {
         let cm_api = Api::<ConfigMap>::default_namespaced(client.clone());
         let crd_api = Api::<CustomResourceDefinition>::all(client.clone());

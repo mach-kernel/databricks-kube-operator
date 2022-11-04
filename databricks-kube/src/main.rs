@@ -1,22 +1,19 @@
 mod context;
 mod crds;
-pub mod error;
-pub mod traits;
+mod error;
+mod traits;
 
 use std::time::Duration;
+
+use context::Context;
+use crds::databricks_job::DatabricksJob;
+use crds::git_credential::GitCredential;
+use error::DatabricksKubeError;
+use traits::synced_api_resource::SyncedAPIResource;
 
 use git_version::git_version;
 use kube::Client;
 use tokio_graceful_shutdown::{SubsystemHandle, Toplevel};
-
-use crate::context::Context;
-use crate::traits::synced_api_resource::SyncedAPIResource;
-use crds::databricks_job::DatabricksJob;
-use crds::git_credential::GitCredential;
-
-use error::DatabricksKubeError;
-
-// use controllers::databricks_job;
 
 #[tokio::main]
 async fn main() -> Result<(), DatabricksKubeError> {

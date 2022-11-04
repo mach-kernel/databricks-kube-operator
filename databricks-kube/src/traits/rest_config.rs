@@ -1,17 +1,16 @@
+use std::sync::Arc;
 use std::{pin::Pin, time::Duration};
 
 use crate::context::Context;
-
-use databricks_rust_jobs::{apis::configuration::Configuration as JobClientConfig, models::Job};
-use futures::FutureExt;
 
 use databricks_rust_git_credentials::{
     apis::configuration::Configuration as GitCredentialClientConfig,
     models::GetCredentialResponse as GitCredential,
 };
-use tokio::time::interval;
+use databricks_rust_jobs::{apis::configuration::Configuration as JobClientConfig, models::Job};
 
-use std::sync::Arc;
+use futures::FutureExt;
+use tokio::time::interval;
 
 pub trait RestConfig<TConfigType> {
     fn get_rest_config(

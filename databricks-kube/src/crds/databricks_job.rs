@@ -1,28 +1,25 @@
-use async_stream::try_stream;
-
-use databricks_rust_jobs::models::{
-    job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
-    JobsDeleteRequest, JobsGet200Response, JobsUpdateRequest,
-};
-use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
-use k8s_openapi::serde::{Deserialize, Serialize};
-use kube::ResourceExt;
-use kube::{core::object::HasSpec, CustomResource};
-use schemars::JsonSchema;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::time::SystemTime;
 
 use crate::{
-    context::Context, error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource,
+    context::Context, error::DatabricksKubeError, traits::rest_config::RestConfig,
+    traits::synced_api_resource::SyncedAPIResource,
 };
 
 use databricks_rust_jobs::{
     apis::{configuration::Configuration, default_api},
-    models::JobsList200Response,
+    models::{
+        job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
+        JobsDeleteRequest, JobsGet200Response, JobsList200Response, JobsUpdateRequest,
+    },
 };
-use std::pin::Pin;
 
-use crate::traits::rest_config::RestConfig;
-
-use std::sync::Arc;
+use async_stream::try_stream;
+use futures::{Stream, StreamExt, TryFutureExt};
+use k8s_openapi::serde::{Deserialize, Serialize};
+use kube::{core::object::HasSpec, CustomResource, ResourceExt};
+use schemars::JsonSchema;
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
@@ -44,7 +41,13 @@ impl From<Job> for DatabricksJob {
             .iter()
             .flat_map(|s| s.name.clone())
             .next()
-            .unwrap();
+            .unwrap_or(format!(
+                "noname-{}",
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+            ));
 
         Self::new(&k8s_name, DatabricksJobSpec { job })
     }
@@ -149,9 +152,13 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
                 |e| DatabricksKubeError::APIError(e.to_string())
             ).await?;
 
+            // The response only contains an ID, but there are other fields
+            // that are API populated which we need, so read again.
+            let created: Self = Job { job_id, ..job }.into();
+            let created_job = created.remote_get(context.clone()).next().await.unwrap()?;
+
             let mut with_response = self.clone();
-            with_response.spec.job = Job { job_id, ..job };
-            with_response.spec.job = with_response.remote_get(context.clone()).next().await.unwrap()?;
+            with_response.spec.job = Job { job_id, ..created_job };
             yield with_response;
         }
         .boxed()

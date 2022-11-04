@@ -25,6 +25,7 @@ where
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum DatabricksKubeError {
     APIError(String),
     ConfigMapMissingError,

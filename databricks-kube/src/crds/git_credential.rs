@@ -1,29 +1,27 @@
-use async_stream::try_stream;
-
-use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
-use k8s_openapi::serde::{Deserialize, Serialize};
-use kube::{core::object::HasSpec, CustomResource};
-use schemars::JsonSchema;
-
-use k8s_openapi::api::core::v1::Secret;
-use kube::Api;
-
-use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource};
-
-use databricks_rust_git_credentials::{
-    apis::{configuration::Configuration, default_api},
-    models::GetCredentialResponse as APICredential,
-};
+use std::sync::Arc;
 use std::{pin::Pin, time::SystemTime};
 
 use crate::context::Context;
 use crate::traits::rest_config::RestConfig;
-use databricks_rust_git_credentials::models::GetCredentialsResponse;
+use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource};
 
-use databricks_rust_git_credentials::models::CreateCredentialRequest;
-use databricks_rust_git_credentials::models::UpdateCredentialRequest;
+use databricks_rust_git_credentials::{
+    apis::{configuration::Configuration, default_api},
+    models::{
+        CreateCredentialRequest, GetCredentialResponse as APICredential, GetCredentialsResponse,
+        UpdateCredentialRequest,
+    },
+};
 
-use std::sync::Arc;
+use async_stream::try_stream;
+use futures::{Stream, StreamExt, TryFutureExt};
+use k8s_openapi::{
+    api::core::v1::Secret,
+    serde::{Deserialize, Serialize},
+};
+use kube::{core::object::HasSpec, Api, CustomResource};
+
+use schemars::JsonSchema;
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
