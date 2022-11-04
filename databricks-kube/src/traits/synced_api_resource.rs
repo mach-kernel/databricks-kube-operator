@@ -4,12 +4,13 @@ use crate::{context::Context, error::DatabricksKubeError};
 use assert_json_diff::assert_json_matches_no_panic;
 use futures::Stream;
 use futures::TryStreamExt;
+use futures::future::join_all;
 use k8s_openapi::NamespaceResourceScope;
 
 use kube::api::{ListParams};
 use kube::runtime::controller::Action;
 use kube::runtime::watcher::Event;
-use kube::runtime::{Controller, watcher, finalizer};
+use kube::runtime::{Controller, watcher};
 
 use kube::{api::PostParams, Api, CustomResourceExt, Resource};
 use serde::{de::DeserializeOwned, Serialize};
@@ -27,31 +28,29 @@ use futures::TryFutureExt;
 /// Generic sync task for pushing remote API resources into K8S
 /// TAPIType is OpenAPI generated
 /// TCRDType is the operator's wrapper
-/// TDynamic is variable CRD metadata type for kube::Resource (varies)
-async fn ingest_task<TAPIType, TCRDType, TDynamic, TRestConfig>(
+async fn ingest_task<TAPIType, TCRDType, TRestConfig>(
     interval_period: Duration,
     context: Arc<Context>,
 ) -> Result<(), DatabricksKubeError>
 where
     TCRDType: From<TAPIType>,
+    TCRDType: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
+    TCRDType::DynamicType: Default + Eq + Hash,
     TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
-    TCRDType: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,
-    TCRDType: Default,
-    TCRDType: Clone,
-    TCRDType: CustomResourceExt,
-    TCRDType: ResourceExt,
-    TCRDType: Debug,
-    TCRDType: DeserializeOwned,
     TCRDType: Send,
     TCRDType: Serialize,
     TCRDType: Sync,
-    TDynamic: Default,
-    TDynamic: 'static,
-    TAPIType: 'static,
+    TCRDType: Default,
+    TCRDType: Clone,
+    TCRDType: CustomResourceExt,
+    TCRDType: Debug,
+    TCRDType: DeserializeOwned,
+    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: 'static,
+    TAPIType: Send,
     TAPIType: RestConfig<TRestConfig>,
-    TRestConfig: Clone,
-    TRestConfig: Send,
-    TRestConfig: Sync,
+    TAPIType: 'static,
+    TRestConfig: Clone + Sync + Send
 {
     let mut duration = interval(interval_period);
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
@@ -98,39 +97,30 @@ where
     }
 }
 
-async fn spawn_delete_watcher<TAPIType, TCRDType, TDynamic, TRestConfig>(
+async fn spawn_delete_watcher<TAPIType, TCRDType, TRestConfig>(
     resource: Arc<TCRDType>,
     context: Arc<Context>,
 ) -> JoinHandle<Result<(), DatabricksKubeError>>
 where
     TCRDType: From<TAPIType>,
-    TCRDType: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,
+    TCRDType: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
+    TCRDType::DynamicType: Default + Eq + Hash,
+    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: Send,
+    TCRDType: Serialize,
+    TCRDType: Sync,
     TCRDType: Default,
     TCRDType: Clone,
     TCRDType: CustomResourceExt,
     TCRDType: Debug,
     TCRDType: DeserializeOwned,
-    TCRDType: Send,
-    TCRDType: Serialize,
-    TCRDType: Sync,
     TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
     TCRDType: 'static,
-    TDynamic: Default,
-    TDynamic: Debug,
-    TDynamic: Clone,
-    TDynamic: Unpin,
-    TDynamic: Eq,
-    TDynamic: Hash,
-    TDynamic: 'static,
     TAPIType: Send,
-    TAPIType: 'static,
     TAPIType: RestConfig<TRestConfig>,
-    TAPIType: From<TCRDType>,
-    TAPIType: PartialEq,
-    TAPIType: Serialize,
-    TRestConfig: Clone,
-    TRestConfig: Send,
-    TRestConfig: Sync, {
+    TAPIType: 'static,
+    TRestConfig: Clone + Sync + Send
+{
         let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
 
         let params = ListParams {
@@ -179,52 +169,44 @@ where
         })
     }
 
-async fn reconcile<TAPIType, TCRDType, TDynamic, TRestConfig>(
+async fn reconcile_create_owned<TAPIType, TCRDType, TRestConfig>(
     resource: Arc<TCRDType>,
     context: Arc<Context>,
 ) -> Result<Action, DatabricksKubeError>
 where
     TCRDType: From<TAPIType>,
-    TCRDType: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,
+    TCRDType: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
+    TCRDType::DynamicType: Default + Eq + Hash,
+    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: Send,
+    TCRDType: Serialize,
+    TCRDType: Sync,
     TCRDType: Default,
     TCRDType: Clone,
     TCRDType: CustomResourceExt,
     TCRDType: Debug,
     TCRDType: DeserializeOwned,
-    TCRDType: Send,
-    TCRDType: Serialize,
-    TCRDType: Sync,
     TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
     TCRDType: 'static,
-    TDynamic: Default,
-    TDynamic: Debug,
-    TDynamic: Clone,
-    TDynamic: Unpin,
-    TDynamic: Eq,
-    TDynamic: Hash,
-    TDynamic: 'static,
     TAPIType: Send,
-    TAPIType: 'static,
     TAPIType: RestConfig<TRestConfig>,
-    TAPIType: From<TCRDType>,
-    TAPIType: PartialEq,
-    TAPIType: Serialize,
-    TRestConfig: Clone,
-    TRestConfig: Send,
-    TRestConfig: Sync,
+    TAPIType: 'static,
+    TRestConfig: Clone + Sync + Send
 {
-    let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
-    let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
-
-    // todo: enum
     let owner = resource
         .annotations()
         .get("databricks-operator/owner")
         .map(Clone::clone)
         .unwrap_or("operator".to_string());
 
-    // Create if owned
-    if (owner == "operator") && latest_remote.is_err() {
+    if owner != "operator" {
+        return Ok(Action::await_change())
+    }
+
+    let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
+    let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
+
+    if latest_remote.is_err() {
         log::info!(
             "Resource {} {} is missing in Databricks, creating",
             TCRDType::api_resource().kind,
@@ -253,36 +235,60 @@ where
             TCRDType::api_resource().kind,
             resource.name_unchecked()
         );
-
-        return Ok(Action::await_change());
     }
 
-    let latest_remote = latest_remote.unwrap();
+    Ok(Action::await_change())
+}
+
+async fn reconcile_update_owned<TAPIType, TCRDType, TRestConfig>(
+    resource: Arc<TCRDType>,
+    context: Arc<Context>,
+) -> Result<Action, DatabricksKubeError>
+where
+    TCRDType: From<TAPIType>,
+    TCRDType: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
+    TCRDType::DynamicType: Default + Eq + Hash,
+    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: Send,
+    TCRDType: Serialize,
+    TCRDType: Sync,
+    TCRDType: Default,
+    TCRDType: Clone,
+    TCRDType: CustomResourceExt,
+    TCRDType: Debug,
+    TCRDType: DeserializeOwned,
+    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: 'static,
+    TAPIType: From<TCRDType>,
+    TAPIType: PartialEq,
+    TAPIType: Send,
+    TAPIType: RestConfig<TRestConfig>,
+    TAPIType: 'static,
+    TRestConfig: Clone + Sync + Send
+{
+
+    let owner = resource
+        .annotations()
+        .get("databricks-operator/owner")
+        .map(Clone::clone)
+        .unwrap_or("operator".to_string());
+
+    let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
+    let latest_remote = resource.remote_get(context.clone()).next().await;
     let kube_as_api: TAPIType = resource.as_ref().clone().into();
+    
+    if (owner != "operator") || latest_remote.is_none() {
+        return Ok(Action::await_change())
+    }
+
+    let latest_remote = latest_remote.unwrap()?;
 
     // If resource in sync, spawn a task to watch for deletion events
-    if (owner == "operator") 
-        && latest_remote == kube_as_api
-        && !context.delete_watchers.pin().contains_key(&resource.name_unchecked()) {   
+    if latest_remote == kube_as_api && !context.delete_watchers.pin().contains_key(&resource.name_unchecked()) {   
         spawn_delete_watcher(resource.clone(), context.clone()).await;
     }
 
     if latest_remote != kube_as_api {
-        log::info!(
-            "Resource {} {} drifted!\nDiff (remote, kube):\n{}",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked(),
-            assert_json_matches_no_panic(
-                &latest_remote,
-                &kube_as_api,
-                assert_json_diff::Config::new(assert_json_diff::CompareMode::Strict)
-            )
-            .unwrap_err()
-        );
-    }
-
-    // Push to API if operator owned, or let user know
-    if (latest_remote != kube_as_api) && (owner == "operator") {
         log::info!(
             "Resource {} {} is owned by databricks-kube-operator, reconciling drift...",
             TCRDType::api_resource().kind,
@@ -301,7 +307,66 @@ where
             TCRDType::api_resource().kind,
             resource.name_unchecked()
         );
-    } else if latest_remote != kube_as_api {
+    }
+
+    Ok(Action::await_change())
+}
+
+async fn reconcile_status<TAPIType, TCRDType, TRestConfig>(
+    resource: Arc<TCRDType>,
+    context: Arc<Context>,
+) -> Result<Action, DatabricksKubeError>
+where
+    TCRDType: From<TAPIType>,
+    TCRDType: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
+    TCRDType::DynamicType: Default + Eq + Hash,
+    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: Send,
+    TCRDType: Serialize,
+    TCRDType: Sync,
+    TCRDType: Default,
+    TCRDType: Clone,
+    TCRDType: CustomResourceExt,
+    TCRDType: Debug,
+    TCRDType: DeserializeOwned,
+    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: 'static,
+    TAPIType: From<TCRDType>,
+    TAPIType: PartialEq,
+    TAPIType: Send,
+    TAPIType: RestConfig<TRestConfig>,
+    TAPIType: Serialize,
+
+    TAPIType: 'static,
+    TRestConfig: Clone + Sync + Send
+{
+    let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
+
+    // todo: enum
+    let owner = resource
+        .annotations()
+        .get("databricks-operator/owner")
+        .map(Clone::clone)
+        .unwrap_or("operator".to_string());
+
+    let latest_remote = latest_remote.unwrap();
+    let kube_as_api: TAPIType = resource.as_ref().clone().into();
+
+    if latest_remote != kube_as_api {
+        log::info!(
+            "Resource {} {} drifted!\nDiff (remote, kube):\n{}",
+            TCRDType::api_resource().kind,
+            resource.name_unchecked(),
+            assert_json_matches_no_panic(
+                &latest_remote,
+                &kube_as_api,
+                assert_json_diff::Config::new(assert_json_diff::CompareMode::Strict)
+            )
+            .unwrap_err()
+        );
+    }
+
+    if (latest_remote != kube_as_api) && owner != "operator" {
         log::info!(
             "Resource {} {} is not owned by databricks-kube-operator!\nIngested resources are databricks-operator/owner: api\nCreate your resource with databricks-kube-operator to reconcile.",
             TCRDType::api_resource().kind,
@@ -314,100 +379,110 @@ where
 
 /// Implement this on the macroexpanded CRD type, against the SDK type
 pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone> {
-    fn controller<TDynamic>(
+    fn controller(
         context: Arc<Context>,
     ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send>>
     where
         Self: From<TAPIType>,
-        Self: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,
+        Self: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
+        Self::DynamicType: Clone + Debug + Default + Eq + Hash + Unpin,
+        Self: SyncedAPIResource<TAPIType, TRestConfig>,
+        Self: Send,
+        Self: Serialize,
+        Self: Sync,
         Self: Default,
         Self: Clone,
         Self: CustomResourceExt,
         Self: Debug,
         Self: DeserializeOwned,
-        Self: Send,
-        Self: Serialize,
-        Self: Sync,
+        Self: SyncedAPIResource<TAPIType, TRestConfig>,
         Self: 'static,
-        TDynamic: Default,
-        TDynamic: Debug,
-        TDynamic: Clone,
-        TDynamic: Unpin,
-        TDynamic: Eq,
-        TDynamic: Hash,
-        TDynamic: Send,
-        TDynamic: Sync,
-        TDynamic: 'static,
-        TAPIType: Send,
-        TAPIType: RestConfig<TRestConfig>,
         TAPIType: From<Self>,
         TAPIType: PartialEq,
+        TAPIType: Send,
+        TAPIType: RestConfig<TRestConfig>,
         TAPIType: Serialize,
-        TRestConfig: Clone,
+
+        TAPIType: 'static,
+        TRestConfig: Clone + Sync + Send,
         TRestConfig: 'static,
     {
         let root_kind_api = Api::<Self>::default_namespaced(context.client.clone());
 
-        Controller::new(root_kind_api, ListParams::default())
+        let create_owned = Controller::new(root_kind_api.clone(), ListParams::default())
             .shutdown_on_signal()
-            .run(reconcile, Self::default_error_policy, context.into())
+            .run(reconcile_create_owned, Self::default_error_policy, context.clone())
             .for_each(|r| async move {
                 match r {
                     Ok((object, _)) => log::info!("{} reconciled", object.name),
                     Err(e) => log::info!("{}", e),
                 }
             })
-            .map(|()| Ok(()))
-            .boxed()
+            .boxed();
+
+        let update_owned = Controller::new(root_kind_api.clone(), ListParams::default())
+            .shutdown_on_signal()
+            .run(reconcile_update_owned, Self::default_error_policy, context.clone())
+            .for_each(|r| async move {
+                match r {
+                    Ok((object, _)) => log::info!("{} reconciled", object.name),
+                    Err(e) => log::info!("{}", e),
+                }
+            })
+            .boxed();
+
+        // let update_status = Controller::new(root_kind_api, ListParams::default())
+        //     .shutdown_on_signal()
+        //     .run(reconcile_status, Self::default_error_policy, context.clone())
+        //     .for_each(|r| async move {
+        //         match r {
+        //             Ok((object, _)) => log::info!("{} reconciled", object.name),
+        //             Err(e) => log::info!("{}", e),
+        //         }
+        //     })
+        //     .boxed();
+
+        join_all(vec![
+            update_owned,
+
+            create_owned,
+            // update_status
+        ]).map(|_v| Ok(())).boxed()
     }
 
-    fn ingest_task<TDynamic>(
+    fn ingest_task(
         context: Arc<Context>,
     ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send + 'static>>
     where
         Self: From<TAPIType>,
-        Self: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,
+        Self: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
+        Self::DynamicType: Default + Eq + Hash,
+        Self: Send,
+        Self: Serialize,
+        Self: Sync,
         Self: Default,
         Self: Clone,
         Self: CustomResourceExt,
         Self: Debug,
         Self: DeserializeOwned,
-        Self: Send,
-        Self: Serialize,
-        Self: Sync,
         Self: 'static,
-        TDynamic: Default,
-        TDynamic: 'static,
         TAPIType: Send,
         TAPIType: RestConfig<TRestConfig>,
         TRestConfig: 'static,
     {
-        ingest_task::<TAPIType, Self, TDynamic, TRestConfig>(Duration::from_secs(60), context)
+        ingest_task::<TAPIType, Self, TRestConfig>(Duration::from_secs(60), context)
             .boxed()
     }
 
-    fn default_error_policy<TDynamic>(
+    fn default_error_policy(
         obj: Arc<Self>,
         err: &DatabricksKubeError,
         _ctx: Arc<Context>,
     ) -> Action
     where
         Self: From<TAPIType>,
-        Self: Resource<DynamicType = TDynamic, Scope = NamespaceResourceScope>,
-        Self: Default,
-        Self: Clone,
-        Self: CustomResourceExt,
-        Self: ResourceExt,
-        Self: Debug,
-        Self: DeserializeOwned,
-        Self: Send,
-        Self: Serialize,
-        Self: Sync,
-        Self: 'static,
-        TDynamic: Default,
-        TDynamic: Eq,
-        TDynamic: Hash,
-        TDynamic: 'static,
+        Self: Resource + ResourceExt + CustomResourceExt,
+        Self::DynamicType: Default + Eq + Hash,
         TAPIType: Send,
         TAPIType: RestConfig<TRestConfig>,
     {
@@ -418,6 +493,17 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
             err,
         );
         Action::requeue(Duration::from_secs(30))
+    }
+
+    fn url_path_unchecked(
+        &self
+    ) -> String 
+    where 
+        Self: Resource + ResourceExt,
+        Self::DynamicType: Default + Eq + Hash,
+    {
+        let ns = self.namespace().unwrap();
+        Self::url_path(&Default::default(), Some(&ns))
     }
 
     fn remote_list_all(

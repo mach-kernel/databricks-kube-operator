@@ -21,7 +21,7 @@ use crate::error::DatabricksKubeError;
 use std::pin::Pin;
 
 use flurry::HashMap;
-
+use tokio::sync::Mutex;
 
 lazy_static! {
     pub static ref CONFIGMAP_NAME: String =
@@ -32,6 +32,7 @@ lazy_static! {
 pub struct Context {
     pub client: Client,
     pub delete_watchers: Arc<HashMap<String, Box<Pin<JoinHandle<()>>>>>,
+    pub resource_lock: Arc<HashMap<String, Mutex<()>>>,
     store: Arc<Store<ConfigMap>>,
 }
 
@@ -68,7 +69,12 @@ impl Context {
 
         let store = Self::watch_configmap(cm_api).await?;
 
-        Ok(Self { client, store, delete_watchers: HashMap::new().into() }.into())
+        Ok(Self { 
+            client, 
+            store, 
+            delete_watchers: HashMap::new().into(),
+            resource_lock: HashMap::new().into()
+        }.into())
     }
 
     async fn watch_configmap(
