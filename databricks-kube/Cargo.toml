@@ -12,11 +12,9 @@ edition = "2021"
 databricks_rust_jobs = { path = "../databricks-rust-jobs" }
 databricks_rust_git_credentials = { path = "../databricks-rust-git-credentials" }
 
-anyhow = "1.0"
 async-stream = "0.3.3"
 assert-json-diff = "2.0.2"
-base64 = "0.13.1"
-bplustree = "0.1.0"
+flurry = "0.4.0"
 env_logger = { version = "0.9.1" }
 futures = "0.3"
 git-version = "0.3.5"

@@ -6,10 +6,10 @@ use futures::Stream;
 use futures::TryStreamExt;
 use k8s_openapi::NamespaceResourceScope;
 
-use kube::api::{ListParams, PatchParams, Patch};
+use kube::api::{ListParams};
 use kube::runtime::controller::Action;
 use kube::runtime::watcher::Event;
-use kube::runtime::{Controller, watcher};
+use kube::runtime::{Controller, watcher, finalizer};
 
 use kube::{api::PostParams, Api, CustomResourceExt, Resource};
 use serde::{de::DeserializeOwned, Serialize};
@@ -144,7 +144,7 @@ where
                 params
             ).boxed();
 
-            while let Some(event) = watcher.try_next().map_err(|e| DatabricksKubeError::ConfigMapMissingError).await? {
+            while let Some(event) = watcher.try_next().map_err(|_e| DatabricksKubeError::ConfigMapMissingError).await? {
                 if let Event::Deleted(r) = event {
                     let owner = r
                         .annotations()
@@ -170,8 +170,7 @@ where
                         resource.name_unchecked()
                     );
 
-                    context.delete_watchers.remove_entry(&resource.name_unchecked());
-
+                    context.delete_watchers.pin().remove(&resource.name_unchecked());
                     return Ok(());
                 }
             }
@@ -214,12 +213,18 @@ where
     TRestConfig: Send,
     TRestConfig: Sync,
 {
-
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
 
-    // If the resource is annotated as owned by the API, we can recreate it
-    if latest_remote.is_err() {
+    // todo: enum
+    let owner = resource
+        .annotations()
+        .get("databricks-operator/owner")
+        .map(Clone::clone)
+        .unwrap_or("operator".to_string());
+
+    // Create if owned
+    if (owner == "operator") && latest_remote.is_err() {
         log::info!(
             "Resource {} {} is missing in Databricks, creating",
             TCRDType::api_resource().kind,
@@ -252,16 +257,15 @@ where
         return Ok(Action::await_change());
     }
 
-    if context.delete_watchers.lookup(&resource.name_unchecked(), |v| true).is_none() {
+    let latest_remote = latest_remote.unwrap();
+    let kube_as_api: TAPIType = resource.as_ref().clone().into();
+
+    // If resource in sync, spawn a task to watch for deletion events
+    if (owner == "operator") 
+        && latest_remote == kube_as_api
+        && !context.delete_watchers.pin().contains_key(&resource.name_unchecked()) {   
         spawn_delete_watcher(resource.clone(), context.clone()).await;
     }
-
-    let latest_remote = latest_remote.unwrap();
-    let kube_as_api: TAPIType = kube_api
-        .get(&resource.name_unchecked())
-        .await
-        .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?
-        .into();
 
     if latest_remote != kube_as_api {
         log::info!(
@@ -277,12 +281,7 @@ where
         );
     }
 
-    let owner = resource
-        .annotations()
-        .get("databricks-operator/owner")
-        .map(Clone::clone)
-        .unwrap_or("operator".to_string());
-
+    // Push to API if operator owned, or let user know
     if (latest_remote != kube_as_api) && (owner == "operator") {
         log::info!(
             "Resource {} {} is owned by databricks-kube-operator, reconciling drift...",

@@ -16,12 +16,12 @@ use lazy_static::lazy_static;
 use std::sync::Arc;
 use std::{collections::BTreeMap, env, time::Duration};
 use tokio::{time::timeout, task::JoinHandle};
-use bplustree::BPlusTree;
 
 use crate::error::DatabricksKubeError;
 use std::pin::Pin;
-use futures::Stream;
-use kube::Error;
+
+use flurry::HashMap;
+
 
 lazy_static! {
     pub static ref CONFIGMAP_NAME: String =
@@ -31,7 +31,7 @@ lazy_static! {
 #[derive(Clone)]
 pub struct Context {
     pub client: Client,
-    pub delete_watchers: Arc<BPlusTree<String, Box<Pin<JoinHandle<()>>>>>,
+    pub delete_watchers: Arc<HashMap<String, Box<Pin<JoinHandle<()>>>>>,
     store: Arc<Store<ConfigMap>>,
 }
 
@@ -68,7 +68,7 @@ impl Context {
 
         let store = Self::watch_configmap(cm_api).await?;
 
-        Ok(Self { client, store, delete_watchers: BPlusTree::new().into() }.into())
+        Ok(Self { client, store, delete_watchers: HashMap::new().into() }.into())
     }
 
     async fn watch_configmap(

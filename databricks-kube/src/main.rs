@@ -5,8 +5,6 @@ pub mod traits;
 
 use std::time::Duration;
 
-use anyhow::Result;
-
 use git_version::git_version;
 use kube::Client;
 use tokio_graceful_shutdown::{SubsystemHandle, Toplevel};
@@ -51,7 +49,7 @@ async fn main() -> Result<(), DatabricksKubeError> {
             |_: SubsystemHandle<DatabricksKubeError>| git_credential_ingest,
         )
         .catch_signals()
-        .handle_shutdown_requests(Duration::from_secs(5))
+        .handle_shutdown_requests(Duration::from_secs(1))
         .await
         .map_err(|gse| DatabricksKubeError::Shutdown(gse.to_string()))
 }
