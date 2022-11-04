@@ -1,6 +1,6 @@
 FROM alpine:latest
 
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini gcompat libgcc
 ENTRYPOINT ["/sbin/tini", "--"]
 
 WORKDIR /home/operator
@@ -12,4 +12,4 @@ RUN chmod +x crd_gen
 RUN chmod +x databricks_kube
 
 ENV RUST_LOG databricks_kube
-CMD ["databricks_kube"]
+CMD ["/home/operator/databricks_kube"]
