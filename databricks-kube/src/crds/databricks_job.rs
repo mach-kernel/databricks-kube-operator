@@ -151,6 +151,7 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
             let mut with_response = self.clone();
             with_response.spec.job = Job { job_id, ..job };
+            with_response.spec.job = with_response.remote_get(context.clone()).next().await.unwrap()?;
             yield with_response;
         }
         .boxed()

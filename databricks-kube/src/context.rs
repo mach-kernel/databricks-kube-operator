@@ -31,8 +31,7 @@ lazy_static! {
 #[derive(Clone)]
 pub struct Context {
     pub client: Client,
-    pub delete_watchers: Arc<HashMap<String, Box<Pin<JoinHandle<()>>>>>,
-    pub resource_lock: Arc<HashMap<String, Mutex<()>>>,
+    pub delete_watchers: Arc<HashMap<String, Box<JoinHandle<Result<(), DatabricksKubeError>>>>>,
     store: Arc<Store<ConfigMap>>,
 }
 
@@ -73,7 +72,6 @@ impl Context {
             client, 
             store, 
             delete_watchers: HashMap::new().into(),
-            resource_lock: HashMap::new().into()
         }.into())
     }
 
