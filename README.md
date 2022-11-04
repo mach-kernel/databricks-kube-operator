@@ -6,6 +6,7 @@ A [kube-rs](https://kube.rs/) operator for Databricks APIs:
 |---------------------|---------------|
 | Jobs 2.1            | DatabricksJob |
 | Git Credentials 2.0 | GitCredential |
+| Repos 2.0           | Repo          |
 
 WIP and experimental!
 

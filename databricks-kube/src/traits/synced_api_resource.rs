@@ -240,7 +240,7 @@ where
         return Ok(Action::requeue(Duration::from_secs(5)));
     }
 
-    let latest_remote = latest_remote.unwrap();
+    let latest_remote = latest_remote?;
     let kube_as_api: TAPIType = resource.as_ref().clone().into();
 
     // If resource in sync, spawn a task to watch for deletion events
