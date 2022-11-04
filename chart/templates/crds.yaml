@@ -1,0 +1,1069 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databricksjobs.com.dstancu.databricks
+spec:
+  group: com.dstancu.databricks
+  names:
+    categories: []
+    kind: DatabricksJob
+    plural: databricksjobs
+    shortNames: []
+    singular: databricksjob
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for DatabricksJobSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              job:
+                properties:
+                  created_time:
+                    description: The time at which this job was created in epoch milliseconds (milliseconds since 1/1/1970 UTC).
+                    format: int64
+                    nullable: true
+                    type: integer
+                  creator_user_name:
+                    description: The creator user name. This field won’t be included in the response if the user has already been deleted.
+                    nullable: true
+                    type: string
+                  job_id:
+                    description: The canonical identifier for this job.
+                    format: int64
+                    nullable: true
+                    type: integer
+                  settings:
+                    nullable: true
+                    properties:
+                      email_notifications:
+                        nullable: true
+                        properties:
+                          no_alert_for_skipped_runs:
+                            description: If true, do not send email to recipients specified in `on_failure` if the run is skipped.
+                            nullable: true
+                            type: boolean
+                          on_failure:
+                            description: A list of email addresses to notify when a run completes unsuccessfully. A run is considered unsuccessful if it ends with an `INTERNAL_ERROR` `life_cycle_state` or a `SKIPPED`, `FAILED`, or `TIMED_OUT` `result_state`. If not specified on job creation, reset, or update, or the list is empty, then notifications are not sent. Job-level failure notifications are sent only once after the entire job run (including all of its retries) has failed. Notifications are not sent when failed job runs are retried. To receive a failure notification after every failed task (including every failed retry), use task-level notifications instead.
+                            items:
+                              type: string
+                            nullable: true
+                            type: array
+                          on_start:
+                            description: A list of email addresses to be notified when a run begins. If not specified on job creation, reset, or update, the list is empty, and notifications are not sent.
+                            items:
+                              type: string
+                            nullable: true
+                            type: array
+                          on_success:
+                            description: A list of email addresses to be notified when a run successfully completes. A run is considered to have completed successfully if it ends with a `TERMINATED` `life_cycle_state` and a `SUCCESSFUL` result_state. If not specified on job creation, reset, or update, the list is empty, and notifications are not sent.
+                            items:
+                              type: string
+                            nullable: true
+                            type: array
+                        type: object
+                      format:
+                        description: Used to tell what is the format of the job. This field is ignored in Create/Update/Reset calls. When using the Jobs API 2.1 this value is always set to `\"MULTI_TASK\"`.
+                        enum:
+                        - SINGLE_TASK
+                        - MULTI_TASK
+                        nullable: true
+                        type: string
+                      git_source:
+                        description: 'GitSource : This functionality is in Public Preview.  An optional specification for a remote repository containing the notebooks used by this job''s notebook tasks.'
+                        nullable: true
+                        properties:
+                          git_branch:
+                            description: Name of the branch to be checked out and used by this job. This field cannot be specified in conjunction with git_tag or git_commit. The maximum length is 255 characters.
+                            nullable: true
+                            type: string
+                          git_commit:
+                            description: Commit to be checked out and used by this job. This field cannot be specified in conjunction with git_branch or git_tag. The maximum length is 64 characters.
+                            nullable: true
+                            type: string
+                          git_provider:
+                            description: Unique identifier of the service used to host the Git repository. The value is case insensitive.
+                            enum:
+                            - gitHub
+                            - bitbucketCloud
+                            - azureDevOpsServices
+                            - gitHubEnterprise
+                            - bitbucketServer
+                            - gitLab
+                            - gitLabEnterpriseEdition
+                            - awsCodeCommit
+                            nullable: true
+                            type: string
+                          git_snapshot:
+                            description: 'GitSnapshot : Read-only state of the remote repository at the time the job was run. This field is only included on job runs.'
+                            nullable: true
+                            properties:
+                              used_commit:
+                                description: Commit that was used to execute the run. If git_branch was specified, this points to the HEAD of the branch at the time of the run; if git_tag was specified, this points to the commit the tag points to.
+                                nullable: true
+                                type: string
+                            type: object
+                          git_tag:
+                            description: Name of the tag to be checked out and used by this job. This field cannot be specified in conjunction with git_branch or git_commit. The maximum length is 255 characters.
+                            nullable: true
+                            type: string
+                          git_url:
+                            description: URL of the repository to be cloned by this job. The maximum length is 300 characters.
+                            nullable: true
+                            type: string
+                        type: object
+                      job_clusters:
+                        description: A list of job cluster specifications that can be shared and reused by tasks of this job. Libraries cannot be declared in a shared job cluster. You must declare dependent libraries in task settings.
+                        items:
+                          properties:
+                            job_cluster_key:
+                              description: A unique name for the job cluster. This field is required and must be unique within the job. `JobTaskSettings` may refer to this field to determine which cluster to launch for the task execution.
+                              type: string
+                            new_cluster:
+                              nullable: true
+                              properties:
+                                autoscale:
+                                  nullable: true
+                                  properties:
+                                    max_workers:
+                                      description: The maximum number of workers to which the cluster can scale up when overloaded. max_workers must be strictly greater than min_workers.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    min_workers:
+                                      description: The minimum number of workers to which the cluster can scale down when underutilized. It is also the initial number of workers the cluster has after creation.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                  type: object
+                                aws_attributes:
+                                  nullable: true
+                                  properties:
+                                    availability:
+                                      description: 'Availability type used for all subsequent nodes past the `first_on_demand` ones. **Note:** If `first_on_demand` is zero, this availability type is used for the entire cluster.  `SPOT`: use spot instances. `ON_DEMAND`: use on-demand instances. `SPOT_WITH_FALLBACK`: preferably use spot instances, but fall back to on-demand instances if spot instances cannot be acquired (for example, if AWS spot prices are too high).'
+                                      enum:
+                                      - SPOT
+                                      - ON_DEMAND
+                                      - SPOT_WITH_FALLBACK
+                                      nullable: true
+                                      type: string
+                                    ebs_volume_count:
+                                      description: The number of volumes launched for each instance. You can choose up to 10 volumes. This feature is only enabled for supported node types. Legacy node types cannot specify custom EBS volumes. For node types with no instance store, at least one EBS volume needs to be specified; otherwise, cluster creation fails.  These EBS volumes are mounted at `/ebs0`, `/ebs1`, and etc. Instance store volumes are mounted at `/local_disk0`, `/local_disk1`, and etc.  If EBS volumes are attached, Databricks configures Spark to use only the EBS volumes for scratch storage because heterogeneously sized scratch devices can lead to inefficient disk utilization. If no EBS volumes are attached, Databricks configures Spark to use instance store volumes.  If EBS volumes are specified, then the Spark configuration `spark.local.dir` is overridden.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    ebs_volume_iops:
+                                      description: The number of IOPS per EBS gp3 volume.  This value must be between 3000 and 16000.  The value of IOPS and throughput is calculated based on AWS documentation to match the maximum performance of a gp2 volume with the same volume size.  For more information, see the [EBS volume limit calculator](https://github.com/awslabs/aws-support-tools/tree/master/EBS/VolumeLimitCalculator).
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    ebs_volume_size:
+                                      description: The size of each EBS volume (in GiB) launched for each instance. For general purpose SSD, this value must be within the range 100 - 4096\\. For throughput optimized HDD, this value must be within the range 500 - 4096\\. Custom EBS volumes cannot be specified for the legacy node types (_memory-optimized_ and _compute-optimized_).
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    ebs_volume_throughput:
+                                      description: The throughput per EBS gp3 volume, in MiB per second.  This value must be between 125 and 1000.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    ebs_volume_type:
+                                      description: 'The type of EBS volume that is launched with this cluster.  `GENERAL_PURPOSE_SSD`: provision extra storage using AWS gp2 EBS volumes. `THROUGHPUT_OPTIMIZED_HDD`: provision extra storage using AWS st1 volumes.'
+                                      enum:
+                                      - GENERAL_PURPOSE_SSD
+                                      - THROUGHPUT_OPTIMIZED_HDD
+                                      nullable: true
+                                      type: string
+                                    first_on_demand:
+                                      description: The first first_on_demand nodes of the cluster are placed on on-demand instances. If this value is greater than 0, the cluster driver node is placed on an on-demand instance. If this value is greater than or equal to the current cluster size, all nodes are placed on on-demand instances. If this value is less than the current cluster size, first_on_demand nodes are placed on on-demand instances and the remainder are placed on `availability` instances. This value does not affect cluster size and cannot be mutated over the lifetime of a cluster.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    instance_profile_arn:
+                                      description: Nodes for this cluster are only be placed on AWS instances with this instance profile. If omitted, nodes are placed on instances without an instance profile. The instance profile must have previously been added to the Databricks environment by an account administrator.  This feature may only be available to certain customer plans.
+                                      nullable: true
+                                      type: string
+                                    spot_bid_price_percent:
+                                      description: The max price for AWS spot instances, as a percentage of the corresponding instance type’s on-demand price. For example, if this field is set to 50, and the cluster needs a new `i3.xlarge` spot instance, then the max price is half of the price of on-demand `i3.xlarge` instances. Similarly, if this field is set to 200, the max price is twice the price of on-demand `i3.xlarge` instances. If not specified, the default value is 100\\. When spot instances are requested for this cluster, only spot instances whose max price percentage matches this field is considered. For safety, we enforce this field to be no more than 10000.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    zone_id:
+                                      description: 'Identifier for the availability zone/datacenter in which the cluster resides. You have three options:  **Specify an availability zone as a string**, for example: “us-west-2a”. The provided availability zone must be in the same region as the Databricks deployment. For example, “us-west-2a” is not a valid zone ID if the Databricks deployment resides in the “us-east-1” region.  **Enable automatic availability zone selection (“Auto-AZ”)**, by setting the value “auto”. Databricks selects the AZ based on available IPs in the workspace subnets and retries in other availability zones if AWS returns insufficient capacity errors.  **Do not specify a value**. If not specified, a default zone is used.  The list of available zones as well as the default value can be found by using the [List zones](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-zones) API.'
+                                      nullable: true
+                                      type: string
+                                  type: object
+                                cluster_log_conf:
+                                  nullable: true
+                                  properties:
+                                    dbfs:
+                                      nullable: true
+                                      properties:
+                                        destination:
+                                          description: 'DBFS destination. Example: `dbfs:/my/path`'
+                                          nullable: true
+                                          type: string
+                                      type: object
+                                    s3:
+                                      nullable: true
+                                      properties:
+                                        canned_acl:
+                                          description: '(Optional) Set canned access control list. For example: `bucket-owner-full-control`. If canned_acl is set, the cluster instance profile must have `s3:PutObjectAcl` permission on the destination bucket and prefix. The full list of possible canned ACLs can be found at <https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl>. By default only the object owner gets full control. If you are using cross account role for writing data, you may want to set `bucket-owner-full-control` to make bucket owner able to read the logs.'
+                                          nullable: true
+                                          type: string
+                                        destination:
+                                          description: 'S3 destination. For example: `s3://my-bucket/some-prefix` You must configure the cluster with an instance profile and the instance profile must have write access to the destination. You _cannot_ use AWS keys.'
+                                          nullable: true
+                                          type: string
+                                        enable_encryption:
+                                          description: (Optional)Enable server side encryption, `false` by default.
+                                          nullable: true
+                                          type: boolean
+                                        encryption_type:
+                                          description: (Optional) The encryption type, it could be `sse-s3` or `sse-kms`. It is used only when encryption is enabled and the default type is `sse-s3`.
+                                          nullable: true
+                                          type: string
+                                        endpoint:
+                                          description: 'S3 endpoint. For example: `https://s3-us-west-2.amazonaws.com`. Either region or endpoint must be set. If both are set, endpoint is used.'
+                                          nullable: true
+                                          type: string
+                                        kms_key:
+                                          description: (Optional) KMS key used if encryption is enabled and encryption type is set to `sse-kms`.
+                                          nullable: true
+                                          type: string
+                                        region:
+                                          description: 'S3 region. For example: `us-west-2`. Either region or endpoint must be set. If both are set, endpoint is used.'
+                                          nullable: true
+                                          type: string
+                                      type: object
+                                  type: object
+                                custom_tags:
+                                  additionalProperties:
+                                    type: string
+                                  description: 'An object with key value pairs. The key length must be between 1 and 127 UTF-8 characters, inclusive. The value length must be less than or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag Restrictions: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>'
+                                  nullable: true
+                                  type: object
+                                driver_instance_pool_id:
+                                  description: The optional ID of the instance pool to use for the driver node. You must also specify `instance_pool_id`. Refer to [Instance Pools API](https://docs.databricks.com/dev-tools/api/latest/instance-pools.html) for details.
+                                  nullable: true
+                                  type: string
+                                driver_node_type_id:
+                                  description: The node type of the Spark driver. This field is optional; if unset, the driver node type is set as the same value as `node_type_id` defined above.
+                                  nullable: true
+                                  type: string
+                                enable_elastic_disk:
+                                  description: 'Autoscaling Local Storage: when enabled, this cluster dynamically acquires additional disk space when its Spark workers are running low on disk space. This feature requires specific AWS permissions to function correctly - refer to [Autoscaling local storage](https://docs.databricks.com/clusters/configure.html#autoscaling-local-storage) for details.'
+                                  nullable: true
+                                  type: boolean
+                                init_scripts:
+                                  description: The configuration for storing init scripts. Any number of scripts can be specified. The scripts are executed sequentially in the order provided. If `cluster_log_conf` is specified, init script logs are sent to `<destination>/<cluster-id>/init_scripts`.
+                                  items:
+                                    properties:
+                                      S3:
+                                        nullable: true
+                                        properties:
+                                          canned_acl:
+                                            description: '(Optional) Set canned access control list. For example: `bucket-owner-full-control`. If canned_acl is set, the cluster instance profile must have `s3:PutObjectAcl` permission on the destination bucket and prefix. The full list of possible canned ACLs can be found at <https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl>. By default only the object owner gets full control. If you are using cross account role for writing data, you may want to set `bucket-owner-full-control` to make bucket owner able to read the logs.'
+                                            nullable: true
+                                            type: string
+                                          destination:
+                                            description: 'S3 destination. For example: `s3://my-bucket/some-prefix` You must configure the cluster with an instance profile and the instance profile must have write access to the destination. You _cannot_ use AWS keys.'
+                                            nullable: true
+                                            type: string
+                                          enable_encryption:
+                                            description: (Optional)Enable server side encryption, `false` by default.
+                                            nullable: true
+                                            type: boolean
+                                          encryption_type:
+                                            description: (Optional) The encryption type, it could be `sse-s3` or `sse-kms`. It is used only when encryption is enabled and the default type is `sse-s3`.
+                                            nullable: true
+                                            type: string
+                                          endpoint:
+                                            description: 'S3 endpoint. For example: `https://s3-us-west-2.amazonaws.com`. Either region or endpoint must be set. If both are set, endpoint is used.'
+                                            nullable: true
+                                            type: string
+                                          kms_key:
+                                            description: (Optional) KMS key used if encryption is enabled and encryption type is set to `sse-kms`.
+                                            nullable: true
+                                            type: string
+                                          region:
+                                            description: 'S3 region. For example: `us-west-2`. Either region or endpoint must be set. If both are set, endpoint is used.'
+                                            nullable: true
+                                            type: string
+                                        type: object
+                                      dbfs:
+                                        nullable: true
+                                        properties:
+                                          destination:
+                                            description: 'DBFS destination. Example: `dbfs:/my/path`'
+                                            nullable: true
+                                            type: string
+                                        type: object
+                                      file:
+                                        nullable: true
+                                        properties:
+                                          destination:
+                                            description: 'File destination. Example: `file:/my/file.sh`'
+                                            nullable: true
+                                            type: string
+                                        type: object
+                                    type: object
+                                  nullable: true
+                                  type: array
+                                instance_pool_id:
+                                  description: The optional ID of the instance pool to use for cluster nodes. If `driver_instance_pool_id` is present, `instance_pool_id` is used for worker nodes only. Otherwise, it is used for both the driver node and worker nodes. Refer to [Instance Pools API](https://docs.databricks.com/dev-tools/api/latest/instance-pools.html) for details.
+                                  nullable: true
+                                  type: string
+                                node_type_id:
+                                  description: This field encodes, through a single value, the resources available to each of the Spark nodes in this cluster. For example, the Spark nodes can be provisioned and optimized for memory or compute intensive workloads A list of available node types can be retrieved by using the [List node types](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-node-types) API call.
+                                  nullable: true
+                                  type: string
+                                num_workers:
+                                  description: If num_workers, number of worker nodes that this cluster must have. A cluster has one Spark driver and num_workers executors for a total of num_workers + 1 Spark nodes. When reading the properties of a cluster, this field reflects the desired number of workers rather than the actual current number of workers. For example, if a cluster is resized from 5 to 10 workers, this field immediately updates to reflect the target size of 10 workers, whereas the workers listed in `spark_info` gradually increase from 5 to 10 as the new nodes are provisioned.
+                                  format: int32
+                                  nullable: true
+                                  type: integer
+                                policy_id:
+                                  description: A [cluster policy](https://docs.databricks.com/dev-tools/api/latest/policies.html) ID. Either `node_type_id` or `instance_pool_id` must be specified in the cluster policy if they are not specified in this job cluster object.
+                                  nullable: true
+                                  type: string
+                                spark_conf:
+                                  additionalProperties: true
+                                  description: An arbitrary object where the object key is a configuration propery name and the value is a configuration property value.
+                                  nullable: true
+                                  type: object
+                                spark_env_vars:
+                                  additionalProperties: true
+                                  description: An arbitrary object where the object key is an environment variable name and the value is an environment variable value.
+                                  nullable: true
+                                  type: object
+                                spark_version:
+                                  description: The Spark version of the cluster. A list of available Spark versions can be retrieved by using the [Runtime versions](https://docs.databricks.com/dev-tools/api/latest/clusters.html#runtime-versions) API call.
+                                  type: string
+                                ssh_public_keys:
+                                  description: SSH public key contents that are added to each Spark node in this cluster. The corresponding private keys can be used to login with the user name `ubuntu` on port `2200`. Up to 10 keys can be specified.
+                                  items:
+                                    type: string
+                                  nullable: true
+                                  type: array
+                              required:
+                              - spark_version
+                              type: object
+                          required:
+                          - job_cluster_key
+                          type: object
+                        nullable: true
+                        type: array
+                      max_concurrent_runs:
+                        description: An optional maximum allowed number of concurrent runs of the job.  Set this value if you want to be able to execute multiple runs of the same job concurrently. This is useful for example if you trigger your job on a frequent schedule and want to allow consecutive runs to overlap with each other, or if you want to trigger multiple runs which differ by their input parameters.  This setting affects only new runs. For example, suppose the job’s concurrency is 4 and there are 4 concurrent active runs. Then setting the concurrency to 3 won’t kill any of the active runs. However, from then on, new runs are skipped unless there are fewer than 3 active runs.  This value cannot exceed 1000\\. Setting this value to 0 causes all new runs to be skipped. The default behavior is to allow only 1 concurrent run.
+                        format: int32
+                        nullable: true
+                        type: integer
+                      name:
+                        description: An optional name for the job.
+                        nullable: true
+                        type: string
+                      schedule:
+                        nullable: true
+                        properties:
+                          pause_status:
+                            description: Indicate whether this schedule is paused or not.
+                            enum:
+                            - PAUSED
+                            - UNPAUSED
+                            nullable: true
+                            type: string
+                          quartz_cron_expression:
+                            description: A Cron expression using Quartz syntax that describes the schedule for a job. See [Cron Trigger](http://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html) for details. This field is required.
+                            type: string
+                          timezone_id:
+                            description: A Java timezone ID. The schedule for a job is resolved with respect to this timezone. See [Java TimeZone](https://docs.oracle.com/javase/7/docs/api/java/util/TimeZone.html) for details. This field is required.
+                            type: string
+                        required:
+                        - quartz_cron_expression
+                        - timezone_id
+                        type: object
+                      tags:
+                        additionalProperties:
+                          type: string
+                        description: A map of tags associated with the job. These are forwarded to the cluster as cluster tags for jobs clusters, and are subject to the same limitations as cluster tags. A maximum of 25 tags can be added to the job.
+                        nullable: true
+                        type: object
+                      tasks:
+                        description: A list of task specifications to be executed by this job.
+                        items:
+                          properties:
+                            dbt_task:
+                              nullable: true
+                              properties:
+                                commands:
+                                  description: A list of dbt commands to execute. All commands must start with `dbt`. This parameter must not be empty. A maximum of up to 10 commands can be provided.
+                                  items:
+                                    type: string
+                                  type: array
+                                profiles_directory:
+                                  description: Optional (relative) path to the profiles directory. Can only be specified if no warehouse_id is specified. If no warehouse_id is specified and this folder is unset, the root directory is used.
+                                  nullable: true
+                                  type: string
+                                project_directory:
+                                  description: Optional (relative) path to the project directory, if no value is provided, the root of the git repository is used.
+                                  nullable: true
+                                  type: string
+                                schema:
+                                  description: Optional schema to write to. This parameter is only used when a warehouse_id is also provided. If not provided, the `default` schema is used.
+                                  nullable: true
+                                  type: string
+                                warehouse_id:
+                                  description: ID of the SQL warehouse to connect to. If provided, we automatically generate and provide the profile and connection details to dbt. It can be overridden on a per-command basis by using the `--profiles-dir` command line argument.
+                                  nullable: true
+                                  type: string
+                              required:
+                              - commands
+                              type: object
+                            depends_on:
+                              description: An optional array of objects specifying the dependency graph of the task. All tasks specified in this field must complete successfully before executing this task. The key is `task_key`, and the value is the name assigned to the dependent task. This field is required when a job consists of more than one task.
+                              items:
+                                properties:
+                                  task_key:
+                                    nullable: true
+                                    type: string
+                                type: object
+                              nullable: true
+                              type: array
+                            description:
+                              description: An optional description for this task. The maximum length is 4096 bytes.
+                              nullable: true
+                              type: string
+                            email_notifications:
+                              nullable: true
+                              properties:
+                                no_alert_for_skipped_runs:
+                                  description: If true, do not send email to recipients specified in `on_failure` if the run is skipped.
+                                  nullable: true
+                                  type: boolean
+                                on_failure:
+                                  description: A list of email addresses to notify when a run completes unsuccessfully. A run is considered unsuccessful if it ends with an `INTERNAL_ERROR` `life_cycle_state` or a `SKIPPED`, `FAILED`, or `TIMED_OUT` `result_state`. If not specified on job creation, reset, or update, or the list is empty, then notifications are not sent. Job-level failure notifications are sent only once after the entire job run (including all of its retries) has failed. Notifications are not sent when failed job runs are retried. To receive a failure notification after every failed task (including every failed retry), use task-level notifications instead.
+                                  items:
+                                    type: string
+                                  nullable: true
+                                  type: array
+                                on_start:
+                                  description: A list of email addresses to be notified when a run begins. If not specified on job creation, reset, or update, the list is empty, and notifications are not sent.
+                                  items:
+                                    type: string
+                                  nullable: true
+                                  type: array
+                                on_success:
+                                  description: A list of email addresses to be notified when a run successfully completes. A run is considered to have completed successfully if it ends with a `TERMINATED` `life_cycle_state` and a `SUCCESSFUL` result_state. If not specified on job creation, reset, or update, the list is empty, and notifications are not sent.
+                                  items:
+                                    type: string
+                                  nullable: true
+                                  type: array
+                              type: object
+                            existing_cluster_id:
+                              description: If existing_cluster_id, the ID of an existing cluster that is used for all runs of this task. When running tasks on an existing cluster, you may need to manually restart the cluster if it stops responding. We suggest running jobs on new clusters for greater reliability.
+                              nullable: true
+                              type: string
+                            job_cluster_key:
+                              description: If job_cluster_key, this task is executed reusing the cluster specified in `job.settings.job_clusters`.
+                              nullable: true
+                              type: string
+                            libraries:
+                              description: An optional list of libraries to be installed on the cluster that executes the task. The default value is an empty list.
+                              items:
+                                properties:
+                                  cran:
+                                    nullable: true
+                                    properties:
+                                      package:
+                                        description: The name of the CRAN package to install. This field is required.
+                                        type: string
+                                      repo:
+                                        description: The repository where the package can be found. If not specified, the default CRAN repo is used.
+                                        nullable: true
+                                        type: string
+                                    required:
+                                    - package
+                                    type: object
+                                  egg:
+                                    description: 'If egg, URI of the egg to be installed. DBFS and S3 URIs are supported. For example: `{ \"egg\": \"dbfs:/my/egg\" }` or `{ \"egg\": \"s3://my-bucket/egg\" }`. If S3 is used, make sure the cluster has read access on the library. You may need to launch the cluster with an instance profile to access the S3 URI.'
+                                    nullable: true
+                                    type: string
+                                  jar:
+                                    description: 'If jar, URI of the JAR to be installed. DBFS and S3 URIs are supported. For example: `{ \"jar\": \"dbfs:/mnt/databricks/library.jar\" }` or `{ \"jar\": \"s3://my-bucket/library.jar\" }`. If S3 is used, make sure the cluster has read access on the library. You may need to launch the cluster with an instance profile to access the S3 URI.'
+                                    nullable: true
+                                    type: string
+                                  maven:
+                                    nullable: true
+                                    properties:
+                                      coordinates:
+                                        description: 'Gradle-style Maven coordinates. For example: `org.jsoup:jsoup:1.7.2`. This field is required.'
+                                        type: string
+                                      exclusions:
+                                        description: 'List of dependences to exclude. For example: `[\"slf4j:slf4j\", \"*:hadoop-client\"]`.  Maven dependency exclusions: <https://maven.apache.org/guides/introduction/introduction-to-optional-and-excludes-dependencies.html>.'
+                                        items:
+                                          type: string
+                                        nullable: true
+                                        type: array
+                                      repo:
+                                        description: Maven repo to install the Maven package from. If omitted, both Maven Central Repository and Spark Packages are searched.
+                                        nullable: true
+                                        type: string
+                                    required:
+                                    - coordinates
+                                    type: object
+                                  pypi:
+                                    nullable: true
+                                    properties:
+                                      package:
+                                        description: 'The name of the PyPI package to install. An optional exact version specification is also supported. Examples: `simplejson` and `simplejson==3.8.0`. This field is required.'
+                                        type: string
+                                      repo:
+                                        description: The repository where the package can be found. If not specified, the default pip index is used.
+                                        nullable: true
+                                        type: string
+                                    required:
+                                    - package
+                                    type: object
+                                  whl:
+                                    description: 'If whl, URI of the wheel or zipped wheels to be installed. DBFS and S3 URIs are supported. For example: `{ \"whl\": \"dbfs:/my/whl\" }` or `{ \"whl\": \"s3://my-bucket/whl\" }`. If S3 is used, make sure the cluster has read access on the library. You may need to launch the cluster with an instance profile to access the S3 URI. Also the wheel file name needs to use the [correct convention](https://www.python.org/dev/peps/pep-0427/#file-format). If zipped wheels are to be installed, the file name suffix should be `.wheelhouse.zip`.'
+                                    nullable: true
+                                    type: string
+                                type: object
+                              nullable: true
+                              type: array
+                            max_retries:
+                              description: An optional maximum number of times to retry an unsuccessful run. A run is considered to be unsuccessful if it completes with the `FAILED` result_state or `INTERNAL_ERROR` `life_cycle_state`. The value -1 means to retry indefinitely and the value 0 means to never retry. The default behavior is to never retry.
+                              format: int32
+                              nullable: true
+                              type: integer
+                            min_retry_interval_millis:
+                              description: An optional minimal interval in milliseconds between the start of the failed run and the subsequent retry run. The default behavior is that unsuccessful runs are immediately retried.
+                              format: int32
+                              nullable: true
+                              type: integer
+                            new_cluster:
+                              nullable: true
+                              properties:
+                                autoscale:
+                                  nullable: true
+                                  properties:
+                                    max_workers:
+                                      description: The maximum number of workers to which the cluster can scale up when overloaded. max_workers must be strictly greater than min_workers.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    min_workers:
+                                      description: The minimum number of workers to which the cluster can scale down when underutilized. It is also the initial number of workers the cluster has after creation.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                  type: object
+                                aws_attributes:
+                                  nullable: true
+                                  properties:
+                                    availability:
+                                      description: 'Availability type used for all subsequent nodes past the `first_on_demand` ones. **Note:** If `first_on_demand` is zero, this availability type is used for the entire cluster.  `SPOT`: use spot instances. `ON_DEMAND`: use on-demand instances. `SPOT_WITH_FALLBACK`: preferably use spot instances, but fall back to on-demand instances if spot instances cannot be acquired (for example, if AWS spot prices are too high).'
+                                      enum:
+                                      - SPOT
+                                      - ON_DEMAND
+                                      - SPOT_WITH_FALLBACK
+                                      nullable: true
+                                      type: string
+                                    ebs_volume_count:
+                                      description: The number of volumes launched for each instance. You can choose up to 10 volumes. This feature is only enabled for supported node types. Legacy node types cannot specify custom EBS volumes. For node types with no instance store, at least one EBS volume needs to be specified; otherwise, cluster creation fails.  These EBS volumes are mounted at `/ebs0`, `/ebs1`, and etc. Instance store volumes are mounted at `/local_disk0`, `/local_disk1`, and etc.  If EBS volumes are attached, Databricks configures Spark to use only the EBS volumes for scratch storage because heterogeneously sized scratch devices can lead to inefficient disk utilization. If no EBS volumes are attached, Databricks configures Spark to use instance store volumes.  If EBS volumes are specified, then the Spark configuration `spark.local.dir` is overridden.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    ebs_volume_iops:
+                                      description: The number of IOPS per EBS gp3 volume.  This value must be between 3000 and 16000.  The value of IOPS and throughput is calculated based on AWS documentation to match the maximum performance of a gp2 volume with the same volume size.  For more information, see the [EBS volume limit calculator](https://github.com/awslabs/aws-support-tools/tree/master/EBS/VolumeLimitCalculator).
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    ebs_volume_size:
+                                      description: The size of each EBS volume (in GiB) launched for each instance. For general purpose SSD, this value must be within the range 100 - 4096\\. For throughput optimized HDD, this value must be within the range 500 - 4096\\. Custom EBS volumes cannot be specified for the legacy node types (_memory-optimized_ and _compute-optimized_).
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    ebs_volume_throughput:
+                                      description: The throughput per EBS gp3 volume, in MiB per second.  This value must be between 125 and 1000.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    ebs_volume_type:
+                                      description: 'The type of EBS volume that is launched with this cluster.  `GENERAL_PURPOSE_SSD`: provision extra storage using AWS gp2 EBS volumes. `THROUGHPUT_OPTIMIZED_HDD`: provision extra storage using AWS st1 volumes.'
+                                      enum:
+                                      - GENERAL_PURPOSE_SSD
+                                      - THROUGHPUT_OPTIMIZED_HDD
+                                      nullable: true
+                                      type: string
+                                    first_on_demand:
+                                      description: The first first_on_demand nodes of the cluster are placed on on-demand instances. If this value is greater than 0, the cluster driver node is placed on an on-demand instance. If this value is greater than or equal to the current cluster size, all nodes are placed on on-demand instances. If this value is less than the current cluster size, first_on_demand nodes are placed on on-demand instances and the remainder are placed on `availability` instances. This value does not affect cluster size and cannot be mutated over the lifetime of a cluster.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    instance_profile_arn:
+                                      description: Nodes for this cluster are only be placed on AWS instances with this instance profile. If omitted, nodes are placed on instances without an instance profile. The instance profile must have previously been added to the Databricks environment by an account administrator.  This feature may only be available to certain customer plans.
+                                      nullable: true
+                                      type: string
+                                    spot_bid_price_percent:
+                                      description: The max price for AWS spot instances, as a percentage of the corresponding instance type’s on-demand price. For example, if this field is set to 50, and the cluster needs a new `i3.xlarge` spot instance, then the max price is half of the price of on-demand `i3.xlarge` instances. Similarly, if this field is set to 200, the max price is twice the price of on-demand `i3.xlarge` instances. If not specified, the default value is 100\\. When spot instances are requested for this cluster, only spot instances whose max price percentage matches this field is considered. For safety, we enforce this field to be no more than 10000.
+                                      format: int32
+                                      nullable: true
+                                      type: integer
+                                    zone_id:
+                                      description: 'Identifier for the availability zone/datacenter in which the cluster resides. You have three options:  **Specify an availability zone as a string**, for example: “us-west-2a”. The provided availability zone must be in the same region as the Databricks deployment. For example, “us-west-2a” is not a valid zone ID if the Databricks deployment resides in the “us-east-1” region.  **Enable automatic availability zone selection (“Auto-AZ”)**, by setting the value “auto”. Databricks selects the AZ based on available IPs in the workspace subnets and retries in other availability zones if AWS returns insufficient capacity errors.  **Do not specify a value**. If not specified, a default zone is used.  The list of available zones as well as the default value can be found by using the [List zones](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-zones) API.'
+                                      nullable: true
+                                      type: string
+                                  type: object
+                                cluster_log_conf:
+                                  nullable: true
+                                  properties:
+                                    dbfs:
+                                      nullable: true
+                                      properties:
+                                        destination:
+                                          description: 'DBFS destination. Example: `dbfs:/my/path`'
+                                          nullable: true
+                                          type: string
+                                      type: object
+                                    s3:
+                                      nullable: true
+                                      properties:
+                                        canned_acl:
+                                          description: '(Optional) Set canned access control list. For example: `bucket-owner-full-control`. If canned_acl is set, the cluster instance profile must have `s3:PutObjectAcl` permission on the destination bucket and prefix. The full list of possible canned ACLs can be found at <https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl>. By default only the object owner gets full control. If you are using cross account role for writing data, you may want to set `bucket-owner-full-control` to make bucket owner able to read the logs.'
+                                          nullable: true
+                                          type: string
+                                        destination:
+                                          description: 'S3 destination. For example: `s3://my-bucket/some-prefix` You must configure the cluster with an instance profile and the instance profile must have write access to the destination. You _cannot_ use AWS keys.'
+                                          nullable: true
+                                          type: string
+                                        enable_encryption:
+                                          description: (Optional)Enable server side encryption, `false` by default.
+                                          nullable: true
+                                          type: boolean
+                                        encryption_type:
+                                          description: (Optional) The encryption type, it could be `sse-s3` or `sse-kms`. It is used only when encryption is enabled and the default type is `sse-s3`.
+                                          nullable: true
+                                          type: string
+                                        endpoint:
+                                          description: 'S3 endpoint. For example: `https://s3-us-west-2.amazonaws.com`. Either region or endpoint must be set. If both are set, endpoint is used.'
+                                          nullable: true
+                                          type: string
+                                        kms_key:
+                                          description: (Optional) KMS key used if encryption is enabled and encryption type is set to `sse-kms`.
+                                          nullable: true
+                                          type: string
+                                        region:
+                                          description: 'S3 region. For example: `us-west-2`. Either region or endpoint must be set. If both are set, endpoint is used.'
+                                          nullable: true
+                                          type: string
+                                      type: object
+                                  type: object
+                                custom_tags:
+                                  additionalProperties:
+                                    type: string
+                                  description: 'An object with key value pairs. The key length must be between 1 and 127 UTF-8 characters, inclusive. The value length must be less than or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag Restrictions: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>'
+                                  nullable: true
+                                  type: object
+                                driver_instance_pool_id:
+                                  description: The optional ID of the instance pool to use for the driver node. You must also specify `instance_pool_id`. Refer to [Instance Pools API](https://docs.databricks.com/dev-tools/api/latest/instance-pools.html) for details.
+                                  nullable: true
+                                  type: string
+                                driver_node_type_id:
+                                  description: The node type of the Spark driver. This field is optional; if unset, the driver node type is set as the same value as `node_type_id` defined above.
+                                  nullable: true
+                                  type: string
+                                enable_elastic_disk:
+                                  description: 'Autoscaling Local Storage: when enabled, this cluster dynamically acquires additional disk space when its Spark workers are running low on disk space. This feature requires specific AWS permissions to function correctly - refer to [Autoscaling local storage](https://docs.databricks.com/clusters/configure.html#autoscaling-local-storage) for details.'
+                                  nullable: true
+                                  type: boolean
+                                init_scripts:
+                                  description: The configuration for storing init scripts. Any number of scripts can be specified. The scripts are executed sequentially in the order provided. If `cluster_log_conf` is specified, init script logs are sent to `<destination>/<cluster-id>/init_scripts`.
+                                  items:
+                                    properties:
+                                      S3:
+                                        nullable: true
+                                        properties:
+                                          canned_acl:
+                                            description: '(Optional) Set canned access control list. For example: `bucket-owner-full-control`. If canned_acl is set, the cluster instance profile must have `s3:PutObjectAcl` permission on the destination bucket and prefix. The full list of possible canned ACLs can be found at <https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl>. By default only the object owner gets full control. If you are using cross account role for writing data, you may want to set `bucket-owner-full-control` to make bucket owner able to read the logs.'
+                                            nullable: true
+                                            type: string
+                                          destination:
+                                            description: 'S3 destination. For example: `s3://my-bucket/some-prefix` You must configure the cluster with an instance profile and the instance profile must have write access to the destination. You _cannot_ use AWS keys.'
+                                            nullable: true
+                                            type: string
+                                          enable_encryption:
+                                            description: (Optional)Enable server side encryption, `false` by default.
+                                            nullable: true
+                                            type: boolean
+                                          encryption_type:
+                                            description: (Optional) The encryption type, it could be `sse-s3` or `sse-kms`. It is used only when encryption is enabled and the default type is `sse-s3`.
+                                            nullable: true
+                                            type: string
+                                          endpoint:
+                                            description: 'S3 endpoint. For example: `https://s3-us-west-2.amazonaws.com`. Either region or endpoint must be set. If both are set, endpoint is used.'
+                                            nullable: true
+                                            type: string
+                                          kms_key:
+                                            description: (Optional) KMS key used if encryption is enabled and encryption type is set to `sse-kms`.
+                                            nullable: true
+                                            type: string
+                                          region:
+                                            description: 'S3 region. For example: `us-west-2`. Either region or endpoint must be set. If both are set, endpoint is used.'
+                                            nullable: true
+                                            type: string
+                                        type: object
+                                      dbfs:
+                                        nullable: true
+                                        properties:
+                                          destination:
+                                            description: 'DBFS destination. Example: `dbfs:/my/path`'
+                                            nullable: true
+                                            type: string
+                                        type: object
+                                      file:
+                                        nullable: true
+                                        properties:
+                                          destination:
+                                            description: 'File destination. Example: `file:/my/file.sh`'
+                                            nullable: true
+                                            type: string
+                                        type: object
+                                    type: object
+                                  nullable: true
+                                  type: array
+                                instance_pool_id:
+                                  description: The optional ID of the instance pool to use for cluster nodes. If `driver_instance_pool_id` is present, `instance_pool_id` is used for worker nodes only. Otherwise, it is used for both the driver node and worker nodes. Refer to [Instance Pools API](https://docs.databricks.com/dev-tools/api/latest/instance-pools.html) for details.
+                                  nullable: true
+                                  type: string
+                                node_type_id:
+                                  description: This field encodes, through a single value, the resources available to each of the Spark nodes in this cluster. For example, the Spark nodes can be provisioned and optimized for memory or compute intensive workloads A list of available node types can be retrieved by using the [List node types](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-node-types) API call.
+                                  nullable: true
+                                  type: string
+                                num_workers:
+                                  description: If num_workers, number of worker nodes that this cluster must have. A cluster has one Spark driver and num_workers executors for a total of num_workers + 1 Spark nodes. When reading the properties of a cluster, this field reflects the desired number of workers rather than the actual current number of workers. For example, if a cluster is resized from 5 to 10 workers, this field immediately updates to reflect the target size of 10 workers, whereas the workers listed in `spark_info` gradually increase from 5 to 10 as the new nodes are provisioned.
+                                  format: int32
+                                  nullable: true
+                                  type: integer
+                                policy_id:
+                                  description: A [cluster policy](https://docs.databricks.com/dev-tools/api/latest/policies.html) ID. Either `node_type_id` or `instance_pool_id` must be specified in the cluster policy if they are not specified in this job cluster object.
+                                  nullable: true
+                                  type: string
+                                spark_conf:
+                                  additionalProperties: true
+                                  description: An arbitrary object where the object key is a configuration propery name and the value is a configuration property value.
+                                  nullable: true
+                                  type: object
+                                spark_env_vars:
+                                  additionalProperties: true
+                                  description: An arbitrary object where the object key is an environment variable name and the value is an environment variable value.
+                                  nullable: true
+                                  type: object
+                                spark_version:
+                                  description: The Spark version of the cluster. A list of available Spark versions can be retrieved by using the [Runtime versions](https://docs.databricks.com/dev-tools/api/latest/clusters.html#runtime-versions) API call.
+                                  type: string
+                                ssh_public_keys:
+                                  description: SSH public key contents that are added to each Spark node in this cluster. The corresponding private keys can be used to login with the user name `ubuntu` on port `2200`. Up to 10 keys can be specified.
+                                  items:
+                                    type: string
+                                  nullable: true
+                                  type: array
+                              required:
+                              - spark_version
+                              type: object
+                            notebook_task:
+                              nullable: true
+                              properties:
+                                base_parameters:
+                                  additionalProperties: true
+                                  description: Base parameters to be used for each run of this job. If the run is initiated by a call to [`run-now`](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow) with parameters specified, the two parameters maps are merged. If the same key is specified in `base_parameters` and in `run-now`, the value from `run-now` is used.  Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables) to set parameters containing information about job runs.  If the notebook takes a parameter that is not specified in the job’s `base_parameters` or the `run-now` override parameters, the default value from the notebook is used.  Retrieve these parameters in a notebook using [dbutils.widgets.get](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-widgets).
+                                  nullable: true
+                                  type: object
+                                notebook_path:
+                                  description: The path of the notebook to be run in the Databricks workspace or remote repository. For notebooks stored in the Databricks workspace, the path must be absolute and begin with a slash. For notebooks stored in a remote repository, the path must be relative. This field is required.
+                                  type: string
+                                source:
+                                  description: Optional location type of the notebook. When set to `WORKSPACE`, the notebook will be retrieved from the local Databricks workspace. When set to `GIT`, the notebook will be retrieved from a Git repository defined in `git_source`. If the value is empty, the task will use `GIT` if `git_source` is defined and `WORKSPACE` otherwise.
+                                  enum:
+                                  - WORKSPACE
+                                  - GIT
+                                  nullable: true
+                                  type: string
+                              required:
+                              - notebook_path
+                              type: object
+                            pipeline_task:
+                              nullable: true
+                              properties:
+                                full_refresh:
+                                  description: If true, a full refresh will be triggered on the delta live table.
+                                  nullable: true
+                                  type: boolean
+                                pipeline_id:
+                                  description: The full name of the pipeline task to execute.
+                                  nullable: true
+                                  type: string
+                              type: object
+                            python_wheel_task:
+                              nullable: true
+                              properties:
+                                entry_point:
+                                  description: Named entry point to use, if it does not exist in the metadata of the package it executes the function from the package directly using `$packageName.$entryPoint()`
+                                  nullable: true
+                                  type: string
+                                named_parameters:
+                                  additionalProperties:
+                                    type: string
+                                  description: Command-line parameters passed to Python wheel task in the form of `[\"--name=task\", \"--data=dbfs:/path/to/data.json\"]`. Leave it empty if `parameters` is not null.
+                                  nullable: true
+                                  type: object
+                                package_name:
+                                  description: Name of the package to execute
+                                  nullable: true
+                                  type: string
+                                parameters:
+                                  description: Command-line parameters passed to Python wheel task. Leave it empty if `named_parameters` is not null.
+                                  items:
+                                    type: string
+                                  nullable: true
+                                  type: array
+                              type: object
+                            retry_on_timeout:
+                              description: An optional policy to specify whether to retry a task when it times out. The default behavior is to not retry on timeout.
+                              nullable: true
+                              type: boolean
+                            spark_jar_task:
+                              nullable: true
+                              properties:
+                                jar_uri:
+                                  description: Deprecated since 04/2016\\. Provide a `jar` through the `libraries` field instead. For an example, see [Create](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsCreate).
+                                  nullable: true
+                                  type: string
+                                main_class_name:
+                                  description: The full name of the class containing the main method to be executed. This class must be contained in a JAR provided as a library.  The code must use `SparkContext.getOrCreate` to obtain a Spark context; otherwise, runs of the job fail.
+                                  nullable: true
+                                  type: string
+                                parameters:
+                                  description: Parameters passed to the main method.  Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables) to set parameters containing information about job runs.
+                                  items:
+                                    type: string
+                                  nullable: true
+                                  type: array
+                              type: object
+                            spark_python_task:
+                              nullable: true
+                              properties:
+                                parameters:
+                                  description: Command line parameters passed to the Python file.  Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables) to set parameters containing information about job runs.
+                                  items:
+                                    type: string
+                                  nullable: true
+                                  type: array
+                                python_file:
+                                  description: The Python file to be executed. Cloud file URIs (such as dbfs:/, s3:/, adls:/, gcs:/) and workspace paths are supported. For python files stored in the Databricks workspace, the path must be absolute and begin with `/Repos`. This field is required.
+                                  type: string
+                              required:
+                              - python_file
+                              type: object
+                            spark_submit_task:
+                              nullable: true
+                              properties:
+                                parameters:
+                                  description: Command-line parameters passed to spark submit.  Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables) to set parameters containing information about job runs.
+                                  items:
+                                    type: string
+                                  nullable: true
+                                  type: array
+                              type: object
+                            sql_task:
+                              nullable: true
+                              properties:
+                                alert:
+                                  nullable: true
+                                  properties:
+                                    alert_id:
+                                      description: The canonical identifier of the SQL alert.
+                                      type: string
+                                  required:
+                                  - alert_id
+                                  type: object
+                                dashboard:
+                                  nullable: true
+                                  properties:
+                                    dashboard_id:
+                                      description: The canonical identifier of the SQL dashboard.
+                                      type: string
+                                  required:
+                                  - dashboard_id
+                                  type: object
+                                parameters:
+                                  additionalProperties: true
+                                  description: Parameters to be used for each run of this job. The SQL alert task does not support custom parameters.
+                                  nullable: true
+                                  type: object
+                                query:
+                                  nullable: true
+                                  properties:
+                                    query_id:
+                                      description: The canonical identifier of the SQL query.
+                                      type: string
+                                  required:
+                                  - query_id
+                                  type: object
+                                warehouse_id:
+                                  description: The canonical identifier of the SQL warehouse. Only serverless warehouse is supported.
+                                  type: string
+                              required:
+                              - warehouse_id
+                              type: object
+                            task_key:
+                              description: A unique name for the task. This field is used to refer to this task from other tasks. This field is required and must be unique within its parent job. On Update or Reset, this field is used to reference the tasks to be updated or reset. The maximum length is 100 characters.
+                              type: string
+                            timeout_seconds:
+                              description: An optional timeout applied to each run of this job task. The default behavior is to have no timeout.
+                              format: int32
+                              nullable: true
+                              type: integer
+                          required:
+                          - task_key
+                          type: object
+                        nullable: true
+                        type: array
+                      timeout_seconds:
+                        description: An optional timeout applied to each run of this job. The default behavior is to have no timeout.
+                        format: int32
+                        nullable: true
+                        type: integer
+                    type: object
+                type: object
+            required:
+            - job
+            type: object
+        required:
+        - spec
+        title: DatabricksJob
+        type: object
+    served: true
+    storage: true
+    subresources: {}
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: gitcredentials.com.dstancu.databricks
+spec:
+  group: com.dstancu.databricks
+  names:
+    categories: []
+    kind: GitCredential
+    plural: gitcredentials
+    shortNames: []
+    singular: gitcredential
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for GitCredentialSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              credential:
+                properties:
+                  credential_id:
+                    description: ID of the credential object in the workspace.
+                    format: int64
+                    nullable: true
+                    type: integer
+                  git_provider:
+                    description: Git provider. This field is case-insensitive. The available Git providers are awsCodeCommit, azureDevOpsServices, bitbucketCloud, bitbucketServer, gitHub, gitHubEnterprise, gitLab, and gitLabEnterpriseEdition.
+                    nullable: true
+                    type: string
+                  git_username:
+                    description: Git username.
+                    nullable: true
+                    type: string
+                type: object
+              secret_name:
+                nullable: true
+                type: string
+            required:
+            - credential
+            type: object
+        required:
+        - spec
+        title: GitCredential
+        type: object
+    served: true
+    storage: true
+    subresources: {}
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: repos.com.dstancu.databricks
+spec:
+  group: com.dstancu.databricks
+  names:
+    categories: []
+    kind: Repo
+    plural: repos
+    shortNames: []
+    singular: repo
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for RepoSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              repository:
+                properties:
+                  branch:
+                    description: Branch that the local version of the repo is checked out to.
+                    nullable: true
+                    type: string
+                  head_commit_id:
+                    description: SHA-1 hash representing the commit ID of the current HEAD of the repo.
+                    nullable: true
+                    type: string
+                  id:
+                    description: ID of the repo object in the workspace.
+                    format: int64
+                    nullable: true
+                    type: integer
+                  path:
+                    description: Desired path for the repo in the workspace. Must be in the format /Repos/{folder}/{repo-name}.
+                    nullable: true
+                    type: string
+                  provider:
+                    description: Git provider. This field is case-insensitive. The available Git providers are gitHub, bitbucketCloud, gitLab, azureDevOpsServices, gitHubEnterprise, bitbucketServer, gitLabEnterpriseEdition and awsCodeCommit.
+                    nullable: true
+                    type: string
+                  url:
+                    description: URL of the Git repository to be linked.
+                    nullable: true
+                    type: string
+                type: object
+            required:
+            - repository
+            type: object
+        required:
+        - spec
+        title: Repo
+        type: object
+    served: true
+    storage: true
+    subresources: {}
+
