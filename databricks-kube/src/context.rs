@@ -15,13 +15,11 @@ use kube::{
 use lazy_static::lazy_static;
 use std::sync::Arc;
 use std::{collections::BTreeMap, env, time::Duration};
-use tokio::{time::timeout, task::JoinHandle};
+use tokio::{task::JoinHandle, time::timeout};
 
 use crate::error::DatabricksKubeError;
-use std::pin::Pin;
 
 use flurry::HashMap;
-use tokio::sync::Mutex;
 
 lazy_static! {
     pub static ref CONFIGMAP_NAME: String =
@@ -68,11 +66,12 @@ impl Context {
 
         let store = Self::watch_configmap(cm_api).await?;
 
-        Ok(Self { 
-            client, 
-            store, 
+        Ok(Self {
+            client,
+            store,
             delete_watchers: HashMap::new().into(),
-        }.into())
+        }
+        .into())
     }
 
     async fn watch_configmap(

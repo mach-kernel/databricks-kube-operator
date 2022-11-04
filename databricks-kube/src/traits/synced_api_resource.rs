@@ -2,15 +2,15 @@ use crate::traits::rest_config::RestConfig;
 use crate::{context::Context, error::DatabricksKubeError};
 
 use assert_json_diff::assert_json_matches_no_panic;
-use futures::{Stream, Future};
+use futures::Stream;
 use futures::TryStreamExt;
-use futures::future::join_all;
+
 use k8s_openapi::NamespaceResourceScope;
 
-use kube::api::{ListParams};
+use kube::api::ListParams;
 use kube::runtime::controller::Action;
 use kube::runtime::watcher::Event;
-use kube::runtime::{Controller, watcher};
+use kube::runtime::{watcher, Controller};
 
 use kube::{api::PostParams, Api, CustomResourceExt, Resource};
 use serde::{de::DeserializeOwned, Serialize};
@@ -20,11 +20,10 @@ use tokio::time::interval;
 
 use futures::FutureExt;
 use futures::StreamExt;
+use futures::TryFutureExt;
 use kube::ResourceExt;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
-use futures::TryFutureExt;
-use tokio::sync::Mutex;
 
 /// Generic sync task for pushing remote API resources into K8S
 /// TAPIType is OpenAPI generated
@@ -51,7 +50,7 @@ where
     TAPIType: Send,
     TAPIType: RestConfig<TRestConfig>,
     TAPIType: 'static,
-    TRestConfig: Clone + Sync + Send
+    TRestConfig: Clone + Sync + Send,
 {
     let mut duration = interval(interval_period);
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
@@ -120,58 +119,59 @@ where
     TAPIType: Send,
     TAPIType: RestConfig<TRestConfig>,
     TAPIType: 'static,
-    TRestConfig: Clone + Sync + Send
+    TRestConfig: Clone + Sync + Send,
 {
-        let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
+    let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
 
-        let params = ListParams {
-            field_selector: Some(format!("metadata.name={}", resource.name_unchecked())),
-            ..ListParams::default()
-        };
+    let params = ListParams {
+        field_selector: Some(format!("metadata.name={}", resource.name_unchecked())),
+        ..ListParams::default()
+    };
 
-        tokio::spawn(async move {
-            let mut watcher = watcher::watcher(
-                kube_api,
-                params
-            ).boxed();
+    tokio::spawn(async move {
+        let mut watcher = watcher::watcher(kube_api, params).boxed();
 
-            while let Some(event) = watcher.try_next().map_err(|_e| DatabricksKubeError::ConfigMapMissingError).await? {
-                if let Event::Deleted(r) = event {
-                    let owner = r
-                        .annotations()
-                        .get("databricks-operator/owner")
-                        .map(Clone::clone)
-                        .unwrap_or("operator".to_string());
+        while let Some(event) = watcher
+            .try_next()
+            .map_err(|_e| DatabricksKubeError::ConfigMapMissingError)
+            .await?
+        {
+            if let Event::Deleted(r) = event {
+                let owner = r
+                    .annotations()
+                    .get("databricks-operator/owner")
+                    .map(Clone::clone)
+                    .unwrap_or("operator".to_string());
 
-                    if owner != "operator" {
-                        break;
-                    }
-
-                    log::info!(
-                        "Removing {} {} from Databricks",
-                        TCRDType::api_resource().kind,
-                        resource.name_unchecked()
-                    );
-
-                    resource.remote_delete(context.clone()).next().await;
-            
-                    log::info!(
-                        "Removed {} {} from Databricks",
-                        TCRDType::api_resource().kind,
-                        resource.name_unchecked()
-                    );
-
-                    let watchers = context.delete_watchers.pin();
-                    let handle = &**watchers.remove(&resource.self_url_unchecked()).unwrap();
-                    handle.abort();
-
-                    return Ok(());
+                if owner != "operator" {
+                    break;
                 }
-            }
 
-            Ok(())
-        })
-    }
+                log::info!(
+                    "Removing {} {} from Databricks",
+                    TCRDType::api_resource().kind,
+                    resource.name_unchecked()
+                );
+
+                resource.remote_delete(context.clone()).next().await;
+
+                log::info!(
+                    "Removed {} {} from Databricks",
+                    TCRDType::api_resource().kind,
+                    resource.name_unchecked()
+                );
+
+                let watchers = context.delete_watchers.pin();
+                let handle = &**watchers.remove(&resource.self_url_unchecked()).unwrap();
+                handle.abort();
+
+                return Ok(());
+            }
+        }
+
+        Ok(())
+    })
+}
 
 async fn reconcile<TAPIType, TCRDType, TRestConfig>(
     resource: Arc<TCRDType>,
@@ -199,7 +199,7 @@ where
     TAPIType: Serialize,
 
     TAPIType: 'static,
-    TRestConfig: Clone + Sync + Send
+    TRestConfig: Clone + Sync + Send,
 {
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
@@ -250,11 +250,18 @@ where
     let kube_as_api: TAPIType = resource.as_ref().clone().into();
 
     // If resource in sync, spawn a task to watch for deletion events
-    if (owner == "operator") 
+    if (owner == "operator")
         && latest_remote == kube_as_api
-        && !context.delete_watchers.pin().contains_key(&resource.name_unchecked()) {   
-            let handle = spawn_delete_watcher(resource.clone(), context.clone()).await;
-            context.delete_watchers.pin().insert(resource.self_url_unchecked(), Box::new(handle));
+        && !context
+            .delete_watchers
+            .pin()
+            .contains_key(&resource.name_unchecked())
+    {
+        let handle = spawn_delete_watcher(resource.clone(), context.clone()).await;
+        context
+            .delete_watchers
+            .pin()
+            .insert(resource.self_url_unchecked(), Box::new(handle));
     }
 
     if latest_remote != kube_as_api {
@@ -279,7 +286,11 @@ where
             resource.name_unchecked()
         );
 
-        let updated = resource.remote_update(context.clone()).next().await.unwrap()?;
+        let updated = resource
+            .remote_update(context.clone())
+            .next()
+            .await
+            .unwrap()?;
 
         kube_api
             .replace(&resource.name_unchecked(), &PostParams::default(), &updated)
@@ -343,7 +354,8 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
                     Err(e) => log::info!("{}", e),
                 }
             })
-            .map(|_v| Ok(())).boxed()
+            .map(|_v| Ok(()))
+            .boxed()
             .boxed()
     }
 
@@ -367,15 +379,10 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         TAPIType: RestConfig<TRestConfig>,
         TRestConfig: 'static,
     {
-        ingest_task::<TAPIType, Self, TRestConfig>(Duration::from_secs(60), context)
-            .boxed()
+        ingest_task::<TAPIType, Self, TRestConfig>(Duration::from_secs(60), context).boxed()
     }
 
-    fn default_error_policy(
-        obj: Arc<Self>,
-        err: &DatabricksKubeError,
-        _ctx: Arc<Context>,
-    ) -> Action
+    fn default_error_policy(obj: Arc<Self>, err: &DatabricksKubeError, _ctx: Arc<Context>) -> Action
     where
         Self: From<TAPIType>,
         Self: Resource + ResourceExt + CustomResourceExt,
@@ -392,10 +399,8 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         Action::requeue(Duration::from_secs(30))
     }
 
-    fn self_url_unchecked(
-        &self
-    ) -> String 
-    where 
+    fn self_url_unchecked(&self) -> String
+    where
         Self: Resource + ResourceExt,
         Self::DynamicType: Default + Eq + Hash,
     {

@@ -5,9 +5,8 @@ use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
 
-
 use k8s_openapi::api::core::v1::Secret;
-use kube::{Api};
+use kube::Api;
 
 use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource};
 
