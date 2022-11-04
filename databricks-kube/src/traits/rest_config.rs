@@ -8,6 +8,7 @@ use databricks_rust_git_credentials::{
     models::GetCredentialResponse as GitCredential,
 };
 use databricks_rust_jobs::{apis::configuration::Configuration as JobClientConfig, models::Job};
+use databricks_rust_repos::{apis::configuration::Configuration as RepoClientConfig, models::GetRepoResponse as Repo};
 
 use futures::FutureExt;
 use tokio::time::interval;
@@ -59,6 +60,30 @@ impl RestConfig<GitCredentialClientConfig> for GitCredential {
                 base_path: format!("{}/2.0", url),
                 bearer_access_token: Some(token),
                 ..GitCredentialClientConfig::default()
+            })
+        }
+        .boxed()
+    }
+}
+
+impl RestConfig<RepoClientConfig> for Repo {
+    fn get_rest_config(
+        context: Arc<Context>,
+    ) -> Pin<Box<dyn futures::Future<Output = Option<RepoClientConfig>> + std::marker::Send>>
+    {
+        let mut wait = interval(Duration::from_secs(15));
+
+        async move {
+            while let None = context.get_databricks_url_token().await {
+                wait.tick().await;
+                log::info!("Waiting for REST credentials...");
+            }
+
+            let (url, token) = context.get_databricks_url_token().await?;
+            Some(RepoClientConfig {
+                base_path: format!("{}/2.0", url),
+                bearer_access_token: Some(token),
+                ..RepoClientConfig::default()
             })
         }
         .boxed()

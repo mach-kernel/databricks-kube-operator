@@ -15,4 +15,8 @@ fn main() {
         "---\n{}\n",
         to_string(&crate::crds::git_credential::GitCredential::crd()).unwrap()
     );
+    print!(
+        "---\n{}\n",
+        to_string(&crate::crds::repo::Repo::crd()).unwrap()
+    );
 }

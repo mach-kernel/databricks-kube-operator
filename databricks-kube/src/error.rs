@@ -5,6 +5,7 @@ use crate::context::CONFIGMAP_NAME;
 
 use databricks_rust_git_credentials::apis::Error as GitCredentialAPIError;
 use databricks_rust_jobs::apis::Error as JobsAPIError;
+use databricks_rust_repos::apis::Error as ReposAPIError;
 
 impl<T> From<JobsAPIError<T>> for DatabricksKubeError
 where
@@ -20,6 +21,15 @@ where
     T: Debug,
 {
     fn from(e: GitCredentialAPIError<T>) -> Self {
+        Self::APIError(format!("{}", e))
+    }
+}
+
+impl<T> From<ReposAPIError<T>> for DatabricksKubeError
+where
+    T: Debug,
+{
+    fn from(e: ReposAPIError<T>) -> Self {
         Self::APIError(format!("{}", e))
     }
 }
