@@ -7,19 +7,12 @@ use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIRe
 
 use databricks_rust_repos::{
     apis::{configuration::Configuration, default_api},
-    models::{
-        GetRepoResponse as APIRepo,
-        GetReposResponse,
-        CreateRepoRequest,
-        UpdateRepoRequest,
-    },
+    models::{CreateRepoRequest, GetRepoResponse as APIRepo, GetReposResponse, UpdateRepoRequest},
 };
 
 use async_stream::try_stream;
 use futures::{Stream, StreamExt, TryFutureExt};
-use k8s_openapi::{
-    serde::{Deserialize, Serialize},
-};
+use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 
 use schemars::JsonSchema;
@@ -51,12 +44,7 @@ impl From<APIRepo> for Repo {
             )
         };
 
-        Self::new(
-            &repo_name,
-            RepoSpec {
-                repository,
-            },
-        )
+        Self::new(&repo_name, RepoSpec { repository })
     }
 }
 
@@ -99,13 +87,13 @@ impl SyncedAPIResource<APIRepo, Configuration> for Repo {
         &self,
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<APIRepo, DatabricksKubeError>> + Send>> {
-        let repository_id =
-            self.spec()
-                .repository
-                .id
-                .ok_or(DatabricksKubeError::APIError(
-                    "Remote resource cannot exist".to_string(),
-                ));
+        let repository_id = self
+            .spec()
+            .repository
+            .id
+            .ok_or(DatabricksKubeError::APIError(
+                "Remote resource cannot exist".to_string(),
+            ));
 
         try_stream! {
             let config = APIRepo::get_rest_config(context.clone()).await.unwrap();
@@ -145,7 +133,8 @@ impl SyncedAPIResource<APIRepo, Configuration> for Repo {
             let mut with_response = self.clone();
             with_response.spec.repository = new_repo;
             yield with_response;
-        }.boxed()
+        }
+        .boxed()
     }
 
     fn remote_update(
@@ -175,7 +164,8 @@ impl SyncedAPIResource<APIRepo, Configuration> for Repo {
             let mut with_response = self.clone();
             with_response.spec.repository = new_repo;
             yield with_response;
-        }.boxed()
+        }
+        .boxed()
     }
 
     fn remote_delete(

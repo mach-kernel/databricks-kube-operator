@@ -29,8 +29,22 @@ kind: ConfigMap
 metadata:
   name: databricks-kube-operator
 data:
-  access_token: shhh
-  databricks_url: https://my-tenant.cloud.databricks.com/api
+  api_secret_name: databricks-api-secret
+EOF
+```
+
+Create a secret with your API URL and credentials:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+data:
+  access_token: $(echo -n 'shhhh' | base64)
+  databricks_url: $(echo -n 'https://my-tenant.cloud.databricks.com' | base64)
+kind: Secret
+metadata:
+  name: databricks-api-secret
+type: Opaque
 EOF
 ```
 

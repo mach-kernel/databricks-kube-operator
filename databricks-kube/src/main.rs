@@ -53,10 +53,9 @@ async fn main() -> Result<(), DatabricksKubeError> {
             "repo_controller",
             |_: SubsystemHandle<DatabricksKubeError>| repo_controller,
         )
-        .start(
-            "repo_ingest",
-            |_: SubsystemHandle<DatabricksKubeError>| repo_ingest,
-        )
+        .start("repo_ingest", |_: SubsystemHandle<DatabricksKubeError>| {
+            repo_ingest
+        })
         .catch_signals()
         .handle_shutdown_requests(Duration::from_secs(1))
         .await
