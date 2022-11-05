@@ -1,7 +1,6 @@
 # Table of contents
 
-* [LICENSE](README.md)
-* [databricks-kube-operator](<README (1).md>)
+* [databricks-kube-operator](README.md)
 * [Tutorial](tutorial.md)
 * [Rust API client for databricks\_rust\_git\_credentials](databricks-rust-git-credentials/README.md)
   * [docs](databricks-rust-git-credentials/docs/README.md)
@@ -147,3 +146,4 @@
     * [UpdateRepoRequest](databricks-rust-repos/docs/UpdateRepoRequest.md)
 * [charts](charts/README.md)
   * [databricks-kube-operator Helm Chart](charts/databricks-kube-operator/README.md)
+* [LICENSE](LICENSE.md)
