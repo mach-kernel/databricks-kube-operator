@@ -33,14 +33,15 @@ example-job
 
 We are now going to create our resources in the `templates/` directory.
 
-### Operator configmap and Databricks access token
+### 1. Operator configmap and Databricks access token
 
 {% hint style="info" %}
-`In a production environment, the Databricks API URL and access token can be sourced via the` [`External Secrets Operator`](https://external-secrets.io)`in combination with (e.g. AWS Secrets Manager).`
+In a production environment, the Databricks API URL and access token can be sourced via [External Secrets Operator](https://external-secrets.io) in combination with (e.g. AWS Secrets Manager).
 {% endhint %}
 
 Create a secret containing your Databricks API URL and a valid access token. The snippet below is for your convenience, to run against the cluster for this example. **Do not create a template and check in your token.**
 
+{% code lineNumbers="true" %}
 ```bash
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
@@ -53,14 +54,25 @@ data:
   databricks_url: $(echo -n 'https://my-tenant.cloud.databricks.com' | base64)
 EOF
 ```
+{% endcode %}
 
-Create `templates/databricks-kube-operator-configmap.yaml`. The operator configmap expects a secret name from which to pull its REST configuration.
+Create the file below. The operator configmap expects a secret name from which to pull its REST configuration.
 
+{% code title="templates/databricks-kube-operator-configmap.yaml" %}
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: databricks-kube-operator
+  namespace: {{ .Release.Namespace }}
 data:
   api_secret_name: databricks-api-secret
+```
+{% endcode %}
+
+### 2. Git Repo and Git Credentials
+
+Public repositories do not require [Git credentials](https://docs.databricks.com/repos/repos-setup.html#add-git-credentials-to-databricks), so here is another "quick snippet" for making the required secret if deploying your own job from a private repo. **As previously mentioned, do not check this in as a template.**
+
+```
 ```
