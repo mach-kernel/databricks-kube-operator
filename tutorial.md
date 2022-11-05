@@ -2,7 +2,7 @@
 description: An example GitOps recipe
 ---
 
-# Tutorial
+# ⌨ Tutorial
 
 This repository contains a [PySpark example job](https://github.com/mach-kernel/databricks-kube-operator/blob/master/examples/job.py) (how did you guess it was word count?) that we are going to operationalize using Helm and databricks-kube-operator. You can follow along with a local [minikube](https://minikube.sigs.k8s.io/docs/) cluster, or use in an environment with [ArgoCD](https://argo-cd.readthedocs.io/en/stable/) or [Fleet](https://fleet.rancher.io/).
 
@@ -70,9 +70,47 @@ data:
 ```
 {% endcode %}
 
-### 2. Git Repo and Git Credentials
+### 2. Git Credentials
 
-Public repositories do not require [Git credentials](https://docs.databricks.com/repos/repos-setup.html#add-git-credentials-to-databricks), so here is another "quick snippet" for making the required secret if deploying your own job from a private repo. **As previously mentioned, do not check this in as a template.**
+Public repositories do not require [Git credentials](https://docs.databricks.com/repos/repos-setup.html#add-git-credentials-to-databricks). The tutorial deploys the job from this public repository. You can skip this step, unless you are following along with your own job and a private repo. In which case, hi!
 
+Here is another "quick snippet" for making the required secret if deploying your own job from a private repo. **As previously mentioned, do not check this in as a template.**
+
+{% code lineNumbers="true" %}
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: my-git-credential
+data:
+  access_token: $(echo -n 'shhhh' | base64)
+  databricks_url: $(echo -n 'https://my-tenant.cloud.databricks.com' | base64)
+EOF
 ```
+{% endcode %}
+
+Create the file below. According to the [API documentation](https://docs.databricks.com/dev-tools/api/latest/gitcredentials.html), the following VCS providers are available:
+
+> The available Git providers are awsCodeCommit, azureDevOpsServices, bitbucketCloud, bitbucketServer, gitHub, gitHubEnterprise, gitLab, and gitLabEnterpriseEdition.
+
+{% code title="template/git-credential.yaml" lineNumbers="true" %}
+```yaml
+apiVersion: com.dstancu.databricks/v1
+kind: GitCredential
+metadata:
+  annotations:
+    databricks-operator/owner: operator
+  name: example-credential
+  namespace: {{ .Release.Namespace }}
+spec:
+  secret_name: my-git-credential
+  credential:
+    git_username: my-user-name
+    git_provider: gitHub
 ```
+{% endcode %}
+
+### 3. Git Repo
+

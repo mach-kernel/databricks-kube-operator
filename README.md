@@ -1,8 +1,9 @@
 ---
+description: A Kubernetes operator for Databricks
 coverY: 0
 ---
 
-# databricks-kube-operator
+# 🦀 databricks-kube-operator
 
 A [kube-rs](https://kube.rs/) operator to enable GitOps style management of Databricks resources. It supports the following APIs:
 

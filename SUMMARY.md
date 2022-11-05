@@ -1,7 +1,7 @@
 # Table of contents
 
-* [databricks-kube-operator](README.md)
-* [Tutorial](tutorial.md)
+* [🦀 databricks-kube-operator](README.md)
+* [⌨ Tutorial](tutorial.md)
 * [Rust API client for databricks\_rust\_git\_credentials](databricks-rust-git-credentials/README.md)
   * [docs](databricks-rust-git-credentials/docs/README.md)
     * [CreateCredentialRequest](databricks-rust-git-credentials/docs/CreateCredentialRequest.md)
