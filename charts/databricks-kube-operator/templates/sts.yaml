@@ -14,6 +14,7 @@ spec:
       labels:
         app: databricks-kube-operator
     spec:
+      serviceAccountName: databricks-kube-operator
       terminationGracePeriodSeconds: 10
       containers:
       - name: dko

@@ -1,0 +1,47 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: databricks-kube-operator
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: databricks-kube-operator
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups:
+        - ""
+        - apiextensions.k8s.io
+        - com.dstancu.databricks
+    resources:
+        - configmaps
+        - customresourcedefinitions
+        - databricksjobs
+        - repos
+        - gitcredentials
+        - secrets
+    verbs: ["get", "list", "watch"]
+  - apiGroups:
+        - ""
+        - com.dstancu.databricks
+    resources:
+        - databricksjobs
+        - repos
+        - gitcredentials
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: databricks-kube-operator
+  namespace: {{ .Release.Namespace }}
+subjects:
+- namespace: {{ .Release.Namespace }}
+  kind: ServiceAccount
+  name: databricks-kube-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: databricks-kube-operator
