@@ -72,7 +72,7 @@ data:
 
 ### 2. Git Credentials
 
-Public repositories do not require [Git credentials](https://docs.databricks.com/repos/repos-setup.html#add-git-credentials-to-databricks). The tutorial deploys the job from this public repository. You can skip this step, unless you are following along with your own job and a private repo. In which case, hi!
+Public repositories do not require [Git credentials](https://docs.databricks.com/repos/repos-setup.html#add-git-credentials-to-databricks). The tutorial deploys the job from this public repository. You can skip this step, unless you are following along with your own job and a private repo.
 
 Here is another "quick snippet" for making the required secret if deploying your own job from a private repo. **As previously mentioned, do not check this in as a template.**
 
@@ -95,12 +95,10 @@ Create the file below. According to the [API documentation](https://docs.databri
 
 > The available Git providers are awsCodeCommit, azureDevOpsServices, bitbucketCloud, bitbucketServer, gitHub, gitHubEnterprise, gitLab, and gitLabEnterpriseEdition.
 
-{% code title="template/git-credential.yaml" lineNumbers="true" %}
-```yaml
-apiVersion: com.dstancu.databricks/v1
+<pre class="language-yaml" data-title="template/git-credential.yaml" data-line-numbers><code class="lang-yaml">apiVersion: com.dstancu.databricks/v1
 kind: GitCredential
-metadata:
-  annotations:
+<strong>metadata:
+</strong>  annotations:
     databricks-operator/owner: operator
   name: example-credential
   namespace: {{ .Release.Namespace }}
@@ -108,9 +106,120 @@ spec:
   secret_name: my-git-credential
   credential:
     git_username: my-user-name
-    git_provider: gitHub
+    git_provider: gitHub</code></pre>
+
+### 3. DatabricksJob
+
+Create the file below to create a job. There are two possible strategies for running jobs via Git sources. For more possible configuration, see the [API SDK docs](databricks-rust-jobs/docs/JobsCreateRequest.md).
+
+#### Using the Git provider
+
+If your credentials are configured, Databricks job definitions [now support](https://docs.databricks.com/repos/ci-cd-best-practices-with-repos.html#run-jobs-using-a-notebook-in-a-databricks-repo) directly referencing a Git source. Whenever the job is triggered, it will use the latest version from source control without needing to poll the repo for updates.&#x20;
+
+{% code title="template/my-word-count.yaml" lineNumbers="true" %}
+```yaml
+apiVersion: com.dstancu.databricks/v1
+kind: DatabricksJob
+metadata:
+  name: my-word-count
+  namespace: {{ .Release.Namespace }}
+spec:
+  job:
+    settings:
+      email_notifications:
+        no_alert_for_skipped_runs: false
+      format: MULTI_TASK
+      job_clusters:
+      - job_cluster_key: word-count-cluster
+        new_cluster:
+          aws_attributes:
+            availability: SPOT_WITH_FALLBACK
+            ebs_volume_count: 1
+            ebs_volume_size: 32
+            ebs_volume_type: GENERAL_PURPOSE_SSD
+            first_on_demand: 1
+            spot_bid_price_percent: 100
+            zone_id: us-east-1e
+          custom_tags:
+            ResourceClass: SingleNode
+          driver_node_type_id: m4.large
+          enable_elastic_disk: false
+          node_type_id: m4.large
+          num_workers: 0
+          spark_conf:
+            spark.databricks.cluster.profile: singleNode
+            spark.master: local[*, 4]
+          spark_env_vars:
+            PYSPARK_PYTHON: /databricks/python3/bin/python3
+          spark_version: 10.4.x-scala2.12
+      max_concurrent_runs: 1
+      name: my-word-count
+      git_source:
+        git_branch: misc-and-docs
+        git_provider: gitHub
+        git_url: https://github.com/mach-kernel/databricks-kube-operator
+      tasks:
+      - email_notifications: {}
+        job_cluster_key: word-count-cluster
+        notebook_task:
+          notebook_path: examples/job.py
+          source: GIT
+        task_key: my-word-count
+        timeout_seconds: 0
+      timeout_seconds: 0
 ```
 {% endcode %}
 
-### 3. Git Repo
+#### Using the repos / workspace integration
 
+Follow the [optional Git Repo instructions](tutorial.md#optional-git-repo) before proceeding.&#x20;
+
+This is for use with the `Repo` API, which clones a repository to your workspace. Tasks are then launched from `WORKSPACE` paths. You can reuse the CRD from above removing `git_source` and changing the task definition to match the example below:
+
+{% code title="templates/my-word-count-job.yaml" lineNumbers="true" %}
+```yaml
+apiVersion: com.dstancu.databricks/v1
+kind: DatabricksJob
+metadata:
+  name: my-word-count
+  namespace: {{ .Release.Namespace }}
+spec:
+  job:
+    settings:
+      tasks:
+      - email_notifications: {}
+        job_cluster_key: word-count-cluster
+        notebook_task:
+          notebook_path: /Repos/Test/databricks-kube-operator/examples/job
+          source: WORKSPACE
+        task_key: my-word-count
+        timeout_seconds: 0
+```
+{% endcode %}
+
+### 4. All together now
+
+
+
+### Optional: Git Repo
+
+We recommend using the Git source for your job definitions, as databricks-kube-operator **does not** poll Databricks to update the workspace repository clone. PRs are accepted.
+
+Create the file below to create a repo. Ensure that the `/Test` directory exists within Repos [(docs)](https://docs.databricks.com/repos/work-with-notebooks-other-files.html) on your Databricks instance, or else the create request will 400:
+
+{% code title="templates/repo.yaml" lineNumbers="true" %}
+```yaml
+apiVersion: com.dstancu.databricks/v1
+kind: Repo
+metadata:
+  annotations:
+    databricks-operator/owner: operator
+  name: databricks-kube-operator
+  namespace: {{ .Release.Namespace }}
+spec:
+  repository:
+    path: /Repos/Test/databricks-kube-operator
+    provider: gitHub
+    url: https://github.com/mach-kernel/databricks-kube-operator.git
+```
+{% endcode %}
