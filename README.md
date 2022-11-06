@@ -1,8 +1,9 @@
 ---
+description: A Kubernetes operator for Databricks
 coverY: 0
 ---
 
-# databricks-kube-operator
+# 🦀 databricks-kube-operator
 
 A [kube-rs](https://kube.rs/) operator to enable GitOps style management of Databricks resources. It supports the following APIs:
 
@@ -183,3 +184,16 @@ pub struct DatabricksJobSpec {
 rustup default nightly
 cargo expand --bin databricks_kube
 ```
+
+### Adding a new CRD
+
+Want to add support for a new API? Provided it has an OpenAPI definition, these are the steps. Look for existing examples in the codebase:
+
+* Download API definition into `openapi/` and make a [Rust generator configuration](https://openapi-generator.tech/docs/generators/rust/) (feel free to copy the others and change name)
+* Generate the SDK, add it to the Cargo workspace and dependencies for `databricks-kube/`
+* Implement `RestConfig<TSDKConfig>` for your new client
+* Implement `From<TSDKAPIError<E>>` for `DatabricksKubeError`
+* Define the new CRD Spec type ([follow kube-rs tutorial](https://kube.rs/getting-started/))
+* Implement `SyncedAPIResource<TAPIResource, TSDKConfig>` for your new CRD
+* Add the new resource to the context ensure CRDs condition
+* Add the new resource to `crdgen.rs`
