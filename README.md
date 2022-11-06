@@ -15,6 +15,8 @@ A [kube-rs](https://kube.rs/) operator to enable GitOps style management of Data
 
 WIP and experimental! See the GitHub project board for the roadmap. Contributions and feedback are welcome!
 
+[Read the docs](https://databricks-kube-operator.gitbook.io/docs/)
+
 ## Quick Start
 
 Looking for a more in-depth example? Read the [tutorial](tutorial.md).
