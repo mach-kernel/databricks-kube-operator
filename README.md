@@ -1,4 +1,6 @@
 # databricks-kube-operator
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmach-kernel%2Fdatabricks-kube-operator.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmach-kernel%2Fdatabricks-kube-operator?ref=badge_shield)
+
 
 A [kube-rs](https://kube.rs/) operator for Databricks APIs:
 
@@ -175,3 +177,7 @@ pub struct DatabricksJobSpec {
 rustup default nightly
 cargo expand --bin databricks_kube
 ```
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmach-kernel%2Fdatabricks-kube-operator.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmach-kernel%2Fdatabricks-kube-operator?ref=badge_large)
