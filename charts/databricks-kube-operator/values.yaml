@@ -1,1 +1,2 @@
 configMapName: databricks-kube-operator
+installCRDs: true
