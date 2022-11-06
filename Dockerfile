@@ -1,7 +1,7 @@
 FROM debian:bullseye-slim
 
 RUN apt update
-RUN apt install -y tini
+RUN apt install -y tini ca-certificates
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
