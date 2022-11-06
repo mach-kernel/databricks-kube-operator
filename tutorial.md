@@ -12,6 +12,7 @@ Begin by creating a Helm [umbrella chart](https://helm.sh/docs/howto/charts\_tip
 
 ```bash
 helm create example-job
+rm example-job/templates/NOTES.txt
 rm -rf example-job/templates/*.yaml
 rm -rf example-job/templates/tests
 echo > example-job/values.yaml
@@ -27,6 +28,15 @@ example-job
 │   ├── NOTES.txt
 │   └── _helpers.tpl
 └── values.yaml
+```
+
+In `Chart.yaml`, add a dependency to the operator chart:
+
+```yaml
+dependencies:
+  - name: databricks-kube-operator
+    repository: https://mach-kernel.github.io/databricks-kube-operator
+    version: 0.1.0
 ```
 
 ## Populating Databricks resources
@@ -199,7 +209,31 @@ spec:
 
 ### 4. All together now
 
+Awesome! We have templates for our shiny new job. Let's make sure the chart works as expected. Inspect the resulting templates for errors:
 
+```
+helm template example-job
+```
+
+If everything looks good, it's time to install. Unfortunately this requires discussion of the [dreaded "install CRDs first"](https://helm.sh/docs/chart\_best\_practices/custom\_resource\_definitions/#install-a-crd-declaration-before-using-the-resource) problem. Here are suggestions for different readers:
+
+* Local/minikube: Comment out the dependency key and continue with installation
+* ArgoCD: Use [sync waves](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/)
+* Fleet/others: Use one chart for your operator deployment, and another for the Databricks resources. On first deploy, the operator chart will sync successfully and `example-job` will do so on retry.
+
+```
+helm install word-count example-job
+```
+
+If successful, you should see the following Helm deployments, as well as your job in Databricks:
+
+```
+NAME                            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                           APP VERSION
+databricks-kube-operator        default         1               2022-11-06 09:54:53.057226 -0500 EST    deployed        databricks-kube-operator-0.1.0  1.16.0
+word-count                      default         1               2022-11-06 10:11:42.774865 -0500 EST    deployed        example-job-0.1.0               1.16.0
+```
+
+Bump the chart version for your Databricks definitions as they change, and let databricks-kube-operator reconcile them when they are merged to your main branch.
 
 ### Optional: Git Repo
 
