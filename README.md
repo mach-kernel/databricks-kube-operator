@@ -1,27 +1,37 @@
-# databricks-kube-operator
+---
+description: A Kubernetes operator for Databricks
+coverY: 0
+---
 
-A [kube-rs](https://kube.rs/) operator for Databricks APIs:
+# 🦀 databricks-kube-operator
+
+A [kube-rs](https://kube.rs/) operator to enable GitOps style management of Databricks resources. It supports the following APIs:
 
 | API                 | CRD           |
-|---------------------|---------------|
+| ------------------- | ------------- |
 | Jobs 2.1            | DatabricksJob |
 | Git Credentials 2.0 | GitCredential |
 | Repos 2.0           | Repo          |
 
-WIP and experimental!
+WIP and experimental! See the GitHub project board for the roadmap. Contributions and feedback are welcome!
 
-## Getting Started
+[Read the docs](https://databricks-kube-operator.gitbook.io/docs/)
+
+## Quick Start
+
+Looking for a more in-depth example? Read the [tutorial](tutorial.md).
 
 ### Installation
 
-Add the Helm repository:
+Add the Helm repository and install the chart:
 
 ```bash
 helm repo add mach https://mach-kernel.github.io/databricks-kube-operator
 helm install databricks-kube-operator mach/databricks-kube-operator
 ```
 
-Create a config map in the same namespace as the operator:
+Create a config map in the same namespace as the operator. To override the configmap name, `--set configMapName=my-custom-name`:
+
 ```bash
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
@@ -50,9 +60,9 @@ EOF
 
 ### Usage
 
-See the examples directory for how to create Databricks resource in Kube. Resources that are created via Kubernetes are owned by the operator -- meaning your checked-in manifests are the source of truth. It will not sync anything other than status back from the API, and overwrite changes made via the UI.
+See the examples directory for samples of Databricks CRDs. Resources that are created via Kubernetes are owned by the operator: your checked-in manifests are the source of truth. It will not sync anything other than status back from the API, and overwrite changes made by users from the Databricks webapp.
 
-You may provide the `databricks-operator/owner` annotation as shown below (to be explicit). However, all resources created in Kube first (i.e. no associated API object found) are assumed to be owned by the operator. 
+You may provide the `databricks-operator/owner` annotation as shown below (to be explicit). However, all resources created in Kube first (i.e. no associated API object found) are assumed to be owned by the operator.
 
 ```yaml
 apiVersion: com.dstancu.databricks/v1
@@ -90,6 +100,7 @@ items:
 Begin by creating the configmap as per the Helm instructions.
 
 Generate and install the CRDs by running the `crd_gen` bin target:
+
 ```bash
 cargo run --bin crd_gen | kubectl apply -f -
 ```
@@ -175,3 +186,16 @@ pub struct DatabricksJobSpec {
 rustup default nightly
 cargo expand --bin databricks_kube
 ```
+
+### Adding a new CRD
+
+Want to add support for a new API? Provided it has an OpenAPI definition, these are the steps. Look for existing examples in the codebase:
+
+* Download API definition into `openapi/` and make a [Rust generator configuration](https://openapi-generator.tech/docs/generators/rust/) (feel free to copy the others and change name)
+* Generate the SDK, add it to the Cargo workspace and dependencies for `databricks-kube/`
+* Implement `RestConfig<TSDKConfig>` for your new client
+* Implement `From<TSDKAPIError<E>>` for `DatabricksKubeError`
+* Define the new CRD Spec type ([follow kube-rs tutorial](https://kube.rs/getting-started/))
+* Implement `SyncedAPIResource<TAPIResource, TSDKConfig>` for your new CRD
+* Add the new resource to the context ensure CRDs condition
+* Add the new resource to `crdgen.rs`
