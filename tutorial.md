@@ -124,6 +124,10 @@ spec:
 
 Create the file below to create a job. There are two possible strategies for running jobs via Git sources. For more possible configuration, see the [API SDK docs](databricks-rust-jobs/docs/JobsCreateRequest.md).
 
+{% hint style="info" %}
+Does your job use an [instance profile](https://docs.databricks.com/dev-tools/api/latest/instance-profiles.html)? You will have to give your new service principal access to the instance profile or your job will fail to launch.
+{% endhint %}
+
 #### Using the Git provider
 
 If your credentials are configured, Databricks job definitions [now support](https://docs.databricks.com/repos/ci-cd-best-practices-with-repos.html#run-jobs-using-a-notebook-in-a-databricks-repo) directly referencing a Git source. Whenever the job is triggered, it will use the latest version from source control without needing to poll the repo for updates.
