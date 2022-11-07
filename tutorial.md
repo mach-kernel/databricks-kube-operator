@@ -36,7 +36,7 @@ In `Chart.yaml`, add a dependency to the operator chart:
 dependencies:
   - name: databricks-kube-operator
     repository: https://mach-kernel.github.io/databricks-kube-operator
-    version: 0.1.0
+    version: 0.1.2
 ```
 
 ## Populating Databricks resources
@@ -229,7 +229,7 @@ If successful, you should see the following Helm deployments, as well as your jo
 
 ```
 NAME                            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                           APP VERSION
-databricks-kube-operator        default         1               2022-11-06 09:54:53.057226 -0500 EST    deployed        databricks-kube-operator-0.1.0  1.16.0
+databricks-kube-operator        default         1               2022-11-06 09:54:53.057226 -0500 EST    deployed        databricks-kube-operator-0.1.2  1.16.0
 word-count                      default         1               2022-11-06 10:11:42.774865 -0500 EST    deployed        example-job-0.1.0               1.16.0
 ```
 
