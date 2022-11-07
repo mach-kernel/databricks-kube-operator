@@ -45,6 +45,8 @@ We are now going to create our resources in the `templates/` directory.
 
 ### 1. Operator configmap and Databricks access token
 
+Begin by creating a [Databricks service principal](https://docs.databricks.com/dev-tools/service-principals.html), and use the according API call to create an access token. If your new service principal is unable to issue a token, enable token permissions for it by following the instructions [from this KB](https://kb.databricks.com/en\_US/notebooks/service-principal-cannot-create-access-token).
+
 {% hint style="info" %}
 In a production environment, the Databricks API URL and access token can be sourced via [External Secrets Operator](https://external-secrets.io) in combination with (e.g. AWS Secrets Manager).
 {% endhint %}
