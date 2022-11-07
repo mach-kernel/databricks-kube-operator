@@ -4,7 +4,7 @@ description: An example GitOps recipe
 
 # ⌨ Tutorial
 
-This repository contains a [PySpark example job](https://github.com/mach-kernel/databricks-kube-operator/blob/master/examples/job.py) (how did you guess it was word count?) that we are going to operationalize using Helm and databricks-kube-operator. You can follow along with a local [minikube](https://minikube.sigs.k8s.io/docs/) cluster, or use in an environment with [ArgoCD](https://argo-cd.readthedocs.io/en/stable/) or [Fleet](https://fleet.rancher.io/).
+This repository contains a [PySpark example job](examples/job.py) (how did you guess it was word count?) that we are going to operationalize using Helm and databricks-kube-operator. You can follow along with a local [minikube](https://minikube.sigs.k8s.io/docs/) cluster, or use in an environment with [ArgoCD](https://argo-cd.readthedocs.io/en/stable/) or [Fleet](https://fleet.rancher.io/).
 
 ## Create a Helm umbrella chart
 
@@ -25,8 +25,8 @@ example-job
 ├── Chart.yaml
 ├── charts
 ├── templates
-│   ├── NOTES.txt
-│   └── _helpers.tpl
+│   ├── NOTES.txt
+│   └── _helpers.tpl
 └── values.yaml
 ```
 
@@ -36,7 +36,7 @@ In `Chart.yaml`, add a dependency to the operator chart:
 dependencies:
   - name: databricks-kube-operator
     repository: https://mach-kernel.github.io/databricks-kube-operator
-    version: 0.1.0
+    version: 0.1.2
 ```
 
 ## Populating Databricks resources
@@ -124,7 +124,7 @@ Create the file below to create a job. There are two possible strategies for run
 
 #### Using the Git provider
 
-If your credentials are configured, Databricks job definitions [now support](https://docs.databricks.com/repos/ci-cd-best-practices-with-repos.html#run-jobs-using-a-notebook-in-a-databricks-repo) directly referencing a Git source. Whenever the job is triggered, it will use the latest version from source control without needing to poll the repo for updates.&#x20;
+If your credentials are configured, Databricks job definitions [now support](https://docs.databricks.com/repos/ci-cd-best-practices-with-repos.html#run-jobs-using-a-notebook-in-a-databricks-repo) directly referencing a Git source. Whenever the job is triggered, it will use the latest version from source control without needing to poll the repo for updates.
 
 {% code title="template/my-word-count.yaml" lineNumbers="true" %}
 ```yaml
@@ -182,7 +182,7 @@ spec:
 
 #### Using the repos / workspace integration
 
-Follow the [optional Git Repo instructions](tutorial.md#optional-git-repo) before proceeding.&#x20;
+Follow the [optional Git Repo instructions](tutorial.md#optional-git-repo) before proceeding.
 
 This is for use with the `Repo` API, which clones a repository to your workspace. Tasks are then launched from `WORKSPACE` paths. You can reuse the CRD from above removing `git_source` and changing the task definition to match the example below:
 
@@ -229,7 +229,7 @@ If successful, you should see the following Helm deployments, as well as your jo
 
 ```
 NAME                            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                           APP VERSION
-databricks-kube-operator        default         1               2022-11-06 09:54:53.057226 -0500 EST    deployed        databricks-kube-operator-0.1.0  1.16.0
+databricks-kube-operator        default         1               2022-11-06 09:54:53.057226 -0500 EST    deployed        databricks-kube-operator-0.1.2  1.16.0
 word-count                      default         1               2022-11-06 10:11:42.774865 -0500 EST    deployed        example-job-0.1.0               1.16.0
 ```
 
