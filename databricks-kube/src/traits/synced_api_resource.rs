@@ -10,7 +10,7 @@ use k8s_openapi::NamespaceResourceScope;
 use kube::{
     api::ListParams,
     api::PostParams,
-    runtime::{controller::Action, watcher, watcher::Event, Controller},
+    runtime::{controller::Action, watcher, watcher::Event, Controller, reflector::ObjectRef},
     Api, CustomResourceExt, Resource, ResourceExt,
 };
 
@@ -311,7 +311,7 @@ where
 pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone> {
     fn controller(
         context: Arc<Context>,
-    ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send>>
+    ) -> Pin<Box<dyn Stream<Item = Result<(ObjectRef<Self>, Action), DatabricksKubeError>> + Send>>
     where
         Self: From<TAPIType>,
         Self: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
@@ -342,15 +342,9 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         Controller::new(root_kind_api.clone(), ListParams::default())
             .shutdown_on_signal()
             .run(reconcile, Self::default_error_policy, context.clone())
-            .for_each(|r| async move {
-                match r {
-                    Ok((object, _)) => log::info!("{} reconciled", object.name),
-                    Err(e) => log::info!("{}", e),
-                }
-            })
-            .map(|_v| Ok(()))
+            .map_err(|e| DatabricksKubeError::ControllerError(e.to_string()))
             .boxed()
-            .boxed()
+
     }
 
     fn ingest_task(

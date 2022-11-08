@@ -70,18 +70,16 @@ impl Context {
             .next()
     }
 
-    #[allow(dead_code)]
-    pub async fn new(
+    pub fn new(
         client: Client,
         api_secret_store: Arc<Store<Secret>>,
         configmap_store: Arc<Store<ConfigMap>>,
-    ) -> Result<Arc<Context>, DatabricksKubeError> {
-        Ok(Self {
+    ) -> Arc<Context> {
+        Self {
             api_secret_store,
             client,
             configmap_store,
             delete_watchers: HashMap::new().into(),
-        }
-        .into())
+        }.into()
     }
 }

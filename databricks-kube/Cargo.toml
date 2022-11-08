@@ -34,3 +34,4 @@ tokio-stream = "0.1.11"
 
 [dev-dependencies]
 tower-test = "0.4.0"
+hyper = "0.14.23"
