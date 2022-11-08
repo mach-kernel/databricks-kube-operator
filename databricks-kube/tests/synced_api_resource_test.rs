@@ -5,13 +5,12 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use databricks_kube::{
-    context::Context, error::DatabricksKubeError,
-    traits::synced_api_resource::SyncedAPIResource,
+    context::Context, error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource,
 };
 
 use async_stream::try_stream;
 use futures::{Stream, StreamExt};
-use kube::{core::object::HasSpec};
+use kube::core::object::HasSpec;
 
 use flurry::HashMap;
 use lazy_static::lazy_static;
@@ -39,7 +38,10 @@ impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
         &self,
         _context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<FakeAPIResource, DatabricksKubeError>> + Send>> {
-        let found = TEST_STORE.pin().get(&self.spec().api_resource.id).map(Clone::clone);
+        let found = TEST_STORE
+            .pin()
+            .get(&self.spec().api_resource.id)
+            .map(Clone::clone);
 
         try_stream! {
             if found.is_some() {
@@ -54,13 +56,14 @@ impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
         _context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<FakeResource, DatabricksKubeError>> + Send + '_>>
     where
-        Self: Sized
+        Self: Sized,
     {
         let api_resource = self.spec().api_resource.clone();
         try_stream! {
             TEST_STORE.pin().insert(api_resource.id, api_resource.clone());
             yield self.clone();
-        }.boxed()
+        }
+        .boxed()
     }
 
     fn remote_update(
@@ -68,12 +71,13 @@ impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
         _context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<FakeResource, DatabricksKubeError>> + Send + '_>>
     where
-        Self: Sized
+        Self: Sized,
     {
         try_stream! {
             TEST_STORE.pin().insert(self.spec().api_resource.id, self.spec().api_resource.clone());
             yield self.clone()
-        }.boxed()
+        }
+        .boxed()
     }
 
     fn remote_delete(
@@ -83,6 +87,12 @@ impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
         try_stream! {
             TEST_STORE.pin().remove_entry(&self.spec().api_resource.id);
             yield ()
-        }.boxed()
+        }
+        .boxed()
     }
 }
+
+// #[tokio::test]
+// async fn test_controller_lifecycle_create() {
+//     let controller = FakeResource::controller(Context::default());
+// }

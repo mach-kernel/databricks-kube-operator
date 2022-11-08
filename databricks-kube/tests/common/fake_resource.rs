@@ -1,4 +1,8 @@
-use k8s_openapi::{serde::{Deserialize, Serialize}};
+use std::pin::Pin;
+
+use databricks_kube::{context::Context, traits::rest_config::RestConfig};
+use futures::FutureExt;
+use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
 
@@ -30,6 +34,9 @@ impl From<FakeResource> for FakeAPIResource {
 /// API -> CRD
 impl From<FakeAPIResource> for FakeResource {
     fn from(api_resource: FakeAPIResource) -> Self {
-        Self::new(&format!("fake-{}", api_resource.id), FakeResourceSpec { api_resource })
+        Self::new(
+            &format!("fake-{}", api_resource.id),
+            FakeResourceSpec { api_resource },
+        )
     }
 }
