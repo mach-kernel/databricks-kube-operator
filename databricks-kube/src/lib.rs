@@ -3,13 +3,13 @@ pub mod crds;
 pub mod error;
 pub mod traits;
 
-use std::{collections::BTreeMap, env, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use crate::context::CONFIGMAP_NAME;
 use crate::context::{DatabricksAPISecret, OperatorConfiguration};
 use crate::error::DatabricksKubeError;
 
-use flurry::HashMap;
+
 use futures::{StreamExt, TryStreamExt};
 use jsonschema::is_valid;
 use k8s_openapi::{
@@ -23,15 +23,14 @@ use kube::{
         wait::{await_condition, conditions},
         watcher::{self, Event},
     },
-    Api, Client,
+    Api,
 };
-use lazy_static::lazy_static;
-use schemars::{schema_for, JsonSchema};
-use serde::{Deserialize, Serialize};
+
+use schemars::{schema_for};
+
 use serde_json::json;
 use tokio::{
-    task::JoinHandle,
-    time::{sleep, timeout},
+    time::{timeout},
 };
 
 pub async fn watch_api_secret(

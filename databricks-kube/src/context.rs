@@ -1,30 +1,24 @@
-use std::{collections::BTreeMap, env, sync::Arc, time::Duration};
+use std::{collections::BTreeMap, env, sync::Arc};
 
 use crate::error::DatabricksKubeError;
 
 use flurry::HashMap;
-use futures::{StreamExt, TryStreamExt};
-use jsonschema::is_valid;
+use futures::{StreamExt};
+
 use k8s_openapi::{
     api::core::v1::{ConfigMap, Secret},
-    apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
 };
 use kube::{
-    api::ListParams,
     runtime::{
-        reflector::{self, Store},
-        wait::{await_condition, conditions},
-        watcher::{self, Event},
-    },
-    Api, Client,
+        reflector::{Store},
+    }, Client,
 };
 use lazy_static::lazy_static;
-use schemars::{schema_for, JsonSchema};
+use schemars::{JsonSchema};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+
 use tokio::{
     task::JoinHandle,
-    time::{sleep, timeout},
 };
 
 lazy_static! {
