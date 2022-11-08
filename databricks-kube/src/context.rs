@@ -3,23 +3,15 @@ use std::{collections::BTreeMap, env, sync::Arc};
 use crate::error::DatabricksKubeError;
 
 use flurry::HashMap;
-use futures::{StreamExt};
+use futures::StreamExt;
 
-use k8s_openapi::{
-    api::core::v1::{ConfigMap, Secret},
-};
-use kube::{
-    runtime::{
-        reflector::{Store},
-    }, Client,
-};
+use k8s_openapi::api::core::v1::{ConfigMap, Secret};
+use kube::{runtime::reflector::Store, Client};
 use lazy_static::lazy_static;
-use schemars::{JsonSchema};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use tokio::{
-    task::JoinHandle,
-};
+use tokio::task::JoinHandle;
 
 lazy_static! {
     pub static ref CONFIGMAP_NAME: String =
@@ -80,6 +72,7 @@ impl Context {
             client,
             configmap_store,
             delete_watchers: HashMap::new().into(),
-        }.into()
+        }
+        .into()
     }
 }

@@ -9,7 +9,6 @@ use crate::context::CONFIGMAP_NAME;
 use crate::context::{DatabricksAPISecret, OperatorConfiguration};
 use crate::error::DatabricksKubeError;
 
-
 use futures::{StreamExt, TryStreamExt};
 use jsonschema::is_valid;
 use k8s_openapi::{
@@ -26,12 +25,10 @@ use kube::{
     Api,
 };
 
-use schemars::{schema_for};
+use schemars::schema_for;
 
 use serde_json::json;
-use tokio::{
-    time::{timeout},
-};
+use tokio::time::timeout;
 
 pub async fn watch_api_secret(
     api_secret_name: String,

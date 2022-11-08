@@ -3,7 +3,7 @@ mod crds;
 mod error;
 mod traits;
 
-use std::{collections::BTreeMap, sync::Arc, time::Duration, hash::Hash};
+use std::{collections::BTreeMap, hash::Hash, sync::Arc, time::Duration};
 
 use databricks_kube::{
     context::Context, crds::databricks_job::DatabricksJob, crds::git_credential::GitCredential,
@@ -12,14 +12,21 @@ use databricks_kube::{
 };
 
 use k8s_openapi::{
-    api::core::v1::{ConfigMap, Secret}, apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
+    api::core::v1::{ConfigMap, Secret},
+    apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
 };
 
-use futures::StreamExt;
 use futures::FutureExt;
+use futures::StreamExt;
 
 use git_version::git_version;
-use kube::{runtime::{reflector::{Store, ObjectRef}, controller::Action}, Api, Client, ResourceExt, CustomResourceExt, Resource};
+use kube::{
+    runtime::{
+        controller::Action,
+        reflector::{ObjectRef, Store},
+    },
+    Api, Client, CustomResourceExt, Resource, ResourceExt,
+};
 use tokio::time::sleep;
 use tokio_graceful_shutdown::{SubsystemHandle, Toplevel};
 
@@ -37,8 +44,9 @@ fn get_store_key(map: Option<BTreeMap<String, String>>, key: &str) -> Option<Str
         .next()
 }
 
-async fn log_controller_event<TCRDType>(event: Result<(ObjectRef<TCRDType>, Action), DatabricksKubeError>) 
-    where
+async fn log_controller_event<TCRDType>(
+    event: Result<(ObjectRef<TCRDType>, Action), DatabricksKubeError>,
+) where
     TCRDType: Resource + ResourceExt + CustomResourceExt,
     TCRDType::DynamicType: Default + Eq + Hash,
 {
@@ -90,20 +98,26 @@ async fn main() -> Result<(), DatabricksKubeError> {
     Toplevel::new()
         .start(
             "job_controller",
-            |_: SubsystemHandle<DatabricksKubeError>| job_controller.for_each(log_controller_event).map(|_| {
-                let res: Result<(), DatabricksKubeError> = Ok(());
-                res
-            }),
+            |_: SubsystemHandle<DatabricksKubeError>| {
+                job_controller.for_each(log_controller_event).map(|_| {
+                    let res: Result<(), DatabricksKubeError> = Ok(());
+                    res
+                })
+            },
         )
         .start("job_ingest", |_: SubsystemHandle<DatabricksKubeError>| {
             job_ingest
         })
         .start(
             "git_credential_controller",
-            |_: SubsystemHandle<DatabricksKubeError>| git_credential_controller.for_each(log_controller_event).map(|_| {
-                let res: Result<(), DatabricksKubeError> = Ok(());
-                res
-            }),
+            |_: SubsystemHandle<DatabricksKubeError>| {
+                git_credential_controller
+                    .for_each(log_controller_event)
+                    .map(|_| {
+                        let res: Result<(), DatabricksKubeError> = Ok(());
+                        res
+                    })
+            },
         )
         .start(
             "git_credential_ingest",
@@ -111,10 +125,12 @@ async fn main() -> Result<(), DatabricksKubeError> {
         )
         .start(
             "repo_controller",
-            |_: SubsystemHandle<DatabricksKubeError>| repo_controller.for_each(log_controller_event).map(|_| {
-                let res: Result<(), DatabricksKubeError> = Ok(());
-                res
-            }),
+            |_: SubsystemHandle<DatabricksKubeError>| {
+                repo_controller.for_each(log_controller_event).map(|_| {
+                    let res: Result<(), DatabricksKubeError> = Ok(());
+                    res
+                })
+            },
         )
         .start("repo_ingest", |_: SubsystemHandle<DatabricksKubeError>| {
             repo_ingest

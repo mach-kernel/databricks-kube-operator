@@ -10,7 +10,7 @@ use k8s_openapi::NamespaceResourceScope;
 use kube::{
     api::ListParams,
     api::PostParams,
-    runtime::{controller::Action, watcher, watcher::Event, Controller, reflector::ObjectRef},
+    runtime::{controller::Action, reflector::ObjectRef, watcher, watcher::Event, Controller},
     Api, CustomResourceExt, Resource, ResourceExt,
 };
 
@@ -344,7 +344,6 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
             .run(reconcile, Self::default_error_policy, context.clone())
             .map_err(|e| DatabricksKubeError::ControllerError(e.to_string()))
             .boxed()
-
     }
 
     fn ingest_task(

@@ -1,6 +1,10 @@
 mod common;
 use common::fake_resource::{FakeAPIResource, FakeResource};
-use k8s_openapi::{api::core::v1::{ConfigMap, Secret}, List};
+use k8s_openapi::{
+    api::core::v1::{ConfigMap, Secret},
+    List,
+};
+use serde_json::Value;
 
 use std::pin::Pin;
 use std::sync::Arc;
@@ -13,17 +17,17 @@ use async_stream::try_stream;
 use futures::{Stream, StreamExt};
 use kube::{
     core::object::HasSpec,
-    runtime::{
-        reflector::{self, Store, store::Writer}
-    }, Client
+    runtime::reflector::{self, store::Writer, Store},
+    Client,
 };
 
 use flurry::HashMap;
 use lazy_static::lazy_static;
 use tower_test::mock::Handle;
 
-use k8s_openapi::http::{Request, Response};
+use hyper::body::HttpBody;
 use hyper::Body;
+use k8s_openapi::http::{Request, Response};
 use tower_test::mock;
 
 lazy_static! {
@@ -55,9 +59,7 @@ impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
             .map(Clone::clone);
 
         try_stream! {
-            if found.is_some() {
-                yield found.unwrap();
-            }
+            yield found.ok_or_else(|| DatabricksKubeError::APIError("Not found".to_string()))?;
         }
         .boxed()
     }
@@ -103,37 +105,128 @@ impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
     }
 }
 
-async fn mock_get_fakeresources(handle: &mut Handle<Request<Body>, Response<Body>>) {
+async fn mock_fake_resource_created(handle: &mut Handle<Request<Body>, Response<Body>>) {
     let (request, send) = handle.next_request().await.expect("Service not called");
-    println!("req!! {:?}", request);
 
-    let body = match (request.method().as_str(), request.uri().path().to_string().as_str()) {
+    let body = match (
+        request.method().as_str(),
+        request.uri().path().to_string().as_str(),
+    ) {
         ("GET", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources") => {
-            let resource = serde_json::json!(
-                {
-                    "apiVersion": "v1",
-                    "kind": "List",
-                    "metadata": {
-                        "resourceVersion": ""
-                    },
-                    "items": [
+            let resource = match request.uri().query() {
+                Some(q) if q.contains("watch") => {
+                    serde_json::json!(
                         {
-                            "apiVersion": "com.dstancu.test/v1",
-                            "kind": "FakeResource",
-                            "metadata": {
-                                "name": "test",
-                            },
-                            "spec": {
-                                "api_resource": {
-                                    "id": 1
+                            "type": "ADDED",
+                            "object": {
+                                "apiVersion": "com.dstancu.test/v1",
+                                "kind": "FakeResource",
+                                "metadata": {
+                                    "name": "test",
+                                    "resourceVersion": "2",
+                                },
+                                "spec": {
+                                    "api_resource": {
+                                        "id": 1
+                                    }
                                 }
                             }
                         }
-                    ]
+                    )
                 }
-            );
+                _ => {
+                    serde_json::json!(
+                        {
+                            "apiVersion": "v1",
+                            "kind": "List",
+                            "metadata": {
+                                "resourceVersion": ""
+                            },
+                            "items": []
+                        }
+                    )
+                }
+            };
 
             serde_json::to_vec(&resource).unwrap()
+        }
+        ("PUT", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/test") => {
+            hyper::body::to_bytes(request.into_body())
+                .await
+                .unwrap()
+                .into()
+        }
+        _ => panic!("Unexpected API request {:?}", request),
+    };
+
+    send.send_response(Response::builder().body(Body::from(body)).unwrap());
+}
+
+async fn mock_fake_resource_updated(handle: &mut Handle<Request<Body>, Response<Body>>) {
+    let (request, send) = handle.next_request().await.expect("Service not called");
+
+    let body = match (
+        request.method().as_str(),
+        request.uri().path().to_string().as_str(),
+    ) {
+        ("GET", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources") => {
+            let resource = match request.uri().query() {
+                Some(q) if q.contains("watch") => {
+                    serde_json::json!(
+                        {
+                            "type": "MODIFIED",
+                            "object": {
+                                "apiVersion": "com.dstancu.test/v1",
+                                "kind": "FakeResource",
+                                "metadata": {
+                                    "name": "test",
+                                    "resourceVersion": "3",
+                                },
+                                "spec": {
+                                    "api_resource": {
+                                        "id": 1,
+                                        "description": "foobar"
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
+                _ => {
+                    serde_json::json!(
+                        {
+                            "apiVersion": "v1",
+                            "kind": "List",
+                            "metadata": {
+                                "resourceVersion": ""
+                            },
+                            "items": [
+                                {
+                                    "apiVersion": "com.dstancu.test/v1",
+                                    "kind": "FakeResource",
+                                    "metadata": {
+                                        "name": "test",
+                                        "resourceVersion": "2",
+                                    },
+                                    "spec": {
+                                        "api_resource": {
+                                            "id": 1
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    )
+                }
+            };
+
+            serde_json::to_vec(&resource).unwrap()
+        }
+        ("PUT", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/test") => {
+            hyper::body::to_bytes(request.into_body())
+                .await
+                .unwrap()
+                .into()
         }
         _ => panic!("Unexpected API request {:?}", request),
     };
@@ -143,11 +236,13 @@ async fn mock_get_fakeresources(handle: &mut Handle<Request<Body>, Response<Body
 
 #[tokio::test]
 async fn test_controller_lifecycle_create() {
+    TEST_STORE.pin().clear();
+
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
 
-    let spawned = tokio::spawn(async move {
+    let kube_server = tokio::spawn(async move {
         loop {
-            mock_get_fakeresources(&mut handle).await;
+            mock_fake_resource_created(&mut handle).await;
         }
     });
 
@@ -162,9 +257,53 @@ async fn test_controller_lifecycle_create() {
         Arc::new(configmap_store),
     ));
 
-    println!("controller {:?}", controller.next().await);
-    println!("handle {:?}", spawned.await);
+    // It reconciled successfully and the resources are in sync
+    let reconciled = controller.next().await;
+    assert!(reconciled.unwrap().is_ok());
+    assert_eq!(
+        TEST_STORE.pin().get(&1).unwrap().clone(),
+        FakeAPIResource {
+            id: 1,
+            description: None
+        }
+    );
 
-    assert_eq!(TEST_STORE.pin().get(&1).unwrap().clone(), FakeAPIResource { id: 1, description: None });
-    
+    kube_server.abort();
+}
+
+#[tokio::test]
+async fn test_controller_lifecycle_update() {
+    TEST_STORE.pin().clear();
+
+    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+
+    let kube_server = tokio::spawn(async move {
+        loop {
+            mock_fake_resource_updated(&mut handle).await;
+        }
+    });
+
+    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
+    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+
+    let kube_client = Client::new(mock_service, "default");
+
+    let mut controller = FakeResource::controller(Context::new(
+        kube_client,
+        Arc::new(api_secret_store),
+        Arc::new(configmap_store),
+    ));
+
+    // It reconciled successfully and the resources are in sync
+    let reconciled = controller.next().await;
+    assert!(reconciled.unwrap().is_ok());
+    assert_eq!(
+        TEST_STORE.pin().get(&1).unwrap().clone(),
+        FakeAPIResource {
+            id: 1,
+            description: Some("foobar".to_string())
+        }
+    );
+
+    kube_server.abort();
 }
