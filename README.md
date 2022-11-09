@@ -5,6 +5,8 @@ coverY: 0
 
 # 🦀 databricks-kube-operator
 
+[![Rust](https://github.com/mach-kernel/databricks-kube-operator/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/mach-kernel/databricks-kube-operator/actions/workflows/rust.yml)
+
 A [kube-rs](https://kube.rs/) operator to enable GitOps style management of Databricks resources. It supports the following APIs:
 
 | API                 | CRD           |
