@@ -1,15 +1,14 @@
 mod common;
 use common::fake_resource::{FakeAPIResource, FakeResource, FakeResourceSpec};
-use k8s_openapi::{
-    api::core::v1::{ConfigMap, Secret},
-};
-
+use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 
 use std::sync::Arc;
 use std::{collections::BTreeMap, pin::Pin};
 
 use databricks_kube::{
-    context::Context, error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource,
+    context::Context,
+    error::DatabricksKubeError,
+    traits::synced_api_resource::{spawn_delete_watcher, SyncedAPIResource},
 };
 
 use async_stream::try_stream;
@@ -23,16 +22,24 @@ use kube::{
 use flurry::HashMap;
 use lazy_static::lazy_static;
 
-
-use hyper::body::HttpBody;
 use hyper::Body;
 use k8s_openapi::http::{Request, Response};
 use tower_test::mock;
 
 use common::mock_k8s::{
-    mock_fake_resource_created, mock_fake_resource_updated, serve_fake_resource,
+    mock_fake_resource_created, mock_fake_resource_deleted, mock_fake_resource_updated_kube,
+    mock_list_fake_resource,
 };
 
+use std::time::Duration;
+use tokio::time::{sleep, timeout};
+
+/*
+ * A basic integration test for the SyncedAPIResource trait against a FakeResource CRD.
+ *
+ * This implementation treats TEST_STORE as the remote state store, which we can then
+ * assert against for test cases.
+ */
 lazy_static! {
     static ref TEST_STORE: HashMap<i64, FakeAPIResource> = HashMap::new();
 }
@@ -110,7 +117,7 @@ impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
 
 /// When the resource is created in Kubernetes
 #[tokio::test]
-async fn test_controller_lifecycle_create() {
+async fn test_controller_lifecycle_created() {
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
 
     let created_api_resource = FakeAPIResource {
@@ -205,8 +212,13 @@ async fn test_controller_lifecycle_update_kube_owned() {
 
     let kube_server = tokio::spawn(async move {
         loop {
-            mock_fake_resource_updated(&mut handle, resource.clone(), updated_resource.clone())
-                .await;
+            mock_fake_resource_updated_kube(
+                &mut handle,
+                resource.clone(),
+                updated_resource.clone(),
+                Some("MODIFIED".to_string()),
+            )
+            .await;
         }
     });
 
@@ -268,7 +280,7 @@ async fn test_controller_lifecycle_update_api_owned() {
     // Kube has a different version
     let kube_server = tokio::spawn(async move {
         loop {
-            serve_fake_resource(
+            mock_list_fake_resource(
                 &mut handle,
                 resource.clone(),
                 // assertion made during PUT call
@@ -292,6 +304,150 @@ async fn test_controller_lifecycle_update_api_owned() {
     // It reconciled successfully
     let reconciled = controller.next().await;
     assert!(reconciled.unwrap().is_ok());
+
+    kube_server.abort();
+    TEST_STORE.pin().clear();
+}
+
+/// When an owned Kubernetes resource matches the remote API
+#[tokio::test]
+async fn test_controller_lifecycle_in_sync_owned() {
+    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+
+    let mut resource: FakeResource = FakeResource::new(
+        "foo",
+        FakeResourceSpec {
+            api_resource: FakeAPIResource {
+                id: 1,
+                description: None,
+            },
+        },
+    );
+    resource.meta_mut().namespace = Some("default".to_string());
+    resource.meta_mut().resource_version = Some("1".to_string());
+    resource.meta_mut().annotations = Some({
+        let mut annots = BTreeMap::new();
+        annots.insert(
+            "databricks-operator/owner".to_string(),
+            "operator".to_string(),
+        );
+        annots
+    });
+
+    TEST_STORE
+        .pin()
+        .insert(1, resource.spec().api_resource.clone());
+
+    let kube_server = tokio::spawn(async move {
+        loop {
+            mock_list_fake_resource(
+                &mut handle,
+                resource.clone(),
+                resource.spec().api_resource.clone(),
+            )
+            .await;
+        }
+    });
+
+    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
+    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+
+    let kube_client = Client::new(mock_service, "default");
+
+    let context = Context::new(
+        kube_client,
+        Arc::new(api_secret_store),
+        Arc::new(configmap_store),
+    );
+
+    let mut controller = FakeResource::controller(context.clone());
+
+    // The reconcile spawns a delete watcher since the resource is owned
+    let reconciled = controller.next().await;
+    assert!(reconciled.unwrap().is_ok());
+    assert!(context
+        .delete_watchers
+        .pin()
+        .get("/apis/com.dstancu.test/v1/namespaces/default/fakeresources/foo")
+        .is_some());
+
+    kube_server.abort();
+    TEST_STORE.pin().clear();
+}
+
+// When an owned Kubernetes resource is deleted
+#[tokio::test]
+async fn test_controller_lifecycle_delete_owned() {
+    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+
+    let mut resource: FakeResource = FakeResource::new(
+        "foo",
+        FakeResourceSpec {
+            api_resource: FakeAPIResource {
+                id: 1,
+                description: None,
+            },
+        },
+    );
+
+    resource.meta_mut().namespace = Some("default".to_string());
+    resource.meta_mut().resource_version = Some("1".to_string());
+    resource.meta_mut().annotations = Some({
+        let mut annots = BTreeMap::new();
+        annots.insert(
+            "databricks-operator/owner".to_string(),
+            "operator".to_string(),
+        );
+        annots
+    });
+
+    TEST_STORE
+        .pin()
+        .insert(1, resource.spec().api_resource.clone());
+
+    let serve_me = resource.clone();
+    let kube_server = tokio::spawn(async move {
+        loop {
+            mock_fake_resource_deleted(&mut handle, serve_me.clone()).await;
+        }
+    });
+
+    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
+    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+
+    let kube_client = Client::new(mock_service, "default");
+    let context = Context::new(
+        kube_client,
+        Arc::new(api_secret_store),
+        Arc::new(configmap_store),
+    );
+
+    let resource = Arc::new(resource);
+
+    // Create watcher and insert it into the context
+    let watcher = spawn_delete_watcher(resource.clone(), context.clone()).await;
+    context
+        .delete_watchers
+        .pin()
+        .insert(resource.self_url_unchecked(), watcher.into());
+
+    // We don't yield the watch stream in our task, so we have to wait
+    // for the effect to happen
+    let poll_store = async {
+        while let Some(_) = TEST_STORE.pin().get(&1) {
+            sleep(Duration::from_secs(1)).await;
+        }
+    };
+    timeout(Duration::from_secs(10), poll_store).await.unwrap();
+
+    // The resource was removed from the remote API
+    assert!(TEST_STORE.pin().get(&1).is_none());
+    // The watcher for the resource was aborted
+    assert!(context
+        .delete_watchers
+        .pin()
+        .get(&resource.self_url_unchecked())
+        .is_none());
 
     kube_server.abort();
     TEST_STORE.pin().clear();

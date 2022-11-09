@@ -21,7 +21,7 @@ use tokio::{task::JoinHandle, time::interval};
 /// TAPIType is OpenAPI generated
 /// TCRDType is the operator's wrapper
 #[allow(dead_code)]
-async fn ingest_task<TAPIType, TCRDType, TRestConfig>(
+pub async fn ingest_task<TAPIType, TCRDType, TRestConfig>(
     interval_period: Duration,
     context: Arc<Context>,
 ) -> Result<(), DatabricksKubeError>
@@ -91,7 +91,7 @@ where
 }
 
 #[allow(dead_code)]
-async fn spawn_delete_watcher<TAPIType, TCRDType, TRestConfig>(
+pub async fn spawn_delete_watcher<TAPIType, TCRDType, TRestConfig>(
     resource: Arc<TCRDType>,
     context: Arc<Context>,
 ) -> JoinHandle<Result<(), DatabricksKubeError>>
