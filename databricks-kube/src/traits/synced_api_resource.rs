@@ -5,11 +5,12 @@ use crate::{context::Context, error::DatabricksKubeError, traits::rest_config::R
 use assert_json_diff::assert_json_matches_no_panic;
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 
-use k8s_openapi::NamespaceResourceScope;
+use k8s_openapi::{DeepMerge, NamespaceResourceScope};
 
 use kube::{
     api::ListParams,
     api::PostParams,
+    core::object::HasSpec,
     runtime::{controller::Action, reflector::ObjectRef, watcher, watcher::Event, Controller},
     Api, CustomResourceExt, Resource, ResourceExt,
 };
@@ -296,16 +297,27 @@ where
         );
     } else if latest_remote != kube_as_api {
         log::info!(
-            "Resource {} {} is not owned by databricks-kube-operator, updating Kubernetes object.\nIngested resources are databricks-operator/owner: api\nTo push updates to databricks, ensure databricks-operator/owner: operator by creating your object in Kubernetes first.",
+            "Resource {} {} is not owned by databricks-kube-operator, updating Kubernetes object.\nIngested resources are databricks-operator/owner: api\nTo push updates to Databricks, ensure databricks-operator/owner: operator by creating your object in Kubernetes first.",
             TCRDType::api_resource().kind,
             resource.name_unchecked()
         );
+
+        let mut latest_as_kube: TCRDType = latest_remote.into();
+        latest_as_kube
+            .annotations_mut()
+            .merge_from(resource.annotations().clone());
+        latest_as_kube
+            .labels_mut()
+            .merge_from(resource.labels().clone());
+        latest_as_kube
+            .meta_mut()
+            .merge_from(resource.meta().clone());
 
         kube_api
             .replace(
                 &resource.name_unchecked(),
                 &PostParams::default(),
-                &latest_remote.into(),
+                &latest_as_kube,
             )
             .await
             .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
