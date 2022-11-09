@@ -248,7 +248,7 @@ async fn test_controller_lifecycle_update_kube_operator_owned() {
 
 /// When the API resource is updated for an owned resource
 #[tokio::test]
-async fn test_controller_lifecycle_update_api_operator_owned() {
+async fn test_controller_lifecycle_api_update_operator_owned() {
     // Begin with a CRD owned by the operator
     let mut resource: FakeResource = FakeResource::new(
         "foo",
@@ -286,6 +286,67 @@ async fn test_controller_lifecycle_update_api_operator_owned() {
                 resource.clone(),
                 // assertion made during PUT call
                 resource.spec().api_resource.clone(),
+            )
+            .await;
+        }
+    });
+
+    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
+    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+
+    let kube_client = Client::new(mock_service, "default");
+
+    let mut controller = FakeResource::controller(Context::new(
+        kube_client,
+        Arc::new(api_secret_store),
+        Arc::new(configmap_store),
+    ));
+
+    // It reconciled successfully
+    let reconciled = controller.next().await;
+    assert!(reconciled.unwrap().is_ok());
+
+    kube_server.abort();
+    TEST_STORE.pin().clear();
+}
+
+/// When the API resource is updated for an API owned resource
+#[tokio::test]
+async fn test_controller_lifecycle_api_update_api_owned() {
+    // Begin with a CRD owned by the operator
+    let mut resource: FakeResource = FakeResource::new(
+        "foo",
+        FakeResourceSpec {
+            api_resource: FakeAPIResource {
+                id: 42,
+                description: None,
+            },
+        },
+    );
+
+    resource.meta_mut().annotations = Some({
+        let mut annots = BTreeMap::new();
+        annots.insert("databricks-operator/owner".to_string(), "api".to_string());
+        annots
+    });
+
+    // Remote has a different value for "description"
+    let updated_resource = FakeAPIResource {
+        description: Some("hello".to_string()),
+        ..resource.spec().api_resource
+    };
+    TEST_STORE.pin().insert(42, updated_resource.clone());
+
+    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+
+    // Kube has a different version
+    let kube_server = tokio::spawn(async move {
+        loop {
+            mock_list_fake_resource(
+                &mut handle,
+                resource.clone(),
+                // assertion made during PUT call
+                updated_resource.clone(),
             )
             .await;
         }

@@ -155,7 +155,6 @@ pub async fn mock_list_fake_resource(
                     .unwrap();
 
             assert_eq!(assert_put, parsed.spec.api_resource);
-
             serde_json::to_vec(&parsed).unwrap()
         }
         _ => panic!("Unexpected API request {:?}", request),

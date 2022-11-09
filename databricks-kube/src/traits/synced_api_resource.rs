@@ -296,10 +296,19 @@ where
         );
     } else if latest_remote != kube_as_api {
         log::info!(
-            "Resource {} {} is not owned by databricks-kube-operator!\nIngested resources are databricks-operator/owner: api\nCreate your resource with databricks-kube-operator to reconcile.",
+            "Resource {} {} is not owned by databricks-kube-operator, updating Kubernetes object.\nIngested resources are databricks-operator/owner: api\nTo push updates to databricks, ensure databricks-operator/owner: operator by creating your object in Kubernetes first.",
             TCRDType::api_resource().kind,
             resource.name_unchecked()
         );
+
+        kube_api
+            .replace(
+                &resource.name_unchecked(),
+                &PostParams::default(),
+                &latest_remote.into(),
+            )
+            .await
+            .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
     }
 
     Ok(Action::await_change())
