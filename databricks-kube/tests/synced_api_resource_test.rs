@@ -174,7 +174,7 @@ async fn test_controller_lifecycle_created() {
 
 /// When an owned resource is updated in Kubernetes
 #[tokio::test]
-async fn test_controller_lifecycle_update_kube_owned() {
+async fn test_controller_lifecycle_update_kube_operator_owned() {
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
 
     let mut resource: FakeResource = FakeResource::new(
@@ -248,7 +248,7 @@ async fn test_controller_lifecycle_update_kube_owned() {
 
 /// When the API resource is updated for an owned resource
 #[tokio::test]
-async fn test_controller_lifecycle_update_api_owned() {
+async fn test_controller_lifecycle_update_api_operator_owned() {
     // Begin with a CRD owned by the operator
     let mut resource: FakeResource = FakeResource::new(
         "foo",
@@ -312,7 +312,7 @@ async fn test_controller_lifecycle_update_api_owned() {
 
 /// When an owned Kubernetes resource matches the remote API
 #[tokio::test]
-async fn test_controller_lifecycle_in_sync_owned() {
+async fn test_controller_lifecycle_in_sync_operator_owned() {
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
 
     let mut resource: FakeResource = FakeResource::new(
@@ -378,7 +378,7 @@ async fn test_controller_lifecycle_in_sync_owned() {
 
 // When an owned Kubernetes resource is deleted
 #[tokio::test]
-async fn test_controller_lifecycle_delete_owned() {
+async fn test_controller_lifecycle_delete_operator_owned() {
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
 
     let mut resource: FakeResource = FakeResource::new(
@@ -436,7 +436,7 @@ async fn test_controller_lifecycle_delete_owned() {
     // for the effect to happen
     let poll_store = async {
         while let Some(_) = TEST_STORE.pin().get(&1) {
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_millis(250)).await;
         }
     };
     timeout(Duration::from_secs(10), poll_store).await.unwrap();
@@ -444,6 +444,86 @@ async fn test_controller_lifecycle_delete_owned() {
     // The resource was removed from the remote API
     assert!(TEST_STORE.pin().get(&1).is_none());
     // The watcher for the resource was aborted
+    assert!(context
+        .delete_watchers
+        .pin()
+        .get(&resource.self_url_unchecked())
+        .is_none());
+
+    kube_server.abort();
+    TEST_STORE.pin().clear();
+}
+
+// When Kubernetes resource is deleted, but owned by remote API
+#[tokio::test]
+async fn test_controller_lifecycle_delete_api_owned() {
+    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+
+    let mut resource: FakeResource = FakeResource::new(
+        "foo",
+        FakeResourceSpec {
+            api_resource: FakeAPIResource {
+                id: 1,
+                description: None,
+            },
+        },
+    );
+
+    resource.meta_mut().namespace = Some("default".to_string());
+    resource.meta_mut().resource_version = Some("1".to_string());
+    resource.meta_mut().annotations = Some({
+        let mut annots = BTreeMap::new();
+        annots.insert("databricks-operator/owner".to_string(), "api".to_string());
+        annots
+    });
+
+    TEST_STORE
+        .pin()
+        .insert(1, resource.spec().api_resource.clone());
+
+    let serve_me = resource.clone();
+    let kube_server = tokio::spawn(async move {
+        loop {
+            mock_fake_resource_deleted(&mut handle, serve_me.clone()).await;
+        }
+    });
+
+    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
+    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+
+    let kube_client = Client::new(mock_service, "default");
+    let context = Context::new(
+        kube_client,
+        Arc::new(api_secret_store),
+        Arc::new(configmap_store),
+    );
+
+    let resource = Arc::new(resource);
+
+    // Create watcher and insert it into the context
+    let watcher = spawn_delete_watcher(resource.clone(), context.clone()).await;
+    context
+        .delete_watchers
+        .pin()
+        .insert(resource.self_url_unchecked(), watcher.into());
+
+    // The resource was NOT removed from the remote API
+    assert!(TEST_STORE.pin().get(&1).is_some());
+
+    // We don't yield the watch stream in our task, so we have to wait
+    // for the effect to happen
+    let poll_store = async {
+        while let Some(_) = context
+            .delete_watchers
+            .pin()
+            .get(&resource.self_url_unchecked())
+        {
+            sleep(Duration::from_micros(250)).await;
+        }
+    };
+    timeout(Duration::from_secs(10), poll_store).await.unwrap();
+
+    // The watcher for the resource was still aborted
     assert!(context
         .delete_watchers
         .pin()

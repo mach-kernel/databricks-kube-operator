@@ -137,23 +137,21 @@ where
                     .map(Clone::clone)
                     .unwrap_or("operator".to_string());
 
-                if owner != "operator" {
-                    break;
+                if owner == "operator" {
+                    log::info!(
+                        "Removing {} {} from Databricks",
+                        TCRDType::api_resource().kind,
+                        resource.name_unchecked()
+                    );
+
+                    resource.remote_delete(context.clone()).next().await;
+
+                    log::info!(
+                        "Removed {} {} from Databricks",
+                        TCRDType::api_resource().kind,
+                        resource.name_unchecked()
+                    );
                 }
-
-                log::info!(
-                    "Removing {} {} from Databricks",
-                    TCRDType::api_resource().kind,
-                    resource.name_unchecked()
-                );
-
-                resource.remote_delete(context.clone()).next().await;
-
-                log::info!(
-                    "Removed {} {} from Databricks",
-                    TCRDType::api_resource().kind,
-                    resource.name_unchecked()
-                );
 
                 let watchers = context.delete_watchers.pin();
                 let handle = &**watchers.remove(&resource.self_url_unchecked()).unwrap();
