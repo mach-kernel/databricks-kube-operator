@@ -1,12 +1,12 @@
 mod common;
-use common::fake_resource::{FakeAPIResource, FakeResource};
+use common::fake_resource::{FakeAPIResource, FakeResource, FakeResourceSpec};
 use k8s_openapi::{
     api::core::v1::{ConfigMap, Secret},
     List,
 };
 use serde_json::Value;
 
-use std::pin::Pin;
+use std::{pin::Pin, collections::BTreeMap};
 use std::sync::Arc;
 
 use databricks_kube::{
@@ -14,11 +14,11 @@ use databricks_kube::{
 };
 
 use async_stream::try_stream;
-use futures::{Stream, StreamExt};
+use futures::{Stream, StreamExt, future::join_all};
 use kube::{
     core::object::HasSpec,
     runtime::reflector::{self, store::Writer, Store},
-    Client,
+    Client, Resource,
 };
 
 use flurry::HashMap;
@@ -29,6 +29,8 @@ use hyper::body::HttpBody;
 use hyper::Body;
 use k8s_openapi::http::{Request, Response};
 use tower_test::mock;
+
+use common::mock_k8s::{serve_fake_resource, mock_fake_resource_updated, mock_fake_resource_created};
 
 lazy_static! {
     static ref TEST_STORE: HashMap<i64, FakeAPIResource> = HashMap::new();
@@ -105,144 +107,33 @@ impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
     }
 }
 
-async fn mock_fake_resource_created(handle: &mut Handle<Request<Body>, Response<Body>>) {
-    let (request, send) = handle.next_request().await.expect("Service not called");
-
-    let body = match (
-        request.method().as_str(),
-        request.uri().path().to_string().as_str(),
-    ) {
-        ("GET", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources") => {
-            let resource = match request.uri().query() {
-                Some(q) if q.contains("watch") => {
-                    serde_json::json!(
-                        {
-                            "type": "ADDED",
-                            "object": {
-                                "apiVersion": "com.dstancu.test/v1",
-                                "kind": "FakeResource",
-                                "metadata": {
-                                    "name": "test",
-                                    "resourceVersion": "2",
-                                },
-                                "spec": {
-                                    "api_resource": {
-                                        "id": 1
-                                    }
-                                }
-                            }
-                        }
-                    )
-                }
-                _ => {
-                    serde_json::json!(
-                        {
-                            "apiVersion": "v1",
-                            "kind": "List",
-                            "metadata": {
-                                "resourceVersion": ""
-                            },
-                            "items": []
-                        }
-                    )
-                }
-            };
-
-            serde_json::to_vec(&resource).unwrap()
-        }
-        ("PUT", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/test") => {
-            hyper::body::to_bytes(request.into_body())
-                .await
-                .unwrap()
-                .into()
-        }
-        _ => panic!("Unexpected API request {:?}", request),
-    };
-
-    send.send_response(Response::builder().body(Body::from(body)).unwrap());
-}
-
-async fn mock_fake_resource_updated(handle: &mut Handle<Request<Body>, Response<Body>>) {
-    let (request, send) = handle.next_request().await.expect("Service not called");
-
-    let body = match (
-        request.method().as_str(),
-        request.uri().path().to_string().as_str(),
-    ) {
-        ("GET", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources") => {
-            let resource = match request.uri().query() {
-                Some(q) if q.contains("watch") => {
-                    serde_json::json!(
-                        {
-                            "type": "MODIFIED",
-                            "object": {
-                                "apiVersion": "com.dstancu.test/v1",
-                                "kind": "FakeResource",
-                                "metadata": {
-                                    "name": "test",
-                                    "resourceVersion": "3",
-                                },
-                                "spec": {
-                                    "api_resource": {
-                                        "id": 1,
-                                        "description": "foobar"
-                                    }
-                                }
-                            }
-                        }
-                    )
-                }
-                _ => {
-                    serde_json::json!(
-                        {
-                            "apiVersion": "v1",
-                            "kind": "List",
-                            "metadata": {
-                                "resourceVersion": ""
-                            },
-                            "items": [
-                                {
-                                    "apiVersion": "com.dstancu.test/v1",
-                                    "kind": "FakeResource",
-                                    "metadata": {
-                                        "name": "test",
-                                        "resourceVersion": "2",
-                                    },
-                                    "spec": {
-                                        "api_resource": {
-                                            "id": 1
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    )
-                }
-            };
-
-            serde_json::to_vec(&resource).unwrap()
-        }
-        ("PUT", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/test") => {
-            hyper::body::to_bytes(request.into_body())
-                .await
-                .unwrap()
-                .into()
-        }
-        _ => panic!("Unexpected API request {:?}", request),
-    };
-
-    send.send_response(Response::builder().body(Body::from(body)).unwrap());
-}
-
+/// When the resource is created in Kubernetes
 #[tokio::test]
 async fn test_controller_lifecycle_create() {
-    TEST_STORE.pin().clear();
-
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+
+    let created_api_resource = FakeAPIResource {
+        id: 1,
+        description: None,
+    };
+
+    let mut created_resource: FakeResource = FakeResource::new(
+        "test",
+        FakeResourceSpec {
+            api_resource: created_api_resource.clone()
+        }
+    );
+
+    created_resource.meta_mut().resource_version = Some("1".to_string());
+    created_resource.meta_mut().annotations = Some({
+        let mut annots = BTreeMap::new();
+        annots.insert("databricks-operator/owner".to_string(), "operator".to_string());
+        annots
+    });
 
     let kube_server = tokio::spawn(async move {
         loop {
-            mock_fake_resource_created(&mut handle).await;
+            mock_fake_resource_created(&mut handle, created_resource.clone()).await            
         }
     });
 
@@ -262,24 +153,56 @@ async fn test_controller_lifecycle_create() {
     assert!(reconciled.unwrap().is_ok());
     assert_eq!(
         TEST_STORE.pin().get(&1).unwrap().clone(),
-        FakeAPIResource {
-            id: 1,
-            description: None
-        }
+        created_api_resource
     );
 
     kube_server.abort();
+    TEST_STORE.pin().clear();
 }
 
+/// When an owned resource is updated in Kubernetes
 #[tokio::test]
-async fn test_controller_lifecycle_update() {
-    TEST_STORE.pin().clear();
-
+async fn test_controller_lifecycle_update_kube_owned() {
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+
+    let mut resource: FakeResource = FakeResource::new(
+        "test",
+        FakeResourceSpec {
+            api_resource: FakeAPIResource {
+                id: 1,
+                description: None,
+            }
+        }
+    );
+
+    resource.meta_mut().resource_version = Some("1".to_string());
+    resource.meta_mut().annotations = Some({
+        let mut annots = BTreeMap::new();
+        annots.insert("databricks-operator/owner".to_string(), "operator".to_string());
+        annots
+    });
+
+    let updated_api_resource = FakeAPIResource {
+        id: 1,
+        description: Some("foobar".to_string()),
+    };
+
+    let mut updated_resource = FakeResource::new(
+        "test",
+        FakeResourceSpec {
+            api_resource: updated_api_resource.clone()
+        }
+    );
+
+    updated_resource.meta_mut().resource_version = Some("2".to_string());
 
     let kube_server = tokio::spawn(async move {
         loop {
-            mock_fake_resource_updated(&mut handle).await;
+            mock_fake_resource_updated(
+                &mut handle,
+                resource.clone(),
+                updated_resource.clone()
+            ).await;
         }
     });
 
@@ -299,11 +222,69 @@ async fn test_controller_lifecycle_update() {
     assert!(reconciled.unwrap().is_ok());
     assert_eq!(
         TEST_STORE.pin().get(&1).unwrap().clone(),
-        FakeAPIResource {
-            id: 1,
-            description: Some("foobar".to_string())
-        }
+        updated_api_resource,
     );
 
     kube_server.abort();
+    TEST_STORE.pin().clear();
+}
+
+/// When the API resource is updated for an owned resource
+#[tokio::test]
+async fn test_controller_lifecycle_update_api_owned() {
+    // Begin with a CRD owned by the operator
+    let mut resource: FakeResource = FakeResource::new(
+        "foo",
+        FakeResourceSpec {
+            api_resource: FakeAPIResource {
+                id: 42,
+                description: None,
+            }
+        }
+    );
+
+    resource.meta_mut().annotations = Some({
+        let mut annots = BTreeMap::new();
+        annots.insert("databricks-operator/owner".to_string(), "operator".to_string());
+        annots
+    });
+    
+    // Remote has a different value for "description"
+    let updated_resource = FakeAPIResource { 
+        description: Some("hello".to_string()),
+        ..resource.spec().api_resource
+    };
+    TEST_STORE.pin().insert(42, updated_resource.clone());
+
+    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+
+    // Kube has a different version
+    let kube_server = tokio::spawn(async move {
+        loop {
+            serve_fake_resource(
+                &mut handle,
+                resource.clone(),
+                // assertion made during PUT call
+                resource.spec().api_resource.clone(),
+            ).await;
+        }
+    });
+
+    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
+    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+
+    let kube_client = Client::new(mock_service, "default");
+
+    let mut controller = FakeResource::controller(Context::new(
+        kube_client,
+        Arc::new(api_secret_store),
+        Arc::new(configmap_store),
+    ));
+
+    // It reconciled successfully
+    let reconciled = controller.next().await;
+    assert!(reconciled.unwrap().is_ok());
+
+    kube_server.abort();
+    TEST_STORE.pin().clear();
 }
