@@ -118,7 +118,7 @@ impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
 
 /// When the resource is created in Kubernetes
 #[tokio::test]
-async fn test_controller_lifecycle_created() {
+async fn test_resource_created() {
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
 
     let created_api_resource = FakeAPIResource {
@@ -174,7 +174,7 @@ async fn test_controller_lifecycle_created() {
 
 /// When an owned resource is updated in Kubernetes
 #[tokio::test]
-async fn test_controller_lifecycle_update_kube_operator_owned() {
+async fn test_resource_kube_update_operator_owned() {
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
 
     let mut resource: FakeResource = FakeResource::new(
@@ -217,6 +217,7 @@ async fn test_controller_lifecycle_update_kube_operator_owned() {
                 &mut handle,
                 resource.clone(),
                 updated_resource.clone(),
+                updated_resource.clone().spec().api_resource.clone(),
                 Some("MODIFIED".to_string()),
             )
             .await;
@@ -246,9 +247,83 @@ async fn test_controller_lifecycle_update_kube_operator_owned() {
     TEST_STORE.pin().clear();
 }
 
+/// When an API owned resource is updated in Kubernetes
+#[tokio::test]
+async fn test_resource_kube_update_api_owned() {
+    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+
+    let api_resource = FakeAPIResource {
+        id: 1,
+        description: None,
+    };
+    TEST_STORE.pin().insert(1, api_resource.clone());
+
+    let mut resource: FakeResource = FakeResource::new(
+        "test",
+        FakeResourceSpec {
+            api_resource: api_resource.clone(),
+        },
+    );
+    resource.meta_mut().resource_version = Some("1".to_string());
+    resource.meta_mut().annotations = Some({
+        let mut annots = BTreeMap::new();
+        annots.insert("databricks-operator/owner".to_string(), "api".to_string());
+        annots
+    });
+
+    let updated_api_resource = FakeAPIResource {
+        id: 1,
+        description: Some("foobar".to_string()),
+    };
+
+    let mut updated_resource = resource.clone();
+    updated_resource.spec.api_resource = updated_api_resource.clone();
+    updated_resource.meta_mut().resource_version = Some("2".to_string());
+
+    let kube_server = tokio::spawn(async move {
+        loop {
+            mock_fake_resource_updated_kube(
+                &mut handle,
+                resource.clone(),
+                updated_resource.clone(),
+                api_resource.clone(),
+                Some("MODIFIED".to_string()),
+            )
+            .await;
+        }
+    });
+
+    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
+    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+
+    let kube_client = Client::new(mock_service, "default");
+
+    let mut controller = FakeResource::controller(Context::new(
+        kube_client,
+        Arc::new(api_secret_store),
+        Arc::new(configmap_store),
+    ));
+
+    // It reconciled successfully
+    let reconciled = controller.next().await;
+    assert!(reconciled.unwrap().is_ok());
+
+    // The object is the original API object
+    assert_eq!(
+        TEST_STORE.pin().get(&1).unwrap().clone(),
+        FakeAPIResource {
+            id: 1,
+            description: None
+        },
+    );
+
+    kube_server.abort();
+    TEST_STORE.pin().clear();
+}
+
 /// When the API resource is updated for an owned resource
 #[tokio::test]
-async fn test_controller_lifecycle_api_update_operator_owned() {
+async fn test_resource_api_update_operator_owned() {
     // Begin with a CRD owned by the operator
     let mut resource: FakeResource = FakeResource::new(
         "foo",
@@ -312,7 +387,7 @@ async fn test_controller_lifecycle_api_update_operator_owned() {
 
 /// When the API resource is updated for an API owned resource
 #[tokio::test]
-async fn test_controller_lifecycle_api_update_api_owned() {
+async fn test_resource_api_update_api_owned() {
     // Begin with a CRD owned by the operator
     let mut resource: FakeResource = FakeResource::new(
         "foo",
@@ -373,7 +448,7 @@ async fn test_controller_lifecycle_api_update_api_owned() {
 
 /// When an owned Kubernetes resource matches the remote API
 #[tokio::test]
-async fn test_controller_lifecycle_in_sync_operator_owned() {
+async fn test_resource_in_sync() {
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
 
     let mut resource: FakeResource = FakeResource::new(
@@ -439,7 +514,7 @@ async fn test_controller_lifecycle_in_sync_operator_owned() {
 
 // When an owned Kubernetes resource is deleted
 #[tokio::test]
-async fn test_controller_lifecycle_delete_operator_owned() {
+async fn test_kube_delete_operator_owned() {
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
 
     let mut resource: FakeResource = FakeResource::new(
@@ -517,7 +592,7 @@ async fn test_controller_lifecycle_delete_operator_owned() {
 
 // When Kubernetes resource is deleted, but owned by remote API
 #[tokio::test]
-async fn test_controller_lifecycle_delete_api_owned() {
+async fn test_kube_delete_api_owned() {
     let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
 
     let mut resource: FakeResource = FakeResource::new(

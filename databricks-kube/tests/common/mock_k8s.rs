@@ -64,6 +64,7 @@ pub async fn mock_fake_resource_updated_kube(
     handle: &mut Handle<Request<Body>, Response<Body>>,
     resource: FakeResource,
     modified_resource: FakeResource,
+    assert_put: FakeAPIResource,
     watch_update: Option<String>,
 ) {
     let (request, send) = handle.next_request().await.expect("Service not called");
@@ -105,10 +106,7 @@ pub async fn mock_fake_resource_updated_kube(
                 serde_json::from_slice(&hyper::body::to_bytes(request.into_body()).await.unwrap())
                     .unwrap();
 
-            assert_eq!(
-                modified_resource.spec.api_resource,
-                parsed.spec.api_resource,
-            );
+            assert_eq!(assert_put, parsed.spec.api_resource,);
 
             serde_json::to_vec(&parsed).unwrap()
         }
