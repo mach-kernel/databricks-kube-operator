@@ -10,7 +10,6 @@ use k8s_openapi::{DeepMerge, NamespaceResourceScope};
 use kube::{
     api::ListParams,
     api::PostParams,
-    core::object::HasSpec,
     runtime::{controller::Action, reflector::ObjectRef, watcher, watcher::Event, Controller},
     Api, CustomResourceExt, Resource, ResourceExt,
 };
