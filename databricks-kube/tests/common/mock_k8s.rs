@@ -18,7 +18,7 @@ use super::fake_resource::FakeAPIResource;
 
 pub async fn mock_fake_resource_created(
     handle: &mut Handle<Request<Body>, Response<Body>>,
-    _created_resource: FakeResource,
+    created_resource: FakeResource,
 ) {
     let (request, send) = handle.next_request().await.expect("Service not called");
 
@@ -32,19 +32,7 @@ pub async fn mock_fake_resource_created(
                     serde_json::json!(
                         {
                             "type": "ADDED",
-                            "object": {
-                                "apiVersion": "com.dstancu.test/v1",
-                                "kind": "FakeResource",
-                                "metadata": {
-                                    "name": "test",
-                                    "resourceVersion": "2",
-                                },
-                                "spec": {
-                                    "api_resource": {
-                                        "id": 1
-                                    }
-                                }
-                            }
+                            "object": created_resource,
                         }
                     )
                 }
