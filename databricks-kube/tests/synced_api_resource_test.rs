@@ -1,10 +1,12 @@
 mod common;
-use common::fake_resource::{FakeAPIResource, FakeResource, FakeResourceSpec};
-use databricks_kube::traits::synced_api_resource::ingest_task;
-use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 
-use std::sync::Arc;
-use std::{collections::BTreeMap, pin::Pin};
+use std::{collections::BTreeMap, pin::Pin, sync::Arc, time::Duration};
+
+use common::fake_resource::{FakeAPIResource, FakeResource, FakeResourceSpec};
+use common::mock_k8s::{
+    mock_fake_resource_created, mock_fake_resource_deleted, mock_fake_resource_updated_kube,
+    mock_ingest_resources, mock_list_fake_resource,
+};
 
 use databricks_kube::{
     context::Context,
@@ -13,27 +15,19 @@ use databricks_kube::{
 };
 
 use async_stream::try_stream;
+use flurry::HashMap;
 use futures::{Stream, StreamExt};
+use hyper::Body;
+use k8s_openapi::api::core::v1::{ConfigMap, Secret};
+use k8s_openapi::http::{Request, Response};
 use kube::{
     core::object::HasSpec,
     runtime::reflector::{self, store::Writer, Store},
     Client, Resource,
 };
-
-use flurry::HashMap;
 use lazy_static::lazy_static;
-
-use hyper::Body;
-use k8s_openapi::http::{Request, Response};
-use tower_test::mock;
-
-use common::mock_k8s::{
-    mock_fake_resource_created, mock_fake_resource_deleted, mock_fake_resource_updated_kube,
-    mock_ingest_resources, mock_list_fake_resource,
-};
-
-use std::time::Duration;
 use tokio::time::{sleep, timeout};
+use tower_test::mock;
 
 /*
  * A basic integration test for the SyncedAPIResource trait against a FakeResource CRD.

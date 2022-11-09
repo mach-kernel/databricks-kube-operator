@@ -3,7 +3,6 @@ use std::{collections::BTreeMap, env, sync::Arc};
 use crate::error::DatabricksKubeError;
 
 use flurry::HashMap;
-use futures::StreamExt;
 
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 use kube::{runtime::reflector::Store, Client};
@@ -18,6 +17,7 @@ lazy_static! {
         env::var("DATABRICKS_KUBE_CONFIGMAP").unwrap_or("databricks-kube-operator".to_owned());
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct Context {
     pub client: Client,
@@ -62,6 +62,7 @@ impl Context {
             .next()
     }
 
+    #[allow(dead_code)]
     pub fn new(
         client: Client,
         api_secret_store: Arc<Store<Secret>>,
