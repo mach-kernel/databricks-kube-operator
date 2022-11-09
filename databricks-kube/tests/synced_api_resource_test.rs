@@ -1,5 +1,6 @@
 mod common;
 use common::fake_resource::{FakeAPIResource, FakeResource, FakeResourceSpec};
+use databricks_kube::traits::synced_api_resource::ingest_task;
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 
 use std::sync::Arc;
@@ -28,7 +29,7 @@ use tower_test::mock;
 
 use common::mock_k8s::{
     mock_fake_resource_created, mock_fake_resource_deleted, mock_fake_resource_updated_kube,
-    mock_list_fake_resource,
+    mock_ingest_resources, mock_list_fake_resource,
 };
 
 use std::time::Duration;
@@ -450,5 +451,56 @@ async fn test_controller_lifecycle_delete_owned() {
         .is_none());
 
     kube_server.abort();
+    TEST_STORE.pin().clear();
+}
+
+// Test that the ingest task makes the correct resources
+#[allow(unused_must_use)]
+#[tokio::test]
+async fn test_ingest_task() {
+    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+
+    // Make some "remote" resources
+    let remote_resources: Vec<FakeAPIResource> = (0..5)
+        .map(|id| FakeAPIResource {
+            id,
+            description: None,
+        })
+        .collect();
+    for res in &remote_resources {
+        TEST_STORE.pin().insert(res.id, res.clone());
+    }
+
+    // The mock server has assertions for the created resources + ownership annotation
+    let kube_server = tokio::spawn(async move {
+        let mut created: i32 = 0;
+
+        loop {
+            mock_ingest_resources(&mut handle, remote_resources.clone(), &mut created).await;
+
+            if created as usize == remote_resources.len() {
+                break;
+            }
+        }
+
+        // Ensure all resources created
+        assert_eq!(created as usize, remote_resources.len());
+    });
+
+    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
+    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+
+    let kube_client = Client::new(mock_service, "default");
+    let context = Context::new(
+        kube_client,
+        Arc::new(api_secret_store),
+        Arc::new(configmap_store),
+    );
+
+    // The future loops endlessly, so the result here will show a lapsed interval
+    let ingest_task = FakeResource::ingest_task(context);
+    timeout(Duration::from_millis(50), ingest_task).await;
+
+    kube_server.await;
     TEST_STORE.pin().clear();
 }
