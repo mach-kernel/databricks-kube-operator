@@ -5,12 +5,12 @@ use crate::{context::Context, error::DatabricksKubeError, traits::rest_config::R
 use assert_json_diff::assert_json_matches_no_panic;
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 
-use k8s_openapi::NamespaceResourceScope;
+use k8s_openapi::{DeepMerge, NamespaceResourceScope};
 
 use kube::{
     api::ListParams,
     api::PostParams,
-    runtime::{controller::Action, watcher, watcher::Event, Controller},
+    runtime::{controller::Action, reflector::ObjectRef, watcher, watcher::Event, Controller},
     Api, CustomResourceExt, Resource, ResourceExt,
 };
 
@@ -21,7 +21,7 @@ use tokio::{task::JoinHandle, time::interval};
 /// TAPIType is OpenAPI generated
 /// TCRDType is the operator's wrapper
 #[allow(dead_code)]
-async fn ingest_task<TAPIType, TCRDType, TRestConfig>(
+pub async fn ingest_task<TAPIType, TCRDType, TRestConfig>(
     interval_period: Duration,
     context: Arc<Context>,
 ) -> Result<(), DatabricksKubeError>
@@ -91,7 +91,7 @@ where
 }
 
 #[allow(dead_code)]
-async fn spawn_delete_watcher<TAPIType, TCRDType, TRestConfig>(
+pub async fn spawn_delete_watcher<TAPIType, TCRDType, TRestConfig>(
     resource: Arc<TCRDType>,
     context: Arc<Context>,
 ) -> JoinHandle<Result<(), DatabricksKubeError>>
@@ -137,23 +137,21 @@ where
                     .map(Clone::clone)
                     .unwrap_or("operator".to_string());
 
-                if owner != "operator" {
-                    break;
+                if owner == "operator" {
+                    log::info!(
+                        "Removing {} {} from Databricks",
+                        TCRDType::api_resource().kind,
+                        resource.name_unchecked()
+                    );
+
+                    resource.remote_delete(context.clone()).next().await;
+
+                    log::info!(
+                        "Removed {} {} from Databricks",
+                        TCRDType::api_resource().kind,
+                        resource.name_unchecked()
+                    );
                 }
-
-                log::info!(
-                    "Removing {} {} from Databricks",
-                    TCRDType::api_resource().kind,
-                    resource.name_unchecked()
-                );
-
-                resource.remote_delete(context.clone()).next().await;
-
-                log::info!(
-                    "Removed {} {} from Databricks",
-                    TCRDType::api_resource().kind,
-                    resource.name_unchecked()
-                );
 
                 let watchers = context.delete_watchers.pin();
                 let handle = &**watchers.remove(&resource.self_url_unchecked()).unwrap();
@@ -298,10 +296,30 @@ where
         );
     } else if latest_remote != kube_as_api {
         log::info!(
-            "Resource {} {} is not owned by databricks-kube-operator!\nIngested resources are databricks-operator/owner: api\nCreate your resource with databricks-kube-operator to reconcile.",
+            "Resource {} {} is not owned by databricks-kube-operator, updating Kubernetes object.\nIngested resources are databricks-operator/owner: api\nTo push updates to Databricks, ensure databricks-operator/owner: operator by creating your object in Kubernetes first.",
             TCRDType::api_resource().kind,
             resource.name_unchecked()
         );
+
+        let mut latest_as_kube: TCRDType = latest_remote.into();
+        latest_as_kube
+            .annotations_mut()
+            .merge_from(resource.annotations().clone());
+        latest_as_kube
+            .labels_mut()
+            .merge_from(resource.labels().clone());
+        latest_as_kube
+            .meta_mut()
+            .merge_from(resource.meta().clone());
+
+        kube_api
+            .replace(
+                &resource.name_unchecked(),
+                &PostParams::default(),
+                &latest_as_kube,
+            )
+            .await
+            .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
     }
 
     Ok(Action::await_change())
@@ -311,7 +329,7 @@ where
 pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone> {
     fn controller(
         context: Arc<Context>,
-    ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send>>
+    ) -> Pin<Box<dyn Stream<Item = Result<(ObjectRef<Self>, Action), DatabricksKubeError>> + Send>>
     where
         Self: From<TAPIType>,
         Self: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
@@ -342,14 +360,7 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         Controller::new(root_kind_api.clone(), ListParams::default())
             .shutdown_on_signal()
             .run(reconcile, Self::default_error_policy, context.clone())
-            .for_each(|r| async move {
-                match r {
-                    Ok((object, _)) => log::info!("{} reconciled", object.name),
-                    Err(e) => log::info!("{}", e),
-                }
-            })
-            .map(|_v| Ok(()))
-            .boxed()
+            .map_err(|e| DatabricksKubeError::ControllerError(e.to_string()))
             .boxed()
     }
 

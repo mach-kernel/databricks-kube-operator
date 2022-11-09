@@ -5,7 +5,7 @@ path = "src/crdgen.rs"
 [package]
 name = "databricks_kube"
 default-run = "databricks_kube"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [dependencies]
@@ -31,3 +31,7 @@ schemars = { version = "0.8.11", features = ["derive"] }
 tokio = { version = "1.19.2", features = ["macros", "rt-multi-thread"] }
 tokio-graceful-shutdown = "0.11.1"
 tokio-stream = "0.1.11"
+
+[dev-dependencies]
+tower-test = "0.4.0"
+hyper = "0.14.23"

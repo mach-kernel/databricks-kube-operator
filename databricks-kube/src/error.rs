@@ -39,6 +39,7 @@ where
 pub enum DatabricksKubeError {
     APIError(String),
     ConfigMapMissingError,
+    ControllerError(String),
     CredentialsError,
     CRDMissingError(String),
     SecretMissingError,
@@ -52,6 +53,10 @@ impl Display for DatabricksKubeError {
             DatabricksKubeError::APIError(err )=> format!(
                 "Error calling Databricks API:\n{}",
                 err
+            ),
+            DatabricksKubeError::ControllerError(s) => format!(
+                "Controller reconciliation failed:\n{}",
+                s
             ),
             DatabricksKubeError::ConfigMapMissingError => format!(
                 "Timed out while waiting for config map: {}",
