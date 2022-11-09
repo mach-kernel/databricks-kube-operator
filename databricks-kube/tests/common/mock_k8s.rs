@@ -1,13 +1,13 @@
-use crate::common::fake_resource::{FakeResource};
+use crate::common::fake_resource::FakeResource;
 
-use flurry::HashMap;
-use lazy_static::lazy_static;
+
+
 use tower_test::mock::Handle;
 
-use hyper::body::HttpBody;
+
 use hyper::Body;
 use k8s_openapi::http::{Request, Response};
-use tower_test::mock;
+
 
 use super::fake_resource::FakeAPIResource;
 
@@ -18,7 +18,7 @@ use super::fake_resource::FakeAPIResource;
 
 pub async fn mock_fake_resource_created(
     handle: &mut Handle<Request<Body>, Response<Body>>,
-    created_resource: FakeResource
+    _created_resource: FakeResource,
 ) {
     let (request, send) = handle.next_request().await.expect("Service not called");
 
@@ -116,9 +116,9 @@ pub async fn mock_fake_resource_updated(
             serde_json::to_vec(&resource).unwrap()
         }
         ("PUT", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/test") => {
-            let parsed: FakeResource = serde_json::from_slice(
-                &hyper::body::to_bytes(request.into_body()).await.unwrap()
-            ).unwrap();
+            let parsed: FakeResource =
+                serde_json::from_slice(&hyper::body::to_bytes(request.into_body()).await.unwrap())
+                    .unwrap();
 
             assert_eq!(
                 modified_resource.spec.api_resource,
@@ -165,14 +165,11 @@ pub async fn serve_fake_resource(
             }
         }
         ("PUT", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/foo") => {
-            let parsed: FakeResource = serde_json::from_slice(
-                &hyper::body::to_bytes(request.into_body()).await.unwrap()
-            ).unwrap();
+            let parsed: FakeResource =
+                serde_json::from_slice(&hyper::body::to_bytes(request.into_body()).await.unwrap())
+                    .unwrap();
 
-            assert_eq!(
-                assert_resource,
-                parsed.spec.api_resource,
-            );
+            assert_eq!(assert_resource, parsed.spec.api_resource,);
 
             serde_json::to_vec(&parsed).unwrap()
         }

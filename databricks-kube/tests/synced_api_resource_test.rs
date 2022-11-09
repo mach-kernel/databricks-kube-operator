@@ -2,19 +2,18 @@ mod common;
 use common::fake_resource::{FakeAPIResource, FakeResource, FakeResourceSpec};
 use k8s_openapi::{
     api::core::v1::{ConfigMap, Secret},
-    List,
 };
-use serde_json::Value;
 
-use std::{pin::Pin, collections::BTreeMap};
+
 use std::sync::Arc;
+use std::{collections::BTreeMap, pin::Pin};
 
 use databricks_kube::{
     context::Context, error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource,
 };
 
 use async_stream::try_stream;
-use futures::{Stream, StreamExt, future::join_all};
+use futures::{Stream, StreamExt};
 use kube::{
     core::object::HasSpec,
     runtime::reflector::{self, store::Writer, Store},
@@ -23,14 +22,16 @@ use kube::{
 
 use flurry::HashMap;
 use lazy_static::lazy_static;
-use tower_test::mock::Handle;
+
 
 use hyper::body::HttpBody;
 use hyper::Body;
 use k8s_openapi::http::{Request, Response};
 use tower_test::mock;
 
-use common::mock_k8s::{serve_fake_resource, mock_fake_resource_updated, mock_fake_resource_created};
+use common::mock_k8s::{
+    mock_fake_resource_created, mock_fake_resource_updated, serve_fake_resource,
+};
 
 lazy_static! {
     static ref TEST_STORE: HashMap<i64, FakeAPIResource> = HashMap::new();
@@ -120,20 +121,23 @@ async fn test_controller_lifecycle_create() {
     let mut created_resource: FakeResource = FakeResource::new(
         "test",
         FakeResourceSpec {
-            api_resource: created_api_resource.clone()
-        }
+            api_resource: created_api_resource.clone(),
+        },
     );
 
     created_resource.meta_mut().resource_version = Some("1".to_string());
     created_resource.meta_mut().annotations = Some({
         let mut annots = BTreeMap::new();
-        annots.insert("databricks-operator/owner".to_string(), "operator".to_string());
+        annots.insert(
+            "databricks-operator/owner".to_string(),
+            "operator".to_string(),
+        );
         annots
     });
 
     let kube_server = tokio::spawn(async move {
         loop {
-            mock_fake_resource_created(&mut handle, created_resource.clone()).await            
+            mock_fake_resource_created(&mut handle, created_resource.clone()).await
         }
     });
 
@@ -171,14 +175,17 @@ async fn test_controller_lifecycle_update_kube_owned() {
             api_resource: FakeAPIResource {
                 id: 1,
                 description: None,
-            }
-        }
+            },
+        },
     );
 
     resource.meta_mut().resource_version = Some("1".to_string());
     resource.meta_mut().annotations = Some({
         let mut annots = BTreeMap::new();
-        annots.insert("databricks-operator/owner".to_string(), "operator".to_string());
+        annots.insert(
+            "databricks-operator/owner".to_string(),
+            "operator".to_string(),
+        );
         annots
     });
 
@@ -190,19 +197,16 @@ async fn test_controller_lifecycle_update_kube_owned() {
     let mut updated_resource = FakeResource::new(
         "test",
         FakeResourceSpec {
-            api_resource: updated_api_resource.clone()
-        }
+            api_resource: updated_api_resource.clone(),
+        },
     );
 
     updated_resource.meta_mut().resource_version = Some("2".to_string());
 
     let kube_server = tokio::spawn(async move {
         loop {
-            mock_fake_resource_updated(
-                &mut handle,
-                resource.clone(),
-                updated_resource.clone()
-            ).await;
+            mock_fake_resource_updated(&mut handle, resource.clone(), updated_resource.clone())
+                .await;
         }
     });
 
@@ -239,18 +243,21 @@ async fn test_controller_lifecycle_update_api_owned() {
             api_resource: FakeAPIResource {
                 id: 42,
                 description: None,
-            }
-        }
+            },
+        },
     );
 
     resource.meta_mut().annotations = Some({
         let mut annots = BTreeMap::new();
-        annots.insert("databricks-operator/owner".to_string(), "operator".to_string());
+        annots.insert(
+            "databricks-operator/owner".to_string(),
+            "operator".to_string(),
+        );
         annots
     });
-    
+
     // Remote has a different value for "description"
-    let updated_resource = FakeAPIResource { 
+    let updated_resource = FakeAPIResource {
         description: Some("hello".to_string()),
         ..resource.spec().api_resource
     };
@@ -266,7 +273,8 @@ async fn test_controller_lifecycle_update_api_owned() {
                 resource.clone(),
                 // assertion made during PUT call
                 resource.spec().api_resource.clone(),
-            ).await;
+            )
+            .await;
         }
     });
 
