@@ -384,7 +384,7 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         TAPIType: RestConfig<TRestConfig>,
         TRestConfig: 'static,
     {
-        ingest_task::<TAPIType, Self, TRestConfig>(Duration::from_secs(60), context).boxed()
+        ingest_task::<TAPIType, Self, TRestConfig>(Duration::from_secs(300), context).boxed()
     }
 
     fn default_error_policy(obj: Arc<Self>, err: &DatabricksKubeError, _ctx: Arc<Context>) -> Action
