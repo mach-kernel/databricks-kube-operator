@@ -24,6 +24,10 @@ jobs:
         with:
           name: crd_gen
           path: target/release/crd_gen
+      - name: Run FOSSA License Audit
+        run: |
+          curl -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/fossas/fossa-cli/master/install-latest.sh | bash
+          fossa analyze
       - uses: actions/upload-artifact@v3
         with:
           name: databricks_kube
