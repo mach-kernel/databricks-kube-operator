@@ -171,7 +171,7 @@ spec:
       max_concurrent_runs: 1
       name: my-word-count
       git_source:
-        git_branch: misc-and-docs
+        git_branch: master
         git_provider: gitHub
         git_url: https://github.com/mach-kernel/databricks-kube-operator
       tasks:
