@@ -6,6 +6,7 @@ coverY: 0
 # 🦀 databricks-kube-operator
 
 [![Rust](https://github.com/mach-kernel/databricks-kube-operator/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/mach-kernel/databricks-kube-operator/actions/workflows/rust.yml)
+[![FOSSA Status](https://app.fossa.com/api/projects/custom%2B34302%2Fgithub.com%2Fmach-kernel%2Fdatabricks-kube-operator.svg?type=shield)](https://app.fossa.com/projects/custom%2B34302%2Fgithub.com%2Fmach-kernel%2Fdatabricks-kube-operator?ref=badge_shield)
 
 A [kube-rs](https://kube.rs/) operator to enable GitOps style management of Databricks resources. It supports the following APIs:
 
@@ -201,3 +202,7 @@ Want to add support for a new API? Provided it has an OpenAPI definition, these 
 * Implement `SyncedAPIResource<TAPIResource, TSDKConfig>` for your new CRD
 * Add the new resource to the context ensure CRDs condition
 * Add the new resource to `crdgen.rs`
+
+## License
+
+[![FOSSA Status](https://app.fossa.com/api/projects/custom%2B34302%2Fgithub.com%2Fmach-kernel%2Fdatabricks-kube-operator.svg?type=large)](https://app.fossa.com/projects/custom%2B34302%2Fgithub.com%2Fmach-kernel%2Fdatabricks-kube-operator?ref=badge_large)
