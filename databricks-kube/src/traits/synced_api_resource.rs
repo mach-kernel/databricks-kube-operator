@@ -322,7 +322,7 @@ where
             .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
     }
 
-    Ok(Action::await_change())
+    Ok(Action::requeue(Duration::from_secs(300)))
 }
 
 /// Implement this on the macroexpanded CRD type, against the SDK type

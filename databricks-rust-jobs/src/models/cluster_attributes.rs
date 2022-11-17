@@ -11,6 +11,8 @@ use schemars::JsonSchema;
 
 #[derive(JsonSchema, Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct ClusterAttributes {
+    #[serde(rename = "data_security_mode", skip_serializing_if = "Option::is_none")]
+    pub data_security_mode: Option<DataSecurityMode>,
     /// Cluster name requested by the user. This doesn’t have to be unique. If not specified at creation, the cluster name is an empty string.
     #[serde(rename = "cluster_name", skip_serializing_if = "Option::is_none")]
     pub cluster_name: Option<String>,
@@ -72,6 +74,7 @@ pub struct ClusterAttributes {
 impl ClusterAttributes {
     pub fn new() -> ClusterAttributes {
         ClusterAttributes {
+            data_security_mode: None,
             cluster_name: None,
             spark_version: None,
             spark_conf: None,
@@ -90,5 +93,24 @@ impl ClusterAttributes {
             cluster_source: None,
             policy_id: None,
         }
+    }
+}
+
+///
+#[derive(
+    JsonSchema, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
+)]
+pub enum DataSecurityMode {
+    #[serde(rename = "NONE")]
+    None,
+    #[serde(rename = "LEGACY_TABLE_ACL")]
+    LegacyTableAcl,
+    #[serde(rename = "LEGACY_SINGLE_USER_STANDARD")]
+    LegacySingleUserStandard,
+}
+
+impl Default for DataSecurityMode {
+    fn default() -> DataSecurityMode {
+        Self::None
     }
 }

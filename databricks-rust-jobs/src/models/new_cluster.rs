@@ -11,6 +11,8 @@ use schemars::JsonSchema;
 
 #[derive(JsonSchema, Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct NewCluster {
+    #[serde(rename = "data_security_mode", skip_serializing_if = "Option::is_none")]
+    pub data_security_mode: Option<DataSecurityMode>,
     /// If num_workers, number of worker nodes that this cluster must have. A cluster has one Spark driver and num_workers executors for a total of num_workers + 1 Spark nodes. When reading the properties of a cluster, this field reflects the desired number of workers rather than the actual current number of workers. For example, if a cluster is resized from 5 to 10 workers, this field immediately updates to reflect the target size of 10 workers, whereas the workers listed in `spark_info` gradually increase from 5 to 10 as the new nodes are provisioned.
     #[serde(rename = "num_workers", skip_serializing_if = "Option::is_none")]
     pub num_workers: Option<i32>,
@@ -70,6 +72,7 @@ pub struct NewCluster {
 impl NewCluster {
     pub fn new(spark_version: String) -> NewCluster {
         NewCluster {
+            data_security_mode: None,
             num_workers: None,
             autoscale: None,
             spark_version,
@@ -87,5 +90,24 @@ impl NewCluster {
             instance_pool_id: None,
             policy_id: None,
         }
+    }
+}
+
+///
+#[derive(
+    JsonSchema, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
+)]
+pub enum DataSecurityMode {
+    #[serde(rename = "NONE")]
+    None,
+    #[serde(rename = "LEGACY_TABLE_ACL")]
+    LegacyTableAcl,
+    #[serde(rename = "LEGACY_SINGLE_USER_STANDARD")]
+    LegacySingleUserStandard,
+}
+
+impl Default for DataSecurityMode {
+    fn default() -> DataSecurityMode {
+        Self::None
     }
 }

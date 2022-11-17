@@ -146,7 +146,7 @@ gsed -i -e 's/\/\*/use schemars::JsonSchema;\n\/\*/' dbr_jobs/src/models/*
 gsed -r -i -e 's/(\[dependencies\])/\1\nschemars = "0.8.11"/' dbr_jobs/Cargo.toml
 
 # Missing import?
-gsed -r -i -e 's/(use reqwest;)/\1\nuse crate::models::ViewsToExport;/' dbr/src/apis/default_api.rs
+gsed -r -i -e 's/(use reqwest;)/\1\nuse crate::models::ViewsToExport;/' dbr_jobs/src/apis/default_api.rs
 
 # Git Credentials API
 openapi-generator generate -g rust -i openapi/gitcredentials-2.0-aws.yaml -c openapi/config-git.yaml -o dbr_git_creds
