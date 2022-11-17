@@ -1509,6 +1509,12 @@ components:
       required:
         - spark_version
       properties:
+        data_security_mode:
+          type: string
+          enum:
+            - NONE
+            - LEGACY_TABLE_ACL
+            - LEGACY_SINGLE_USER_STANDARD
         num_workers:
           type: integer
           description: >-
@@ -3330,6 +3336,12 @@ components:
           format: int32
     ClusterAttributes:
       properties:
+        data_security_mode:
+          type: string
+          enum:
+            - NONE
+            - LEGACY_TABLE_ACL
+            - LEGACY_SINGLE_USER_STANDARD
         cluster_name:
           type: string
           description: >-
