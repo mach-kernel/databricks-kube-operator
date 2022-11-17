@@ -248,6 +248,13 @@ spec:
                                   description: 'An object with key value pairs. The key length must be between 1 and 127 UTF-8 characters, inclusive. The value length must be less than or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag Restrictions: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>'
                                   nullable: true
                                   type: object
+                                data_security_mode:
+                                  enum:
+                                  - NONE
+                                  - LEGACY_TABLE_ACL
+                                  - LEGACY_SINGLE_USER_STANDARD
+                                  nullable: true
+                                  type: string
                                 driver_instance_pool_id:
                                   description: The optional ID of the instance pool to use for the driver node. You must also specify `instance_pool_id`. Refer to [Instance Pools API](https://docs.databricks.com/dev-tools/api/latest/instance-pools.html) for details.
                                   nullable: true
@@ -671,6 +678,13 @@ spec:
                                   description: 'An object with key value pairs. The key length must be between 1 and 127 UTF-8 characters, inclusive. The value length must be less than or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag Restrictions: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>'
                                   nullable: true
                                   type: object
+                                data_security_mode:
+                                  enum:
+                                  - NONE
+                                  - LEGACY_TABLE_ACL
+                                  - LEGACY_SINGLE_USER_STANDARD
+                                  nullable: true
+                                  type: string
                                 driver_instance_pool_id:
                                   description: The optional ID of the instance pool to use for the driver node. You must also specify `instance_pool_id`. Refer to [Instance Pools API](https://docs.databricks.com/dev-tools/api/latest/instance-pools.html) for details.
                                   nullable: true
