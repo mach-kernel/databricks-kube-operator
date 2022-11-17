@@ -63,7 +63,7 @@ metadata:
   name: databricks-api-secret
 data:
   access_token: $(echo -n 'shhhh' | base64)
-  databricks_url: $(echo -n 'https://my-tenant.cloud.databricks.com' | base64)
+  databricks_url: $(echo -n 'https://my-tenant.cloud.databricks.com/api' | base64)
 EOF
 ```
 {% endcode %}
@@ -95,10 +95,9 @@ apiVersion: v1
 kind: Secret
 type: Opaque
 metadata:
-  name: my-git-credential
+  name: my-git-credential-secret
 data:
-  access_token: $(echo -n 'shhhh' | base64)
-  databricks_url: $(echo -n 'https://my-tenant.cloud.databricks.com' | base64)
+  personal_access_token: $(echo -n 'shhhh' | base64)
 EOF
 ```
 {% endcode %}
@@ -115,7 +114,7 @@ kind: GitCredential
   name: example-credential
   namespace: {{ .Release.Namespace }}
 spec:
-  secret_name: my-git-credential
+  secret_name: my-git-credential-secret
   credential:
     git_username: my-user-name
     git_provider: gitHub</code></pre>

@@ -53,7 +53,7 @@ cat <<EOF | kubectl apply -f -
 apiVersion: v1
 data:
   access_token: $(echo -n 'shhhh' | base64)
-  databricks_url: $(echo -n 'https://my-tenant.cloud.databricks.com' | base64)
+  databricks_url: $(echo -n 'https://my-tenant.cloud.databricks.com/api' | base64)
 kind: Secret
 metadata:
   name: databricks-api-secret
