@@ -86,6 +86,7 @@ where
                 );
             }
         }
+
         log::info!("{} ingest complete", TCRDType::api_resource().kind);
     }
 }
@@ -188,6 +189,7 @@ where
     TAPIType: From<TCRDType>,
     TAPIType: PartialEq,
     TAPIType: Send,
+    TAPIType: Clone,
     TAPIType: RestConfig<TRestConfig>,
     TAPIType: Serialize,
     TAPIType: 'static,
@@ -241,6 +243,19 @@ where
     let latest_remote = latest_remote?;
     let kube_as_api: TAPIType = resource.as_ref().clone().into();
 
+    let latest_remote_api_type: Box<TAPIType> = Box::new(latest_remote.clone());
+
+     //If there is a drift, make sure dbrix api is updated
+     if(owner == "operator") && (resource.remote_drifted(latest_remote_api_type)) {
+        log::info!("Remote drifted. Updating");
+        let updated = resource
+            .remote_update(context.clone())
+            .next()
+            .await
+            .unwrap()?;
+        log::info!("Resource updated");
+    }
+
     // If resource in sync, spawn a task to watch for deletion events
     if (owner == "operator")
         && latest_remote == kube_as_api
@@ -269,7 +284,7 @@ where
             .unwrap_err()
         );
     }
-
+        
     // Push to API if operator owned, or let user know
     if (latest_remote != kube_as_api) && (owner == "operator") {
         log::info!(
@@ -283,6 +298,7 @@ where
             .next()
             .await
             .unwrap()?;
+        log::info!("updated");
 
         kube_api
             .replace(&resource.name_unchecked(), &PostParams::default(), &updated)
@@ -348,6 +364,7 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         TAPIType: From<Self>,
         TAPIType: PartialEq,
         TAPIType: Send,
+        TAPIType: Clone,
         TAPIType: RestConfig<TRestConfig>,
         TAPIType: Serialize,
 
@@ -415,6 +432,20 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
             Self::url_path(&Default::default(), Some(&ns)),
             self.name_unchecked()
         )
+    }
+
+    fn remote_drifted(
+        &self,
+        rhs: Box<TAPIType>,
+    ) -> bool 
+    where 
+        TAPIType: PartialEq,
+        TAPIType: From<Self>,
+        Self: Sized,
+        Self: Clone,
+    {
+        let self_as_api: TAPIType = self.clone().into();
+        self_as_api != *rhs
     }
 
     fn remote_list_all(

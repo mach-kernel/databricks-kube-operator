@@ -80,7 +80,6 @@ async fn main() -> Result<(), DatabricksKubeError> {
 
     let api_secret_name =
         get_store_key(latest_config(configmap_store.clone()), "api_secret_name").unwrap();
-
     ensure_api_secret(api_secret_name.clone(), secret_api.clone()).await?;
     let api_secret_store = watch_api_secret(api_secret_name.clone(), secret_api).await?;
 
@@ -90,7 +89,6 @@ async fn main() -> Result<(), DatabricksKubeError> {
     let job_ingest = DatabricksJob::ingest_task(ctx.clone());
 
     let git_credential_controller = GitCredential::controller(ctx.clone());
-    let git_credential_ingest = GitCredential::ingest_task(ctx.clone());
 
     let repo_controller = Repo::controller(ctx.clone());
     let repo_ingest = Repo::ingest_task(ctx.clone());
@@ -118,10 +116,6 @@ async fn main() -> Result<(), DatabricksKubeError> {
                         res
                     })
             },
-        )
-        .start(
-            "git_credential_ingest",
-            |_: SubsystemHandle<DatabricksKubeError>| git_credential_ingest,
         )
         .start(
             "repo_controller",
