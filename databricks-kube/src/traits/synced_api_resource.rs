@@ -243,6 +243,7 @@ where
     let latest_remote = latest_remote?;
     let kube_as_api: TAPIType = resource.as_ref().clone().into();
 
+    /*
     let latest_remote_api_type: Box<TAPIType> = Box::new(latest_remote.clone());
 
      //If there is a drift, make sure dbrix api is updated
@@ -255,6 +256,7 @@ where
             .unwrap()?;
         log::info!("Resource updated");
     }
+    */
 
     // If resource in sync, spawn a task to watch for deletion events
     if (owner == "operator")
@@ -283,6 +285,15 @@ where
             )
             .unwrap_err()
         );
+        if (owner == "operator") {
+            log::info!("Remote drifted. Updating");
+            let updated = resource
+                .remote_update(context.clone())
+                .next()
+                .await
+                .unwrap()?;
+            log::info!("Resource updated");
+        }
     }
         
     // Push to API if operator owned, or let user know
