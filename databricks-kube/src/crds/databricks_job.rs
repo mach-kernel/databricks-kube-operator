@@ -202,7 +202,7 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
                 log::info!(
                     "{} triggered new job_id {}",
                     &self_name,
-                    newest_run_id.unwrap()
+                    triggered.run_id.unwrap(),
                 );
             }
 
