@@ -177,7 +177,8 @@ spec:
       - email_notifications: {}
         job_cluster_key: word-count-cluster
         notebook_task:
-          notebook_path: examples/job.py
+          # NOTE: Do not provide the file extension, your job will fail
+          notebook_path: examples/job
           source: GIT
         task_key: my-word-count
         timeout_seconds: 0

@@ -73,14 +73,23 @@ impl DatabricksJob {
 
         request.job_id.hash(&mut hasher);
         request.jar_params.hash(&mut hasher);
-        request.notebook_params.hash(&mut hasher);
         request.python_params.hash(&mut hasher);
         request.spark_submit_params.hash(&mut hasher);
-        request.python_named_params.hash(&mut hasher);
-        request.sql_params.hash(&mut hasher);
 
         // TODO: See if we can fix the OpenAPI spec to reify these as typed objects instead of
-        // relying on hashing a single field
+        // walking the maps / looking for fields
+        for val in request.python_named_params.iter().flat_map(|z| z.values()) {
+            val.to_string().hash(&mut hasher);
+        }
+
+        for val in request.notebook_params.iter().flat_map(|z| z.values()) {
+            val.to_string().hash(&mut hasher);
+        }
+
+        for val in request.sql_params.iter().flat_map(|z| z.values()) {
+            val.to_string().hash(&mut hasher);
+        }
+
         if request.pipeline_params.is_some() {
             request
                 .pipeline_params
@@ -171,12 +180,13 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
             log::info!("{} has {} active runs", &self_name, all_runs.len());
 
-            let newest_run_id = all_runs.first().map(|r| r.job_id).unwrap_or(Some(-1));
+            let newest_run_id = all_runs.first().map(|r| r.run_id).unwrap_or(Some(-1));
 
             let triggered = default_api::jobs_run_now(
                 &config,
                 Some(JobsRunNowRequest {
                     idempotency_token: Some(Self::hash_run_request(&run_request).to_string()),
+                    job_id,
                     ..run_request
                 }),
             )
