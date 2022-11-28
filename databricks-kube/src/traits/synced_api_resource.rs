@@ -3,7 +3,7 @@ use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
 use crate::{context::Context, error::DatabricksKubeError, traits::rest_config::RestConfig};
 
 use assert_json_diff::assert_json_matches_no_panic;
-use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
+use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 
 use k8s_openapi::{DeepMerge, NamespaceResourceScope};
 
@@ -193,6 +193,7 @@ where
     TAPIType: 'static,
     TRestConfig: Clone + Sync + Send,
 {
+    let mut resource = resource;
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
 
@@ -284,10 +285,12 @@ where
             .await
             .unwrap()?;
 
-        kube_api
+        let replaced = kube_api
             .replace(&resource.name_unchecked(), &PostParams::default(), &updated)
             .await
             .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
+
+        resource = replaced.into();
 
         log::info!(
             "Updated {} {} in K8S",
@@ -312,7 +315,7 @@ where
             .meta_mut()
             .merge_from(resource.meta().clone());
 
-        kube_api
+        let replaced = kube_api
             .replace(
                 &resource.name_unchecked(),
                 &PostParams::default(),
@@ -320,6 +323,12 @@ where
             )
             .await
             .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
+
+        resource = replaced.into();
+    }
+
+    if owner == "operator" {
+        resource.every_reconcile_owned(context.clone()).await?;
     }
 
     Ok(Action::requeue(Duration::from_secs(300)))
@@ -420,6 +429,13 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
     fn remote_list_all(
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
+
+    fn every_reconcile_owned(
+        &self,
+        _context: Arc<Context>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), DatabricksKubeError>> + Send>> {
+        async { Ok(()) }.boxed()
+    }
 
     fn remote_get(
         &self,

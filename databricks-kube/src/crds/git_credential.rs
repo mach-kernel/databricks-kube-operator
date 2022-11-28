@@ -122,10 +122,7 @@ impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
     fn remote_create(
         &self,
         context: Arc<Context>,
-    ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>>
-    where
-        Self: Sized,
-    {
+    ) -> Pin<Box<dyn Stream<Item = Result<Self, DatabricksKubeError>> + Send + '_>> {
         let credential = self.spec().credential.clone();
 
         try_stream! {

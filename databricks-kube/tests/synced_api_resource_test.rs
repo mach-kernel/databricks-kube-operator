@@ -16,7 +16,7 @@ use databricks_kube::{
 
 use async_stream::try_stream;
 use flurry::HashMap;
-use futures::{Stream, StreamExt};
+use futures::{FutureExt, Stream, StreamExt};
 use hyper::Body;
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 use k8s_openapi::http::{Request, Response};
@@ -52,6 +52,20 @@ impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
             }
         }
         .boxed()
+    }
+
+    fn every_reconcile_owned(
+        &self,
+        _context: Arc<Context>,
+    ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send>> {
+        TEST_STORE.pin().insert(
+            -8675309,
+            FakeAPIResource {
+                id: -8675309,
+                description: Some("ask for jenny".to_string()),
+            },
+        );
+        async { Ok(()) }.boxed()
     }
 
     fn remote_get(
@@ -181,6 +195,10 @@ async fn test_resource_kube_update_operator_owned() {
         },
     );
 
+    TEST_STORE
+        .pin()
+        .insert(1, resource.spec.api_resource.clone());
+
     resource.meta_mut().resource_version = Some("1".to_string());
     resource.meta_mut().annotations = Some({
         let mut annots = BTreeMap::new();
@@ -236,6 +254,9 @@ async fn test_resource_kube_update_operator_owned() {
         TEST_STORE.pin().get(&1).unwrap().clone(),
         updated_api_resource,
     );
+
+    // every_reconcile() was triggered
+    assert!(TEST_STORE.pin().contains_key(&-8675309));
 
     kube_server.abort();
     TEST_STORE.pin().clear();
@@ -301,6 +322,9 @@ async fn test_resource_kube_update_api_owned() {
     // It reconciled successfully
     let reconciled = controller.next().await;
     assert!(reconciled.unwrap().is_ok());
+
+    // every_reconcile() was NOT triggered as the resource is not owned
+    assert!(!TEST_STORE.pin().contains_key(&-8675309));
 
     // The object is the original API object
     assert_eq!(
@@ -375,6 +399,9 @@ async fn test_resource_api_update_operator_owned() {
     let reconciled = controller.next().await;
     assert!(reconciled.unwrap().is_ok());
 
+    // every_reconcile() was triggered
+    assert!(TEST_STORE.pin().contains_key(&-8675309));
+
     kube_server.abort();
     TEST_STORE.pin().clear();
 }
@@ -435,6 +462,9 @@ async fn test_resource_api_update_api_owned() {
     // It reconciled successfully
     let reconciled = controller.next().await;
     assert!(reconciled.unwrap().is_ok());
+
+    // every_reconcile() was NOT triggered as the resource is not owned
+    assert!(!TEST_STORE.pin().contains_key(&-8675309));
 
     kube_server.abort();
     TEST_STORE.pin().clear();
@@ -501,6 +531,9 @@ async fn test_resource_in_sync() {
         .pin()
         .get("/apis/com.dstancu.test/v1/namespaces/default/fakeresources/foo")
         .is_some());
+
+    // every_reconcile() was triggered
+    assert!(TEST_STORE.pin().contains_key(&-8675309));
 
     kube_server.abort();
     TEST_STORE.pin().clear();
