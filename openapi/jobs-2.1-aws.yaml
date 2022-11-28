@@ -2206,8 +2206,6 @@ components:
             `{"notebook_params":{"name":"john doe","age":"35"}}`) cannot exceed
             10,000 bytes.
           additionalProperties: true
-          items:
-            type: string
         python_params:
           type: array
           example:
@@ -2265,6 +2263,7 @@ components:
             type: string
         python_named_params:
           type: object
+          additionalProperties: true
           example:
             name: task
             data: dbfs:/path/to/data.json
@@ -2279,6 +2278,7 @@ components:
               description: If true, triggers a full refresh on the delta live table.
         sql_params:
           type: object
+          additionalProperties: true
           example:
             name: john doe
             age: '35'

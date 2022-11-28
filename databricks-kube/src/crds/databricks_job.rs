@@ -76,35 +76,17 @@ impl DatabricksJob {
         request.notebook_params.hash(&mut hasher);
         request.python_params.hash(&mut hasher);
         request.spark_submit_params.hash(&mut hasher);
+        request.python_named_params.hash(&mut hasher);
+        request.sql_params.hash(&mut hasher);
 
         // TODO: See if we can fix the OpenAPI spec to reify these as typed objects instead of
-        // relying on hashing the uncoerced strings
-        if request.python_named_params.is_some() {
-            request
-                .python_named_params
-                .iter()
-                .flat_map(|v| v.as_str())
-                .next()
-                .unwrap()
-                .hash(&mut hasher);
-        }
-
+        // relying on hashing a single field
         if request.pipeline_params.is_some() {
             request
                 .pipeline_params
                 .clone()
                 .unwrap()
                 .full_refresh
-                .hash(&mut hasher);
-        }
-
-        if request.sql_params.is_some() {
-            request
-                .sql_params
-                .iter()
-                .flat_map(|v| v.as_str())
-                .next()
-                .unwrap()
                 .hash(&mut hasher);
         }
 
