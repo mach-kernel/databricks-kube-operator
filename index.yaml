@@ -3,6 +3,16 @@ entries:
   databricks-kube-operator:
   - apiVersion: v2
     appVersion: 1.16.0
+    created: "2022-11-28T19:26:20.058599444Z"
+    description: A kube-rs operator for managing Databricks API resources
+    digest: eec5c4550935f56363b93583acb7c5c136424ec30826aa7f8033fcf5f05a7afb
+    name: databricks-kube-operator
+    type: application
+    urls:
+    - https://github.com/mach-kernel/databricks-kube-operator/releases/download/databricks-kube-operator-0.1.8/databricks-kube-operator-0.1.8.tgz
+    version: 0.1.8
+  - apiVersion: v2
+    appVersion: 1.16.0
     created: "2022-11-17T20:25:11.057090386Z"
     description: A kube-rs operator for managing Databricks API resources
     digest: b213c118323caa54ea0ea15148313441069a852c9a4a149964cfbf9f4ca598ab
@@ -61,4 +71,4 @@ entries:
     urls:
     - https://github.com/mach-kernel/databricks-kube-operator/releases/download/databricks-kube-operator-0.1.0/databricks-kube-operator-0.1.0.tgz
     version: 0.1.0
-generated: "2022-11-17T20:25:11.057111686Z"
+generated: "2022-11-28T19:26:20.058911149Z"
