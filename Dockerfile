@@ -1,7 +1,7 @@
-FROM debian:bullseye-slim
+FROM ubuntu:latest
 
 RUN apt update
-RUN apt install -y tini ca-certificates
+RUN apt install -y tini ca-certificates libssl-dev
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
