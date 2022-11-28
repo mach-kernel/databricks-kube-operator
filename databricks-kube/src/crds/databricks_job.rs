@@ -135,6 +135,7 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
         .boxed()
     }
 
+    #[allow(irrefutable_let_patterns)]
     fn every_reconcile_owned(
         &self,
         context: Arc<Context>,
