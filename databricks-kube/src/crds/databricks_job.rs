@@ -1,22 +1,26 @@
-use std::pin::Pin;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
 use std::sync::Arc;
 use std::time::SystemTime;
+use std::{hash::Hash, pin::Pin};
 
 use crate::{
     context::Context, error::DatabricksKubeError, traits::rest_config::RestConfig,
     traits::synced_api_resource::SyncedAPIResource,
 };
 
+use databricks_rust_jobs::models::JobsRunsList200Response;
 use databricks_rust_jobs::{
     apis::{configuration::Configuration, default_api},
     models::{
         job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
-        JobsDeleteRequest, JobsGet200Response, JobsList200Response, JobsUpdateRequest,
+        JobsDeleteRequest, JobsGet200Response, JobsList200Response, JobsRunNowRequest,
+        JobsUpdateRequest, Run,
     },
 };
 
 use async_stream::try_stream;
-use futures::{Stream, StreamExt, TryFutureExt};
+use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource, ResourceExt};
 use schemars::JsonSchema;
@@ -31,6 +35,7 @@ use schemars::JsonSchema;
 )]
 pub struct DatabricksJobSpec {
     pub job: Job,
+    pub run: Option<JobsRunNowRequest>,
 }
 
 /// API -> CRD
@@ -49,7 +54,9 @@ impl From<Job> for DatabricksJob {
                     .as_secs()
             ));
 
-        Self::new(&k8s_name, DatabricksJobSpec { job })
+        let run = None;
+
+        Self::new(&k8s_name, DatabricksJobSpec { job, run })
     }
 }
 
@@ -57,6 +64,46 @@ impl From<Job> for DatabricksJob {
 impl From<DatabricksJob> for Job {
     fn from(value: DatabricksJob) -> Self {
         value.spec().job.clone()
+    }
+}
+
+impl DatabricksJob {
+    fn hash_run_request(request: &JobsRunNowRequest) -> u64 {
+        let mut hasher = DefaultHasher::new();
+
+        request.job_id.hash(&mut hasher);
+        request.jar_params.hash(&mut hasher);
+        request.python_params.hash(&mut hasher);
+        request.spark_submit_params.hash(&mut hasher);
+
+        // TODO: See if we can fix the OpenAPI spec to reify these as typed objects instead of
+        // walking the maps / looking for fields
+        for val in request.python_named_params.iter().flat_map(|z| z.values()) {
+            val.to_string().hash(&mut hasher);
+        }
+
+        for val in request.notebook_params.iter().flat_map(|z| z.values()) {
+            val.to_string().hash(&mut hasher);
+        }
+
+        for val in request.sql_params.iter().flat_map(|z| z.values()) {
+            val.to_string().hash(&mut hasher);
+        }
+
+        if request.pipeline_params.is_some() {
+            request
+                .pipeline_params
+                .clone()
+                .unwrap()
+                .full_refresh
+                .hash(&mut hasher);
+        }
+
+        request.dbt_commands.hash(&mut hasher);
+
+        // Databricks docs state a 64 char limit for the idempotency token,
+        // so we can get away with coercing i64 to a string
+        hasher.finish()
     }
 }
 
@@ -84,6 +131,82 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
                 let more = has_more.unwrap_or(false);
                 if !more { break; }
             }
+        }
+        .boxed()
+    }
+
+    #[allow(irrefutable_let_patterns)]
+    fn every_reconcile_owned(
+        &self,
+        context: Arc<Context>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), DatabricksKubeError>> + Send>> {
+        let job_id = self.spec().job.job_id.clone();
+        let run_request = self.spec().run.clone();
+        let self_name = self.name_unchecked();
+
+        if run_request.is_none() {
+            return async { Ok(()) }.boxed();
+        }
+
+        let run_request = run_request.unwrap();
+
+        log::info!(
+            "{} has a run request defined, looking for running jobs...",
+            self.name_unchecked()
+        );
+
+        async move {
+            let mut all_runs: Vec<Run> = Vec::new();
+
+            let config = Job::get_rest_config(context.clone()).await.unwrap();
+            while let JobsRunsList200Response { has_more, runs } = default_api::jobs_runs_list(
+                &config,
+                Some(true),
+                Some(false),
+                job_id,
+                Some(all_runs.len() as i32),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .await?
+            {
+                all_runs.extend(runs.iter().flatten().map(Clone::clone));
+                if !has_more.unwrap_or(false) {
+                    break;
+                }
+            }
+
+            log::info!("{} has {} active runs", &self_name, all_runs.len());
+
+            let newest_run_id = all_runs.first().map(|r| r.run_id).unwrap_or(Some(-1));
+
+            let triggered = default_api::jobs_run_now(
+                &config,
+                Some(JobsRunNowRequest {
+                    idempotency_token: Some(Self::hash_run_request(&run_request).to_string()),
+                    job_id,
+                    ..run_request
+                }),
+            )
+            .await?;
+
+            if newest_run_id.unwrap() == triggered.run_id.unwrap() {
+                log::info!(
+                    "{} current run matches CRD run params, job not retriggered",
+                    &self_name
+                );
+            } else {
+                log::info!(
+                    "{} triggered new job_id {}",
+                    &self_name,
+                    newest_run_id.unwrap()
+                );
+            }
+
+            Ok::<(), DatabricksKubeError>(())
         }
         .boxed()
     }

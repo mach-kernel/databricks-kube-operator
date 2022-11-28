@@ -90,10 +90,7 @@ async fn main() -> Result<(), DatabricksKubeError> {
     let job_ingest = DatabricksJob::ingest_task(ctx.clone());
 
     let git_credential_controller = GitCredential::controller(ctx.clone());
-    let git_credential_ingest = GitCredential::ingest_task(ctx.clone());
-
     let repo_controller = Repo::controller(ctx.clone());
-    let repo_ingest = Repo::ingest_task(ctx.clone());
 
     Toplevel::new()
         .start(
@@ -120,10 +117,6 @@ async fn main() -> Result<(), DatabricksKubeError> {
             },
         )
         .start(
-            "git_credential_ingest",
-            |_: SubsystemHandle<DatabricksKubeError>| git_credential_ingest,
-        )
-        .start(
             "repo_controller",
             |_: SubsystemHandle<DatabricksKubeError>| {
                 repo_controller.for_each(log_controller_event).map(|_| {
@@ -132,9 +125,6 @@ async fn main() -> Result<(), DatabricksKubeError> {
                 })
             },
         )
-        .start("repo_ingest", |_: SubsystemHandle<DatabricksKubeError>| {
-            repo_ingest
-        })
         .catch_signals()
         .handle_shutdown_requests(Duration::from_secs(1))
         .await

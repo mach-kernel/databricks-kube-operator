@@ -15,7 +15,7 @@ pub struct RunParameters {
     pub jar_params: Option<Vec<String>>,
     /// A map from keys to values for jobs with notebook task, for example `\"notebook_params\": {\"name\": \"john doe\", \"age\": \"35\"}`. The map is passed to the notebook and is accessible through the [dbutils.widgets.get](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-widgets) function.  If not specified upon `run-now`, the triggered run uses the job’s base parameters.  notebook_params cannot be specified in conjunction with jar_params.  Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables) to set parameters containing information about job runs.  The JSON representation of this field (for example `{\"notebook_params\":{\"name\":\"john doe\",\"age\":\"35\"}}`) cannot exceed 10,000 bytes.
     #[serde(rename = "notebook_params", skip_serializing_if = "Option::is_none")]
-    pub notebook_params: Option<Vec<String>>,
+    pub notebook_params: Option<::std::collections::HashMap<String, serde_json::Value>>,
     /// A list of parameters for jobs with Python tasks, for example `\"python_params\": [\"john doe\", \"35\"]`. The parameters are passed to Python file as command-line parameters. If specified upon `run-now`, it would overwrite the parameters specified in job setting. The JSON representation of this field (for example `{\"python_params\":[\"john doe\",\"35\"]}`) cannot exceed 10,000 bytes.  Use [Task parameter variables](https://docs.databricks.com/jobs.html#parameter-variables) to set parameters containing information about job runs.  Important  These parameters accept only Latin characters (ASCII character set). Using non-ASCII characters returns an error. Examples of invalid, non-ASCII characters are Chinese, Japanese kanjis, and emojis.
     #[serde(rename = "python_params", skip_serializing_if = "Option::is_none")]
     pub python_params: Option<Vec<String>>,
@@ -30,12 +30,12 @@ pub struct RunParameters {
         rename = "python_named_params",
         skip_serializing_if = "Option::is_none"
     )]
-    pub python_named_params: Option<serde_json::Value>,
+    pub python_named_params: Option<::std::collections::HashMap<String, serde_json::Value>>,
     #[serde(rename = "pipeline_params", skip_serializing_if = "Option::is_none")]
     pub pipeline_params: Option<Box<crate::models::RunParametersPipelineParams>>,
     /// A map from keys to values for SQL tasks, for example `\"sql_params\": {\"name\": \"john doe\", \"age\": \"35\"}`. The SQL alert task does not support custom parameters.
     #[serde(rename = "sql_params", skip_serializing_if = "Option::is_none")]
-    pub sql_params: Option<serde_json::Value>,
+    pub sql_params: Option<::std::collections::HashMap<String, serde_json::Value>>,
     /// An array of commands to execute for jobs with the dbt task, for example `\"dbt_commands\": [\"dbt deps\", \"dbt seed\", \"dbt run\"]`
     #[serde(rename = "dbt_commands", skip_serializing_if = "Option::is_none")]
     pub dbt_commands: Option<Vec<String>>,
