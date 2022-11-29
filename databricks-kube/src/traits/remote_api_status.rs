@@ -75,7 +75,7 @@ where
         resource.name_unchecked()
     );
 
-    Ok(Action::requeue(Duration::from_secs(300)))
+    Ok(Action::requeue(Duration::from_secs(60)))
 }
 
 pub trait RemoteAPIStatus<TStatusType: 'static> {

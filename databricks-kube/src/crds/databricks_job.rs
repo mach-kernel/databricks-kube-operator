@@ -1,7 +1,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::sync::Arc;
-use std::time::{SystemTime};
+use std::time::SystemTime;
 use std::{hash::Hash, pin::Pin};
 
 use crate::traits::remote_api_status::RemoteAPIStatus;
@@ -10,7 +10,7 @@ use crate::{
     traits::rest_config::RestConfig,
 };
 
-use databricks_rust_jobs::models::{JobsRunsList200Response, RunLifeCycleState, RunState, RunResultState};
+use databricks_rust_jobs::models::{JobsRunsList200Response, RunLifeCycleState, RunState};
 use databricks_rust_jobs::{
     apis::default_api,
     models::{
@@ -23,9 +23,7 @@ use databricks_rust_jobs::{
 use async_stream::try_stream;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt};
 
-use k8s_openapi::chrono::{Utc};
 use k8s_openapi::DeepMerge;
-// use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::core::object::HasSpec;
 use kube::{CustomResource, ResourceExt};
 use serde::{Deserialize, Serialize};
@@ -33,21 +31,22 @@ use serde_json::json;
 
 use schemars::JsonSchema;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
-pub struct DatabricksJobCondition {
-    pub last_transition_time: i64,
-    pub message: String,
-    pub observed_generation: Option<i64>,
-    pub reason: String,
-    pub status: String,
-    #[serde(rename = "type")]
-    pub type_: String,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct DatabricksJobStatus {
     pub latest_run_state: Option<RunState>,
-    pub conditions: Option<Vec<DatabricksJobCondition>>,
+}
+
+// TODO: We added `NO_RUNS` to `RunLifeCycleState` because
+// it was the laziest way to surface this, but should probably revisit
+impl Default for DatabricksJobStatus {
+    fn default() -> Self {
+        Self {
+            latest_run_state: Some(RunState {
+                life_cycle_state: Some(RunLifeCycleState::NoRuns),
+                ..RunState::default()
+            }),
+        }
+    }
 }
 
 impl DeepMerge for DatabricksJobStatus {
@@ -67,6 +66,7 @@ impl DeepMerge for DatabricksJobStatus {
     kind = "DatabricksJob",
     derive = "Default",
     status = "DatabricksJobStatus",
+    printcolumn = r#"{"name": "Status", "description": "Current life_cycle_state of the job", "jsonPath": ".status.latest_run_state.life_cycle_state", "type": "string"}"#,
     namespaced
 )]
 pub struct DatabricksJobSpec {
@@ -104,7 +104,6 @@ impl RemoteAPIStatus<DatabricksJobStatus> for DatabricksJob {
         Box<dyn Future<Output = Result<Option<DatabricksJobStatus>, DatabricksKubeError>> + Send>,
     > {
         let job_id = self.spec().job.job_id;
-        let observed_generation = self.metadata.generation;
 
         async move {
             if job_id.is_none() {
@@ -116,7 +115,7 @@ impl RemoteAPIStatus<DatabricksJobStatus> for DatabricksJob {
             // API says jobs are sorted by created_at
             let JobsRunsList200Response { runs, .. } = default_api::jobs_runs_list(
                 &config,
-                Some(true),
+                Some(false),
                 Some(false),
                 job_id,
                 Some(0),
@@ -128,46 +127,18 @@ impl RemoteAPIStatus<DatabricksJobStatus> for DatabricksJob {
             )
             .await?;
 
-            let latest_run_state = runs
+            let status = runs
                 .iter()
                 .flat_map(|runs| runs.first())
                 .flat_map(|run| run.state.clone())
                 .map(|state| *state.clone())
-                .next();
-
-            let life_cycle_state = latest_run_state
-                .iter()
-                .flat_map(|r| r.life_cycle_state)
                 .next()
-                .unwrap_or(RunLifeCycleState::InternalError);
+                .map(|run_state| DatabricksJobStatus {
+                    latest_run_state: Some(run_state),
+                })
+                .unwrap_or_default();
 
-            let result_state = latest_run_state
-                .iter()
-                .flat_map(|r| r.result_state)
-                .next()
-                .unwrap_or(RunResultState::Failed);
-
-            let condition = DatabricksJobCondition {
-                type_: "Ready".to_string(),
-                status: if (life_cycle_state == RunLifeCycleState::Running) || (result_state == RunResultState::Success) {
-                    "True".to_string()
-                } else {
-                    "False".to_string()
-                },
-                reason: life_cycle_state.to_string(),
-                message: latest_run_state
-                    .iter()
-                    .flat_map(|r| r.state_message.clone())
-                    .next()
-                    .unwrap_or("".to_string()),
-                last_transition_time: Utc::now().timestamp(),
-                observed_generation,
-            };
-
-            Ok(Some(DatabricksJobStatus {
-                latest_run_state,
-                conditions: Some(vec![condition]),
-            }))
+            Ok(Some(status))
         }
         .boxed()
     }
