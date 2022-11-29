@@ -19,6 +19,7 @@ rules:
         - configmaps
         - customresourcedefinitions
         - databricksjobs
+        - databricksjobs/status
         - repos
         - gitcredentials
         - secrets
@@ -28,6 +29,7 @@ rules:
         - com.dstancu.databricks
     resources:
         - databricksjobs
+        - databricksjobs/status
         - repos
         - gitcredentials
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
