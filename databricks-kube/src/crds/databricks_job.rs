@@ -4,14 +4,15 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use std::{hash::Hash, pin::Pin};
 
+use crate::traits::remote_api_status::RemoteAPIStatus;
 use crate::{
-    context::Context, error::DatabricksKubeError, traits::rest_config::RestConfig,
-    traits::synced_api_resource::SyncedAPIResource,
+    context::Context, error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource,
+    traits::rest_config::RestConfig,
 };
 
-use databricks_rust_jobs::models::JobsRunsList200Response;
+use databricks_rust_jobs::models::{JobsRunsList200Response, RunLifeCycleState, RunState};
 use databricks_rust_jobs::{
-    apis::{configuration::Configuration, default_api},
+    apis::default_api,
     models::{
         job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
         JobsDeleteRequest, JobsGet200Response, JobsList200Response, JobsRunNowRequest,
@@ -21,9 +22,42 @@ use databricks_rust_jobs::{
 
 use async_stream::try_stream;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt};
-use k8s_openapi::serde::{Deserialize, Serialize};
-use kube::{core::object::HasSpec, CustomResource, ResourceExt};
+
+use k8s_openapi::DeepMerge;
+use kube::core::object::HasSpec;
+use kube::{CustomResource, ResourceExt};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+
 use schemars::JsonSchema;
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct DatabricksJobStatus {
+    pub latest_run_state: Option<RunState>,
+}
+
+// TODO: We added `NO_RUNS` to `RunLifeCycleState` because
+// it was the laziest way to surface this, but should probably revisit
+impl Default for DatabricksJobStatus {
+    fn default() -> Self {
+        Self {
+            latest_run_state: Some(RunState {
+                life_cycle_state: Some(RunLifeCycleState::NoRuns),
+                ..RunState::default()
+            }),
+        }
+    }
+}
+
+impl DeepMerge for DatabricksJobStatus {
+    fn merge_from(&mut self, other: Self) {
+        let mut self_state = json!(self.latest_run_state);
+        let other_state = json!(other.latest_run_state);
+
+        self_state.merge_from(other_state);
+        self.latest_run_state = serde_json::from_value(self_state).unwrap();
+    }
+}
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
@@ -31,6 +65,8 @@ use schemars::JsonSchema;
     version = "v1",
     kind = "DatabricksJob",
     derive = "Default",
+    status = "DatabricksJobStatus",
+    printcolumn = r#"{"name": "Status", "description": "Current life_cycle_state of the job", "jsonPath": ".status.latest_run_state.life_cycle_state", "type": "string"}"#,
     namespaced
 )]
 pub struct DatabricksJobSpec {
@@ -60,6 +96,54 @@ impl From<Job> for DatabricksJob {
     }
 }
 
+impl RemoteAPIStatus<DatabricksJobStatus> for DatabricksJob {
+    fn remote_status(
+        &self,
+        context: Arc<Context>,
+    ) -> Pin<
+        Box<dyn Future<Output = Result<Option<DatabricksJobStatus>, DatabricksKubeError>> + Send>,
+    > {
+        let job_id = self.spec().job.job_id;
+
+        async move {
+            if job_id.is_none() {
+                return Ok(None);
+            }
+
+            let config = Job::get_rest_config(context.clone()).await.unwrap();
+
+            // API says jobs are sorted by created_at
+            let JobsRunsList200Response { runs, .. } = default_api::jobs_runs_list(
+                &config,
+                Some(true),
+                Some(false),
+                job_id,
+                Some(0),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .await?;
+
+            let status = runs
+                .iter()
+                .flat_map(|runs| runs.first())
+                .flat_map(|run| run.state.clone())
+                .map(|state| *state.clone())
+                .next()
+                .map(|run_state| DatabricksJobStatus {
+                    latest_run_state: Some(run_state),
+                })
+                .unwrap_or_default();
+
+            Ok(Some(status))
+        }
+        .boxed()
+    }
+}
+
 /// CRD -> API
 impl From<DatabricksJob> for Job {
     fn from(value: DatabricksJob) -> Self {
@@ -76,8 +160,6 @@ impl DatabricksJob {
         request.python_params.hash(&mut hasher);
         request.spark_submit_params.hash(&mut hasher);
 
-        // TODO: See if we can fix the OpenAPI spec to reify these as typed objects instead of
-        // walking the maps / looking for fields
         for val in request.python_named_params.iter().flat_map(|z| z.values()) {
             val.to_string().hash(&mut hasher);
         }
@@ -107,7 +189,7 @@ impl DatabricksJob {
     }
 }
 
-impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
+impl RemoteAPIResource<Job> for DatabricksJob {
     fn remote_list_all(
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {
@@ -195,12 +277,13 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
             if newest_run_id.unwrap() == triggered.run_id.unwrap() {
                 log::info!(
-                    "{} current run matches CRD run params, job not retriggered",
-                    &self_name
+                    "{} idempotency token matches; run_id still {}",
+                    &self_name,
+                    newest_run_id.unwrap()
                 );
             } else {
                 log::info!(
-                    "{} triggered new job_id {}",
+                    "{} triggered new run_id: {}",
                     &self_name,
                     triggered.run_id.unwrap(),
                 );

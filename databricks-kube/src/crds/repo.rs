@@ -3,10 +3,10 @@ use std::{pin::Pin, time::SystemTime};
 
 use crate::context::Context;
 use crate::traits::rest_config::RestConfig;
-use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource};
+use crate::{error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource};
 
 use databricks_rust_repos::{
-    apis::{configuration::Configuration, default_api},
+    apis::default_api,
     models::{CreateRepoRequest, GetRepoResponse as APIRepo, GetReposResponse, UpdateRepoRequest},
 };
 
@@ -55,7 +55,7 @@ impl From<Repo> for APIRepo {
     }
 }
 
-impl SyncedAPIResource<APIRepo, Configuration> for Repo {
+impl RemoteAPIResource<APIRepo> for Repo {
     fn remote_list_all(
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<APIRepo, DatabricksKubeError>> + Send>> {

@@ -1,6 +1,6 @@
 use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
 
-use crate::{context::Context, error::DatabricksKubeError, traits::rest_config::RestConfig};
+use crate::{context::Context, error::DatabricksKubeError, util::default_error_policy};
 
 use assert_json_diff::assert_json_matches_no_panic;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
@@ -21,7 +21,7 @@ use tokio::{task::JoinHandle, time::interval};
 /// TAPIType is OpenAPI generated
 /// TCRDType is the operator's wrapper
 #[allow(dead_code)]
-pub async fn ingest_task<TAPIType, TCRDType, TRestConfig>(
+pub async fn ingest_task<TAPIType, TCRDType>(
     interval_period: Duration,
     context: Arc<Context>,
 ) -> Result<(), DatabricksKubeError>
@@ -29,7 +29,7 @@ where
     TCRDType: From<TAPIType>,
     TCRDType: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
     TCRDType::DynamicType: Default + Eq + Hash,
-    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: RemoteAPIResource<TAPIType>,
     TCRDType: Send,
     TCRDType: Serialize,
     TCRDType: Sync,
@@ -38,12 +38,10 @@ where
     TCRDType: CustomResourceExt,
     TCRDType: Debug,
     TCRDType: DeserializeOwned,
-    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: RemoteAPIResource<TAPIType>,
     TCRDType: 'static,
     TAPIType: Send,
-    TAPIType: RestConfig<TRestConfig>,
     TAPIType: 'static,
-    TRestConfig: Clone + Sync + Send,
 {
     let mut duration = interval(interval_period);
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
@@ -91,7 +89,7 @@ where
 }
 
 #[allow(dead_code)]
-pub async fn spawn_delete_watcher<TAPIType, TCRDType, TRestConfig>(
+pub async fn spawn_delete_watcher<TAPIType, TCRDType>(
     resource: Arc<TCRDType>,
     context: Arc<Context>,
 ) -> JoinHandle<Result<(), DatabricksKubeError>>
@@ -99,7 +97,7 @@ where
     TCRDType: From<TAPIType>,
     TCRDType: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
     TCRDType::DynamicType: Default + Eq + Hash,
-    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: RemoteAPIResource<TAPIType>,
     TCRDType: Send,
     TCRDType: Serialize,
     TCRDType: Sync,
@@ -108,12 +106,9 @@ where
     TCRDType: CustomResourceExt,
     TCRDType: Debug,
     TCRDType: DeserializeOwned,
-    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
     TCRDType: 'static,
     TAPIType: Send,
-    TAPIType: RestConfig<TRestConfig>,
     TAPIType: 'static,
-    TRestConfig: Clone + Sync + Send,
 {
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
 
@@ -166,7 +161,7 @@ where
 }
 
 #[allow(dead_code)]
-async fn reconcile<TAPIType, TCRDType, TRestConfig>(
+async fn reconcile<TAPIType, TCRDType>(
     resource: Arc<TCRDType>,
     context: Arc<Context>,
 ) -> Result<Action, DatabricksKubeError>
@@ -174,7 +169,7 @@ where
     TCRDType: From<TAPIType>,
     TCRDType: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
     TCRDType::DynamicType: Default + Eq + Hash,
-    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
+    TCRDType: RemoteAPIResource<TAPIType>,
     TCRDType: Send,
     TCRDType: Serialize,
     TCRDType: Sync,
@@ -183,15 +178,12 @@ where
     TCRDType: CustomResourceExt,
     TCRDType: Debug,
     TCRDType: DeserializeOwned,
-    TCRDType: SyncedAPIResource<TAPIType, TRestConfig>,
     TCRDType: 'static,
     TAPIType: From<TCRDType>,
     TAPIType: PartialEq,
     TAPIType: Send,
-    TAPIType: RestConfig<TRestConfig>,
     TAPIType: Serialize,
     TAPIType: 'static,
-    TRestConfig: Clone + Sync + Send,
 {
     let mut resource = resource;
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
@@ -335,7 +327,7 @@ where
 }
 
 /// Implement this on the macroexpanded CRD type, against the SDK type
-pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone> {
+pub trait RemoteAPIResource<TAPIType: 'static> {
     fn controller(
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<(ObjectRef<Self>, Action), DatabricksKubeError>> + Send>>
@@ -343,7 +335,7 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         Self: From<TAPIType>,
         Self: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
         Self::DynamicType: Clone + Debug + Default + Eq + Hash + Unpin,
-        Self: SyncedAPIResource<TAPIType, TRestConfig>,
+        Self: RemoteAPIResource<TAPIType>,
         Self: Send,
         Self: Serialize,
         Self: Sync,
@@ -352,23 +344,18 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         Self: CustomResourceExt,
         Self: Debug,
         Self: DeserializeOwned,
-        Self: SyncedAPIResource<TAPIType, TRestConfig>,
         Self: 'static,
         TAPIType: From<Self>,
         TAPIType: PartialEq,
         TAPIType: Send,
-        TAPIType: RestConfig<TRestConfig>,
         TAPIType: Serialize,
-
         TAPIType: 'static,
-        TRestConfig: Clone + Sync + Send,
-        TRestConfig: 'static,
     {
         let root_kind_api = Api::<Self>::default_namespaced(context.client.clone());
 
         Controller::new(root_kind_api.clone(), ListParams::default())
             .shutdown_on_signal()
-            .run(reconcile, Self::default_error_policy, context.clone())
+            .run(reconcile, default_error_policy, context.clone())
             .map_err(|e| DatabricksKubeError::ControllerError(e.to_string()))
             .boxed()
     }
@@ -390,27 +377,8 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         Self: DeserializeOwned,
         Self: 'static,
         TAPIType: Send,
-        TAPIType: RestConfig<TRestConfig>,
-        TRestConfig: 'static,
     {
-        ingest_task::<TAPIType, Self, TRestConfig>(Duration::from_secs(300), context).boxed()
-    }
-
-    fn default_error_policy(obj: Arc<Self>, err: &DatabricksKubeError, _ctx: Arc<Context>) -> Action
-    where
-        Self: From<TAPIType>,
-        Self: Resource + ResourceExt + CustomResourceExt,
-        Self::DynamicType: Default + Eq + Hash,
-        TAPIType: Send,
-        TAPIType: RestConfig<TRestConfig>,
-    {
-        log::error!(
-            "Reconciliation failed for {} {} (retrying in 30s):\n{}",
-            Self::api_resource().kind,
-            obj.name_unchecked(),
-            err,
-        );
-        Action::requeue(Duration::from_secs(30))
+        ingest_task::<TAPIType, Self>(Duration::from_secs(300), context).boxed()
     }
 
     fn self_url_unchecked(&self) -> String
@@ -426,16 +394,16 @@ pub trait SyncedAPIResource<TAPIType: 'static, TRestConfig: Sync + Send + Clone>
         )
     }
 
-    fn remote_list_all(
-        context: Arc<Context>,
-    ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
-
     fn every_reconcile_owned(
         &self,
         _context: Arc<Context>,
     ) -> Pin<Box<dyn Future<Output = Result<(), DatabricksKubeError>> + Send>> {
         async { Ok(()) }.boxed()
     }
+
+    fn remote_list_all(
+        context: Arc<Context>,
+    ) -> Pin<Box<dyn Stream<Item = Result<TAPIType, DatabricksKubeError>> + Send>>;
 
     fn remote_get(
         &self,

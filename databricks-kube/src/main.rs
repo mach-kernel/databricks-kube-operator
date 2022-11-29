@@ -2,13 +2,18 @@ mod context;
 mod crds;
 mod error;
 mod traits;
+mod util;
 
 use std::{collections::BTreeMap, hash::Hash, sync::Arc, time::Duration};
 
 use databricks_kube::{
-    context::Context, crds::databricks_job::DatabricksJob, crds::git_credential::GitCredential,
-    crds::repo::Repo, ensure_api_secret, ensure_configmap, ensure_crd, error::DatabricksKubeError,
-    traits::synced_api_resource::SyncedAPIResource, watch_api_secret, watch_configmap,
+    context::Context,
+    crds::databricks_job::DatabricksJob,
+    crds::git_credential::GitCredential,
+    crds::repo::Repo,
+    error::DatabricksKubeError,
+    traits::{remote_api_resource::RemoteAPIResource, remote_api_status::RemoteAPIStatus},
+    util::*,
 };
 
 use k8s_openapi::{
@@ -87,6 +92,7 @@ async fn main() -> Result<(), DatabricksKubeError> {
     let ctx = Context::new(kube_client.clone(), api_secret_store, configmap_store);
 
     let job_controller = DatabricksJob::controller(ctx.clone());
+    let job_status_controller = DatabricksJob::status_controller(ctx.clone());
     let job_ingest = DatabricksJob::ingest_task(ctx.clone());
 
     let git_credential_controller = GitCredential::controller(ctx.clone());
@@ -100,6 +106,17 @@ async fn main() -> Result<(), DatabricksKubeError> {
                     let res: Result<(), DatabricksKubeError> = Ok(());
                     res
                 })
+            },
+        )
+        .start(
+            "job_status_controller",
+            |_: SubsystemHandle<DatabricksKubeError>| {
+                job_status_controller
+                    .for_each(log_controller_event)
+                    .map(|_| {
+                        let res: Result<(), DatabricksKubeError> = Ok(());
+                        res
+                    })
             },
         )
         .start("job_ingest", |_: SubsystemHandle<DatabricksKubeError>| {

@@ -7,6 +7,11 @@ use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 use schemars::JsonSchema;
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct FakeAPIResourceStatus {
+    pub foos: Option<u32>,
+}
+
 #[derive(JsonSchema, Clone, Debug, PartialEq, Default, Serialize, Deserialize, Eq)]
 pub struct FakeAPIResource {
     pub id: i64,
@@ -19,6 +24,7 @@ pub struct FakeAPIResource {
     version = "v1",
     kind = "FakeResource",
     derive = "Default",
+    status = "FakeAPIResourceStatus",
     namespaced
 )]
 pub struct FakeResourceSpec {

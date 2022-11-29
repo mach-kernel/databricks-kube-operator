@@ -2,6 +2,7 @@ mod context;
 mod crds;
 mod error;
 mod traits;
+mod util;
 
 use kube::CustomResourceExt;
 use serde_yaml::to_string;

@@ -11,7 +11,7 @@ use common::mock_k8s::{
 use databricks_kube::{
     context::Context,
     error::DatabricksKubeError,
-    traits::synced_api_resource::{spawn_delete_watcher, SyncedAPIResource},
+    traits::remote_api_resource::{spawn_delete_watcher, RemoteAPIResource},
 };
 
 use async_stream::try_stream;
@@ -30,7 +30,7 @@ use tokio::time::{sleep, timeout};
 use tower_test::mock;
 
 /*
- * A basic integration test for the SyncedAPIResource trait against a FakeResource CRD.
+ * A basic integration test for the RemoteAPIResource trait against a FakeResource CRD.
  *
  * This implementation treats TEST_STORE as the remote state store, which we can then
  * assert against for test cases.
@@ -39,7 +39,7 @@ lazy_static! {
     static ref TEST_STORE: HashMap<i64, FakeAPIResource> = HashMap::new();
 }
 
-impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
+impl RemoteAPIResource<FakeAPIResource> for FakeResource {
     fn remote_list_all(
         _context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<FakeAPIResource, DatabricksKubeError>> + Send>> {
@@ -378,7 +378,8 @@ async fn test_resource_api_update_operator_owned() {
                 &mut handle,
                 resource.clone(),
                 // assertion made during PUT call
-                resource.spec().api_resource.clone(),
+                Some(resource.spec().api_resource.clone()),
+                None,
             )
             .await;
         }
@@ -442,7 +443,8 @@ async fn test_resource_api_update_api_owned() {
                 &mut handle,
                 resource.clone(),
                 // assertion made during PUT call
-                updated_resource.clone(),
+                Some(updated_resource.clone()),
+                None,
             )
             .await;
         }
@@ -504,7 +506,8 @@ async fn test_resource_in_sync() {
             mock_list_fake_resource(
                 &mut handle,
                 resource.clone(),
-                resource.spec().api_resource.clone(),
+                Some(resource.spec().api_resource.clone()),
+                None,
             )
             .await;
         }
