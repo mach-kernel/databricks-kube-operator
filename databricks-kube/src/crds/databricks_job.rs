@@ -12,7 +12,7 @@ use crate::{
 
 use databricks_rust_jobs::models::{JobsRunsList200Response, RunState};
 use databricks_rust_jobs::{
-    apis::{configuration::Configuration, default_api},
+    apis::{default_api},
     models::{
         job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
         JobsDeleteRequest, JobsGet200Response, JobsList200Response, JobsRunNowRequest,
@@ -25,11 +25,9 @@ use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::DeepMerge;
 // use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::core::object::HasSpec;
-use kube::{
-    CustomResource, ResourceExt,
-};
+use kube::{CustomResource, ResourceExt};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
-use serde::{Serialize, Deserialize};
 
 use schemars::JsonSchema;
 
@@ -88,7 +86,9 @@ impl RemoteAPIStatus<DatabricksJobStatus> for DatabricksJob {
     fn remote_status(
         &self,
         context: Arc<Context>,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<DatabricksJobStatus>, DatabricksKubeError>> + Send>> {
+    ) -> Pin<
+        Box<dyn Future<Output = Result<Option<DatabricksJobStatus>, DatabricksKubeError>> + Send>,
+    > {
         let job_id = self.spec().job.job_id;
 
         async move {
@@ -110,7 +110,8 @@ impl RemoteAPIStatus<DatabricksJobStatus> for DatabricksJob {
                 None,
                 None,
                 None,
-            ).await?;
+            )
+            .await?;
 
             let latest_run_state = runs
                 .iter()
@@ -119,12 +120,9 @@ impl RemoteAPIStatus<DatabricksJobStatus> for DatabricksJob {
                 .map(|state| *state.clone())
                 .next();
 
-            Ok(Some(
-                DatabricksJobStatus {
-                    latest_run_state,
-                }
-            ))
-        }.boxed()
+            Ok(Some(DatabricksJobStatus { latest_run_state }))
+        }
+        .boxed()
     }
 }
 

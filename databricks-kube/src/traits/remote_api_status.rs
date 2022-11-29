@@ -2,7 +2,6 @@ use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
 
 use crate::{
     context::Context, error::DatabricksKubeError,
-    traits::rest_config::RestConfig,
     util::default_error_policy,
 };
 
@@ -19,7 +18,6 @@ use kube::{
 };
 
 use serde::{de::DeserializeOwned, Serialize};
-
 
 #[allow(dead_code)]
 async fn reconcile<TStatusType, TCRDType>(
@@ -64,9 +62,7 @@ where
     );
 
     let mut updated_resource = resource.as_ref().clone();
-    updated_resource
-        .status_mut()
-        .merge_from(latest_status);
+    updated_resource.status_mut().merge_from(latest_status);
 
     kube_api
         .replace(

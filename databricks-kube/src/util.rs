@@ -20,8 +20,7 @@ use kube::{
         wait::{await_condition, conditions},
         watcher::{self, Event},
     },
-    Api,
-    CustomResourceExt, Resource, ResourceExt,
+    Api, CustomResourceExt, Resource, ResourceExt,
 };
 
 use schemars::schema_for;

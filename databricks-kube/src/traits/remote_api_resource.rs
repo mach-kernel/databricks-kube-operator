@@ -2,7 +2,6 @@ use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
 
 use crate::{
     context::Context, error::DatabricksKubeError,
-    traits::rest_config::RestConfig,
     util::default_error_policy,
 };
 

@@ -7,8 +7,11 @@ mod util;
 use std::{collections::BTreeMap, hash::Hash, sync::Arc, time::Duration};
 
 use databricks_kube::{
-    context::Context, crds::databricks_job::DatabricksJob, crds::git_credential::GitCredential,
-    crds::repo::Repo, error::DatabricksKubeError,
+    context::Context,
+    crds::databricks_job::DatabricksJob,
+    crds::git_credential::GitCredential,
+    crds::repo::Repo,
+    error::DatabricksKubeError,
     traits::{remote_api_resource::RemoteAPIResource, remote_api_status::RemoteAPIStatus},
     util::*,
 };
@@ -100,6 +103,15 @@ async fn main() -> Result<(), DatabricksKubeError> {
             "job_controller",
             |_: SubsystemHandle<DatabricksKubeError>| {
                 job_controller.for_each(log_controller_event).map(|_| {
+                    let res: Result<(), DatabricksKubeError> = Ok(());
+                    res
+                })
+            },
+        )
+        .start(
+            "job_status_controller",
+            |_: SubsystemHandle<DatabricksKubeError>| {
+                job_status_controller.for_each(log_controller_event).map(|_| {
                     let res: Result<(), DatabricksKubeError> = Ok(());
                     res
                 })

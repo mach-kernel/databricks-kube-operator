@@ -6,7 +6,7 @@ use crate::traits::rest_config::RestConfig;
 use crate::{error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource};
 
 use databricks_rust_git_credentials::{
-    apis::{configuration::Configuration, default_api},
+    apis::{default_api},
     models::{
         CreateCredentialRequest, GetCredentialResponse as APICredential, GetCredentialsResponse,
         UpdateCredentialRequest,
