@@ -195,12 +195,13 @@ impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
 
             if newest_run_id.unwrap() == triggered.run_id.unwrap() {
                 log::info!(
-                    "{} current run matches CRD run params, job not retriggered",
-                    &self_name
+                    "{} idempotency token matches run_id still {}",
+                    &self_name,
+                    newest_run_id.unwrap()
                 );
             } else {
                 log::info!(
-                    "{} triggered new job_id {}",
+                    "{} triggered new run_id: {}",
                     &self_name,
                     triggered.run_id.unwrap(),
                 );

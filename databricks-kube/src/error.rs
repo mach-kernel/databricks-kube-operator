@@ -12,7 +12,7 @@ where
     T: Debug,
 {
     fn from(e: JobsAPIError<T>) -> Self {
-        Self::APIError(format!("{}", e))
+        Self::APIError(format!("{:?}", e))
     }
 }
 
@@ -21,7 +21,7 @@ where
     T: Debug,
 {
     fn from(e: GitCredentialAPIError<T>) -> Self {
-        Self::APIError(format!("{}", e))
+        Self::APIError(format!("{:?}", e))
     }
 }
 
@@ -30,7 +30,7 @@ where
     T: Debug,
 {
     fn from(e: ReposAPIError<T>) -> Self {
-        Self::APIError(format!("{}", e))
+        Self::APIError(format!("{:?}", e))
     }
 }
 
