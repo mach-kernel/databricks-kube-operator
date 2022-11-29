@@ -115,7 +115,7 @@ impl RemoteAPIStatus<DatabricksJobStatus> for DatabricksJob {
             // API says jobs are sorted by created_at
             let JobsRunsList200Response { runs, .. } = default_api::jobs_runs_list(
                 &config,
-                Some(false),
+                Some(true),
                 Some(false),
                 job_id,
                 Some(0),

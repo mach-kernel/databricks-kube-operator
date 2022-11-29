@@ -36,7 +36,7 @@ In `Chart.yaml`, add a dependency to the operator chart:
 dependencies:
   - name: databricks-kube-operator
     repository: https://mach-kernel.github.io/databricks-kube-operator
-    version: 0.1.5
+    version: 0.2.0
 ```
 
 ## Populating Databricks resources

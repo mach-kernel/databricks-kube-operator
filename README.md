@@ -69,33 +69,54 @@ You may provide the `databricks-operator/owner` annotation as shown below (to be
 
 ```yaml
 apiVersion: com.dstancu.databricks/v1
-kind: GitCredential
+kind: DatabricksJob
 metadata:
+  name: my-super-cool-job
+  namespace: default
   annotations:
     databricks-operator/owner: operator
-  name: example-credential
-  namespace: default
-spec:
-  secret_name: my-secret-name
-  credential:
-    git_username: mach-kernel
-    git_provider: gitHub
 ```
 
 By default, databricks-kube-operator will also sync existing API resources from Databricks into Kubernetes (goal: surface status). Resources owned by the API are tagged as such with an annotation on ingest:
 
 ```yaml
-apiVersion: v1
-items:
-- apiVersion: com.dstancu.databricks/v1
-  kind: DatabricksJob
-  metadata:
-    annotations:
-      databricks-operator/owner: api
-    creationTimestamp: "2022-11-04T21:46:12Z"
-    generation: 1
-    name: hello-world
-    ...
+apiVersion: com.dstancu.databricks/v1
+kind: DatabricksJob
+metadata:
+  annotations:
+    databricks-operator/owner: api
+  creationTimestamp: "2022-11-04T21:46:12Z"
+  generation: 1
+  name: hello-world
+  ...
+```
+
+Look at jobs (allowed to be viewed by the operator's access token):
+
+```bash
+$ kubectl get databricksjobs
+NAME                                 STATUS
+contoso-ingest-qa                      RUNNING
+contoso-ingest-staging                 INTERNAL_ERROR
+contoso-stats-qa                       TERMINATED
+contoso-stats-staging                  NO_RUNS
+
+$ kubectl describe databricksjob contoso-ingest-qa
+...
+```
+
+A job's status key surfaces API information about the latest [run](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsList). The status is polled every 60s:
+
+```bash
+$ kubectl get databricksjob contoso-ingest-staging -ojson | jq .status
+{
+  "latest_run_state": {
+    "life_cycle_state": "INTERNAL_ERROR",
+    "result_state": "FAILED",
+    "state_message": "Task curio-ingest-staging failed. This caused all downstream tasks to get skipped.",
+    "user_cancelled_or_timedout": false
+  }
+}
 ```
 
 ## Developers
@@ -199,9 +220,18 @@ Want to add support for a new API? Provided it has an OpenAPI definition, these 
 * Implement `RestConfig<TSDKConfig>` for your new client
 * Implement `From<TSDKAPIError<E>>` for `DatabricksKubeError`
 * Define the new CRD Spec type ([follow kube-rs tutorial](https://kube.rs/getting-started/))
-* Implement `SyncedAPIResource<TAPIResource, TSDKConfig>` for your new CRD
+* `impl RemoteAPIResource<TAPIResource> for MyNewCRD`
+* `impl StatusAPIResource<TStatusType> for MyNewCRD` and [specify `TStatusType` in your CRD](https://github.com/kube-rs/kube/blob/main/examples/crd_derive.rs#L20)
 * Add the new resource to the context ensure CRDs condition
 * Add the new resource to `crdgen.rs`
+
+### Running tests
+
+Tests must be run with a single thread since we use a stateful singleton to 'mock' the state of a remote API. Eventually it would be nice to have integration tests targetting Databricks.
+
+```bash
+$ cargo test -- --test-threads=1
+```
 
 ## License
 
