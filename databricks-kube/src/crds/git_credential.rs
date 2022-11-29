@@ -14,7 +14,7 @@ use databricks_rust_git_credentials::{
 };
 
 use async_stream::try_stream;
-use futures::{Stream, StreamExt, TryFutureExt};
+use futures::{Stream, StreamExt};
 use k8s_openapi::{
     api::core::v1::Secret,
     serde::{Deserialize, Serialize},
@@ -110,9 +110,7 @@ impl RemoteAPIResource<APICredential> for GitCredential {
         try_stream! {
             let config = APICredential::get_rest_config(context.clone()).await.unwrap();
 
-            let res = default_api::get_git_credential(&config, &credential_id?.to_string()).map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
-            ).await?;
+            let res = default_api::get_git_credential(&config, &credential_id?.to_string()).await?;
 
             yield res
         }
@@ -149,8 +147,6 @@ impl RemoteAPIResource<APICredential> for GitCredential {
                     git_username: credential.git_username.unwrap(),
                     git_provider: credential.git_provider.unwrap(),
                 }
-            ).map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
             ).await?;
 
             let mut with_response = self.clone();
@@ -195,8 +191,6 @@ impl RemoteAPIResource<APICredential> for GitCredential {
                     personal_access_token,
                     ..UpdateCredentialRequest::default()
                 }
-            ).map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
             ).await?;
 
             let mut with_response = self.clone();
@@ -218,9 +212,7 @@ impl RemoteAPIResource<APICredential> for GitCredential {
                 &config,
                 &credential_id.map(|i| i.to_string()).unwrap()
             )
-            .map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
-            ).await?;
+            .await?;
 
             yield ()
         }

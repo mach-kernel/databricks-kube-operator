@@ -21,7 +21,7 @@ use databricks_rust_jobs::{
 };
 
 use async_stream::try_stream;
-use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt};
+use futures::{Future, FutureExt, Stream, StreamExt};
 
 use k8s_openapi::DeepMerge;
 use kube::core::object::HasSpec;
@@ -309,9 +309,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                 settings,
                 created_time,
                 ..
-            } = default_api::jobs_get(&config, job_id).map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
-            ).await?;
+            } = default_api::jobs_get(&config, job_id).await?;
 
             yield Job {
                 job_id,
@@ -354,8 +352,6 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                     format: job_settings.format.map(job_settings_to_create_format),
                     ..JobsCreateRequest::default()
                 })
-            ).map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
             ).await?;
 
             // The response only contains an ID, but there are other fields
@@ -395,8 +391,6 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                     new_settings: job_settings,
                     ..JobsUpdateRequest::default()
                 })
-            ).map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
             ).await?;
 
             let mut with_response = self.clone();
@@ -417,8 +411,6 @@ impl RemoteAPIResource<Job> for DatabricksJob {
             default_api::jobs_delete(
                 &config,
                 Some(JobsDeleteRequest { job_id: job_id.unwrap(), })
-            ).map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
             ).await?;
 
             yield ()

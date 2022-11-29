@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::common::fake_resource::FakeResource;
 
 use tower_test::mock::Handle;

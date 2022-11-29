@@ -11,7 +11,7 @@ use databricks_rust_repos::{
 };
 
 use async_stream::try_stream;
-use futures::{Stream, StreamExt, TryFutureExt};
+use futures::{Stream, StreamExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
 
@@ -97,11 +97,7 @@ impl RemoteAPIResource<APIRepo> for Repo {
 
         try_stream! {
             let config = APIRepo::get_rest_config(context.clone()).await.unwrap();
-
-            let res = default_api::get_repo(&config, &repository_id?.to_string()).map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
-            ).await?;
-
+            let res = default_api::get_repo(&config, &repository_id?.to_string()).await?;
             yield res
         }
         .boxed()
@@ -126,8 +122,6 @@ impl RemoteAPIResource<APIRepo> for Repo {
                     provider: repository.provider.unwrap(),
                     path: repository.path,
                 }
-            ).map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
             ).await?;
 
             let mut with_response = self.clone();
@@ -157,8 +151,6 @@ impl RemoteAPIResource<APIRepo> for Repo {
                     branch: repository.branch.unwrap(),
                     tag: "todo".to_string(),
                 }
-            ).map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
             ).await?;
 
             let mut with_response = self.clone();
@@ -179,9 +171,6 @@ impl RemoteAPIResource<APIRepo> for Repo {
             default_api::delete_repo(
                 &config,
                 &repository_id.map(|i| i.to_string()).unwrap()
-            )
-            .map_err(
-                |e| DatabricksKubeError::APIError(e.to_string())
             ).await?;
 
             yield ()
