@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::hash::Hash;
 use std::{sync::Arc, time::Duration};
 
