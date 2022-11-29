@@ -113,7 +113,7 @@ $ kubectl get databricksjob contoso-ingest-staging -ojson | jq .status
   "latest_run_state": {
     "life_cycle_state": "INTERNAL_ERROR",
     "result_state": "FAILED",
-    "state_message": "Task curio-ingest-staging failed. This caused all downstream tasks to get skipped.",
+    "state_message": "Task contoso-ingest-staging failed. This caused all downstream tasks to get skipped.",
     "user_cancelled_or_timedout": false
   }
 }
