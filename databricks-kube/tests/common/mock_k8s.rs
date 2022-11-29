@@ -5,7 +5,7 @@ use tower_test::mock::Handle;
 use hyper::Body;
 use k8s_openapi::http::{Request, Response};
 
-use super::fake_resource::FakeAPIResource;
+use super::fake_resource::{FakeAPIResource, FakeAPIResourceStatus};
 
 /**
  * Big thanks to this thread: https://github.com/kube-rs/kube/issues/429
@@ -119,7 +119,8 @@ pub async fn mock_fake_resource_updated_kube(
 pub async fn mock_list_fake_resource(
     handle: &mut Handle<Request<Body>, Response<Body>>,
     resource: FakeResource,
-    assert_put: FakeAPIResource,
+    assert_put_resource: Option<FakeAPIResource>,
+    assert_put_status: Option<FakeAPIResourceStatus>,
 ) {
     let (request, send) = handle.next_request().await.expect("Service not called");
 
@@ -152,7 +153,15 @@ pub async fn mock_list_fake_resource(
                 serde_json::from_slice(&hyper::body::to_bytes(request.into_body()).await.unwrap())
                     .unwrap();
 
-            assert_eq!(assert_put, parsed.spec.api_resource);
+            assert_eq!(assert_put_resource.unwrap(), parsed.spec.api_resource);
+            serde_json::to_vec(&parsed).unwrap()
+        }
+        ("PUT", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/foo/status") => {
+            let parsed: FakeResource =
+                serde_json::from_slice(&hyper::body::to_bytes(request.into_body()).await.unwrap())
+                    .unwrap();
+
+            assert_eq!(assert_put_status.unwrap(), parsed.status.clone().unwrap());
             serde_json::to_vec(&parsed).unwrap()
         }
         _ => panic!("Unexpected API request {:?}", request),
