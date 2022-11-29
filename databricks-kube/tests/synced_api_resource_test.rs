@@ -39,7 +39,7 @@ lazy_static! {
     static ref TEST_STORE: HashMap<i64, FakeAPIResource> = HashMap::new();
 }
 
-impl RemoteAPIResource<FakeAPIResource, ()> for FakeResource {
+impl RemoteAPIResource<FakeAPIResource> for FakeResource {
     fn remote_list_all(
         _context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<FakeAPIResource, DatabricksKubeError>> + Send>> {

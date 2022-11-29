@@ -74,7 +74,7 @@ impl From<GitCredential> for APICredential {
     }
 }
 
-impl RemoteAPIResource<APICredential, Configuration> for GitCredential {
+impl RemoteAPIResource<APICredential> for GitCredential {
     fn remote_list_all(
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<APICredential, DatabricksKubeError>> + Send>> {

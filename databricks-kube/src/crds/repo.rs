@@ -55,7 +55,7 @@ impl From<Repo> for APIRepo {
     }
 }
 
-impl RemoteAPIResource<APIRepo, Configuration> for Repo {
+impl RemoteAPIResource<APIRepo> for Repo {
     fn remote_list_all(
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<APIRepo, DatabricksKubeError>> + Send>> {

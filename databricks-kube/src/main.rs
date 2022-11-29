@@ -9,7 +9,7 @@ use std::{collections::BTreeMap, hash::Hash, sync::Arc, time::Duration};
 use databricks_kube::{
     context::Context, crds::databricks_job::DatabricksJob, crds::git_credential::GitCredential,
     crds::repo::Repo, error::DatabricksKubeError,
-    traits::remote_api_resource::RemoteAPIResource,
+    traits::{remote_api_resource::RemoteAPIResource, remote_api_status::RemoteAPIStatus},
     util::*,
 };
 
@@ -89,6 +89,7 @@ async fn main() -> Result<(), DatabricksKubeError> {
     let ctx = Context::new(kube_client.clone(), api_secret_store, configmap_store);
 
     let job_controller = DatabricksJob::controller(ctx.clone());
+    let job_status_controller = DatabricksJob::status_controller(ctx.clone());
     let job_ingest = DatabricksJob::ingest_task(ctx.clone());
 
     let git_credential_controller = GitCredential::controller(ctx.clone());

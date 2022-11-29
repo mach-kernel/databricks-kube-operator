@@ -22,14 +22,14 @@ use serde::{de::DeserializeOwned, Serialize};
 
 
 #[allow(dead_code)]
-async fn reconcile<TStatusType, TCRDType, TRestConfig>(
+async fn reconcile<TStatusType, TCRDType>(
     resource: Arc<TCRDType>,
     context: Arc<Context>,
 ) -> Result<Action, DatabricksKubeError>
 where
     TCRDType: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
     TCRDType: HasStatus<Status = TStatusType>,
-    TCRDType: RemoteAPIStatus<TStatusType, TRestConfig>,
+    TCRDType: RemoteAPIStatus<TStatusType>,
     TCRDType::DynamicType: Default + Eq + Hash,
     TCRDType: Send,
     TCRDType: Serialize,
@@ -43,11 +43,8 @@ where
     TStatusType: DeepMerge,
     TStatusType: PartialEq,
     TStatusType: Send,
-    TStatusType: RestConfig<TRestConfig>,
     TStatusType: Serialize,
     TStatusType: 'static,
-    TRestConfig: Clone + Sync + Send,
-    TRestConfig: 'static,
 {
     let resource = resource;
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
@@ -69,7 +66,7 @@ where
     let mut updated_resource = resource.as_ref().clone();
     updated_resource
         .status_mut()
-        .merge_from(Some(latest_status));
+        .merge_from(latest_status);
 
     kube_api
         .replace(
@@ -89,12 +86,11 @@ where
     Ok(Action::requeue(Duration::from_secs(300)))
 }
 
-pub trait RemoteAPIStatus<TStatusType: 'static, TRestConfig: Sync + Send + Clone> {
-    fn controller(
+pub trait RemoteAPIStatus<TStatusType: 'static> {
+    fn status_controller(
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<(ObjectRef<Self>, Action), DatabricksKubeError>> + Send>>
     where
-        Self: From<TStatusType>,
         Self: Resource<Scope = NamespaceResourceScope> + ResourceExt + CustomResourceExt,
         Self: HasStatus<Status = TStatusType>,
         Self::DynamicType: Clone + Debug + Default + Eq + Hash + Unpin,
@@ -110,9 +106,7 @@ pub trait RemoteAPIStatus<TStatusType: 'static, TRestConfig: Sync + Send + Clone
         TStatusType: DeepMerge,
         TStatusType: PartialEq,
         TStatusType: Send,
-        TStatusType: RestConfig<TRestConfig>,
         TStatusType: Serialize,
-        TRestConfig: 'static,
     {
         let root_kind_api = Api::<Self>::default_namespaced(context.client.clone());
         Controller::new(root_kind_api.clone(), ListParams::default())
@@ -125,5 +119,5 @@ pub trait RemoteAPIStatus<TStatusType: 'static, TRestConfig: Sync + Send + Clone
     fn remote_status(
         &self,
         context: Arc<Context>,
-    ) -> Pin<Box<dyn Future<Output = Result<TStatusType, DatabricksKubeError>> + Send>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Option<TStatusType>, DatabricksKubeError>> + Send>>;
 }
