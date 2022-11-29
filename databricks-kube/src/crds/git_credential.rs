@@ -3,7 +3,7 @@ use std::{pin::Pin, time::SystemTime};
 
 use crate::context::Context;
 use crate::traits::rest_config::RestConfig;
-use crate::{error::DatabricksKubeError, traits::synced_api_resource::SyncedAPIResource};
+use crate::{error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource};
 
 use databricks_rust_git_credentials::{
     apis::{configuration::Configuration, default_api},
@@ -74,7 +74,7 @@ impl From<GitCredential> for APICredential {
     }
 }
 
-impl SyncedAPIResource<APICredential, Configuration> for GitCredential {
+impl RemoteAPIResource<APICredential, Configuration> for GitCredential {
     fn remote_list_all(
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<APICredential, DatabricksKubeError>> + Send>> {

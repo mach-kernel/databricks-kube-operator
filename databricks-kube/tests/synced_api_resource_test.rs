@@ -11,7 +11,7 @@ use common::mock_k8s::{
 use databricks_kube::{
     context::Context,
     error::DatabricksKubeError,
-    traits::synced_api_resource::{spawn_delete_watcher, SyncedAPIResource},
+    traits::remote_api_resource::{spawn_delete_watcher, RemoteAPIResource},
 };
 
 use async_stream::try_stream;
@@ -39,7 +39,7 @@ lazy_static! {
     static ref TEST_STORE: HashMap<i64, FakeAPIResource> = HashMap::new();
 }
 
-impl SyncedAPIResource<FakeAPIResource, ()> for FakeResource {
+impl RemoteAPIResource<FakeAPIResource, ()> for FakeResource {
     fn remote_list_all(
         _context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<FakeAPIResource, DatabricksKubeError>> + Send>> {

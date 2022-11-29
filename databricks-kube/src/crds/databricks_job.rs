@@ -5,11 +5,11 @@ use std::time::SystemTime;
 use std::{hash::Hash, pin::Pin};
 
 use crate::{
-    context::Context, error::DatabricksKubeError, traits::rest_config::RestConfig,
-    traits::synced_api_resource::SyncedAPIResource,
+    context::Context, error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource,
+    traits::rest_config::RestConfig,
 };
 
-use databricks_rust_jobs::models::JobsRunsList200Response;
+use databricks_rust_jobs::models::{JobsRunsList200Response, RunState};
 use databricks_rust_jobs::{
     apis::{configuration::Configuration, default_api},
     models::{
@@ -22,8 +22,19 @@ use databricks_rust_jobs::{
 use async_stream::try_stream;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
-use kube::{core::object::HasSpec, CustomResource, ResourceExt};
+use kube::core::object::HasSpec;
+use kube::{
+    api::ListParams,
+    api::PostParams,
+    runtime::{controller::Action, reflector::ObjectRef, watcher, watcher::Event, Controller},
+    Api, CustomResource, CustomResourceExt, Resource, ResourceExt,
+};
 use schemars::JsonSchema;
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct DatabricksJobStatus {
+    pub latest_run_state: Option<RunState>,
+}
 
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[kube(
@@ -31,6 +42,7 @@ use schemars::JsonSchema;
     version = "v1",
     kind = "DatabricksJob",
     derive = "Default",
+    status = "DatabricksJobStatus",
     namespaced
 )]
 pub struct DatabricksJobSpec {
@@ -76,8 +88,6 @@ impl DatabricksJob {
         request.python_params.hash(&mut hasher);
         request.spark_submit_params.hash(&mut hasher);
 
-        // TODO: See if we can fix the OpenAPI spec to reify these as typed objects instead of
-        // walking the maps / looking for fields
         for val in request.python_named_params.iter().flat_map(|z| z.values()) {
             val.to_string().hash(&mut hasher);
         }
@@ -107,7 +117,7 @@ impl DatabricksJob {
     }
 }
 
-impl SyncedAPIResource<Job, Configuration> for DatabricksJob {
+impl RemoteAPIResource<Job, Configuration> for DatabricksJob {
     fn remote_list_all(
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {

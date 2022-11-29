@@ -2,13 +2,15 @@ mod context;
 mod crds;
 mod error;
 mod traits;
+mod util;
 
 use std::{collections::BTreeMap, hash::Hash, sync::Arc, time::Duration};
 
 use databricks_kube::{
     context::Context, crds::databricks_job::DatabricksJob, crds::git_credential::GitCredential,
-    crds::repo::Repo, ensure_api_secret, ensure_configmap, ensure_crd, error::DatabricksKubeError,
-    traits::synced_api_resource::SyncedAPIResource, watch_api_secret, watch_configmap,
+    crds::repo::Repo, error::DatabricksKubeError,
+    traits::remote_api_resource::RemoteAPIResource,
+    util::*,
 };
 
 use k8s_openapi::{
