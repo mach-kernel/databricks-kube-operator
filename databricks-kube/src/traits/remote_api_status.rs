@@ -1,9 +1,6 @@
 use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
 
-use crate::{
-    context::Context, error::DatabricksKubeError,
-    util::default_error_policy,
-};
+use crate::{context::Context, error::DatabricksKubeError, util::default_error_policy};
 
 use futures::{Future, Stream, StreamExt, TryStreamExt};
 
@@ -41,10 +38,11 @@ where
     TStatusType: DeepMerge,
     TStatusType: PartialEq,
     TStatusType: Send,
+    TStatusType: Sync,
     TStatusType: Serialize,
     TStatusType: 'static,
 {
-    let resource = resource;
+    let mut resource = resource.as_ref().clone();
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
 
     log::info!(
@@ -54,6 +52,7 @@ where
     );
 
     let latest_status = resource.remote_status(context.clone()).await?;
+    resource.status_mut().merge_from(latest_status);
 
     log::info!(
         "Updating status for {} {}",
@@ -61,14 +60,11 @@ where
         resource.name_unchecked()
     );
 
-    let mut updated_resource = resource.as_ref().clone();
-    updated_resource.status_mut().merge_from(latest_status);
-
     kube_api
-        .replace(
+        .replace_status(
             &resource.name_unchecked(),
             &PostParams::default(),
-            &updated_resource,
+            serde_json::to_vec(&resource).unwrap(),
         )
         .await
         .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
@@ -102,6 +98,7 @@ pub trait RemoteAPIStatus<TStatusType: 'static> {
         TStatusType: DeepMerge,
         TStatusType: PartialEq,
         TStatusType: Send,
+        TStatusType: Sync,
         TStatusType: Serialize,
     {
         let root_kind_api = Api::<Self>::default_namespaced(context.client.clone());

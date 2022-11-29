@@ -111,10 +111,12 @@ async fn main() -> Result<(), DatabricksKubeError> {
         .start(
             "job_status_controller",
             |_: SubsystemHandle<DatabricksKubeError>| {
-                job_status_controller.for_each(log_controller_event).map(|_| {
-                    let res: Result<(), DatabricksKubeError> = Ok(());
-                    res
-                })
+                job_status_controller
+                    .for_each(log_controller_event)
+                    .map(|_| {
+                        let res: Result<(), DatabricksKubeError> = Ok(());
+                        res
+                    })
             },
         )
         .start("job_ingest", |_: SubsystemHandle<DatabricksKubeError>| {

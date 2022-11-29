@@ -1,7 +1,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Instant, SystemTime};
 use std::{hash::Hash, pin::Pin};
 
 use crate::traits::remote_api_status::RemoteAPIStatus;
@@ -10,9 +10,9 @@ use crate::{
     traits::rest_config::RestConfig,
 };
 
-use databricks_rust_jobs::models::{JobsRunsList200Response, RunState};
+use databricks_rust_jobs::models::{JobsRunsList200Response, RunLifeCycleState, RunState};
 use databricks_rust_jobs::{
-    apis::{default_api},
+    apis::default_api,
     models::{
         job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
         JobsDeleteRequest, JobsGet200Response, JobsList200Response, JobsRunNowRequest,
@@ -22,18 +22,22 @@ use databricks_rust_jobs::{
 
 use async_stream::try_stream;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::{Condition, Time};
+use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::DeepMerge;
 // use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::core::object::HasSpec;
 use kube::{CustomResource, ResourceExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use serde_json::Value;
 
 use schemars::JsonSchema;
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct DatabricksJobStatus {
     pub latest_run_state: Option<RunState>,
+    pub conditions: Option<Vec<Value>>,
 }
 
 impl DeepMerge for DatabricksJobStatus {
@@ -90,6 +94,7 @@ impl RemoteAPIStatus<DatabricksJobStatus> for DatabricksJob {
         Box<dyn Future<Output = Result<Option<DatabricksJobStatus>, DatabricksKubeError>> + Send>,
     > {
         let job_id = self.spec().job.job_id;
+        let observed_generation = self.metadata.generation;
 
         async move {
             if job_id.is_none() {
@@ -120,7 +125,30 @@ impl RemoteAPIStatus<DatabricksJobStatus> for DatabricksJob {
                 .map(|state| *state.clone())
                 .next();
 
-            Ok(Some(DatabricksJobStatus { latest_run_state }))
+            let condition = Condition {
+                type_: "Ready".to_string(),
+                status: "True".to_string(),
+                reason: latest_run_state
+                    .iter()
+                    .flat_map(|r| r.life_cycle_state)
+                    .next()
+                    .unwrap_or(RunLifeCycleState::InternalError)
+                    .to_string(),
+                message: latest_run_state
+                    .iter()
+                    .flat_map(|r| r.state_message.clone())
+                    .next()
+                    .unwrap_or("".to_string()),
+                last_transition_time: Time(Utc::now()),
+                observed_generation,
+            };
+
+            Ok(Some(DatabricksJobStatus {
+                latest_run_state,
+                conditions: Some(vec![
+                    json!(condition),
+                ]),
+            }))
         }
         .boxed()
     }
@@ -259,7 +287,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
 
             if newest_run_id.unwrap() == triggered.run_id.unwrap() {
                 log::info!(
-                    "{} idempotency token matches run_id still {}",
+                    "{} idempotency token matches; run_id still {}",
                     &self_name,
                     newest_run_id.unwrap()
                 );
