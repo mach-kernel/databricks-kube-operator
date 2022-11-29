@@ -14,7 +14,11 @@ spec:
     singular: databricksjob
   scope: Namespaced
   versions:
-  - additionalPrinterColumns: []
+  - additionalPrinterColumns:
+    - description: Current life_cycle_state of the job
+      jsonPath: .status.latest_run_state.life_cycle_state
+      name: Status
+      type: string
     name: v1
     schema:
       openAPIV3Schema:
@@ -1018,13 +1022,52 @@ spec:
             required:
             - job
             type: object
+          status:
+            nullable: true
+            properties:
+              latest_run_state:
+                description: 'RunState : The result and lifecycle state of the run.'
+                nullable: true
+                properties:
+                  life_cycle_state:
+                    description: 'RunLifeCycleState : * `PENDING`: The run has been triggered. If there is not already an active run of the same job, the cluster and execution context are being prepared. If there is already an active run of the same job, the run immediately transitions into the `SKIPPED` state without preparing any resources. * `RUNNING`: The task of this run is being executed. * `TERMINATING`: The task of this run has completed, and the cluster and execution context are being cleaned up. * `TERMINATED`: The task of this run has completed, and the cluster and execution context have been cleaned up. This state is terminal. * `SKIPPED`: This run was aborted because a previous run of the same job was already active. This state is terminal. * `INTERNAL_ERROR`: An exceptional state that indicates a failure in the Jobs service, such as network failure over a long period. If a run on a new cluster ends in the `INTERNAL_ERROR` state, the Jobs service terminates the cluster as soon as possible. This state is terminal. * `NO_RUNS`: Used as a default status in databricks-kube-operator for additionalPrinterColumns presentation. * `PENDING`: The run has been triggered. If there is not already an active run of the same job, the cluster and execution context are being prepared. If there is already an active run of the same job, the run immediately transitions into the `SKIPPED` state without preparing any resources. * `RUNNING`: The task of this run is being executed. * `TERMINATING`: The task of this run has completed, and the cluster and execution context are being cleaned up. * `TERMINATED`: The task of this run has completed, and the cluster and execution context have been cleaned up. This state is terminal. * `SKIPPED`: This run was aborted because a previous run of the same job was already active. This state is terminal. * `INTERNAL_ERROR`: An exceptional state that indicates a failure in the Jobs service, such as network failure over a long period. If a run on a new cluster ends in the `INTERNAL_ERROR` state, the Jobs service terminates the cluster as soon as possible. This state is terminal. * `NO_RUNS`: Used as a default status in databricks-kube-operator for additionalPrinterColumns presentation.'
+                    enum:
+                    - TERMINATED
+                    - PENDING
+                    - RUNNING
+                    - TERMINATING
+                    - SKIPPED
+                    - INTERNAL_ERROR
+                    - NO_RUNS
+                    nullable: true
+                    type: string
+                  result_state:
+                    description: 'RunResultState : * `SUCCESS`: The task completed successfully. * `FAILED`: The task completed with an error. * `TIMEDOUT`: The run was stopped after reaching the timeout. * `CANCELED`: The run was canceled at user request. * `SUCCESS`: The task completed successfully. * `FAILED`: The task completed with an error. * `TIMEDOUT`: The run was stopped after reaching the timeout. * `CANCELED`: The run was canceled at user request.'
+                    enum:
+                    - SUCCESS
+                    - FAILED
+                    - TIMEDOUT
+                    - CANCELED
+                    nullable: true
+                    type: string
+                  state_message:
+                    description: A descriptive message for the current state. This field is unstructured, and its exact format is subject to change.
+                    nullable: true
+                    type: string
+                  user_cancelled_or_timedout:
+                    description: Whether a run was canceled manually by a user or by the scheduler because the run timed out.
+                    nullable: true
+                    type: boolean
+                type: object
+            type: object
         required:
         - spec
         title: DatabricksJob
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}
 
 ---
 apiVersion: apiextensions.k8s.io/v1
