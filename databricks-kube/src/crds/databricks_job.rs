@@ -269,11 +269,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
             };
             run_request.idempotency_token = Some(Self::hash_run_request(&run_request).to_string());
 
-            let triggered = default_api::jobs_run_now(
-                &config,
-                Some(run_request),
-            )
-            .await?;
+            let triggered = default_api::jobs_run_now(&config, Some(run_request)).await?;
 
             if newest_run_id.unwrap() == triggered.run_id.unwrap() {
                 log::info!(
