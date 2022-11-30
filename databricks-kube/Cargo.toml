@@ -5,7 +5,7 @@ path = "src/crdgen.rs"
 [package]
 name = "databricks_kube"
 default-run = "databricks_kube"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 
 [dependencies]
