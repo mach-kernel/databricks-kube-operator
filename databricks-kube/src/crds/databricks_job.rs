@@ -230,8 +230,6 @@ impl RemoteAPIResource<Job> for DatabricksJob {
             return async { Ok(()) }.boxed();
         }
 
-        let run_request = run_request.unwrap();
-
         log::info!(
             "{} has a run request defined, looking for running jobs...",
             self.name_unchecked()
@@ -265,13 +263,15 @@ impl RemoteAPIResource<Job> for DatabricksJob {
 
             let newest_run_id = all_runs.first().map(|r| r.run_id).unwrap_or(Some(-1));
 
+            let mut run_request = JobsRunNowRequest {
+                job_id,
+                ..run_request.unwrap()
+            };
+            run_request.idempotency_token = Some(Self::hash_run_request(&run_request).to_string());
+
             let triggered = default_api::jobs_run_now(
                 &config,
-                Some(JobsRunNowRequest {
-                    idempotency_token: Some(Self::hash_run_request(&run_request).to_string()),
-                    job_id,
-                    ..run_request
-                }),
+                Some(run_request),
             )
             .await?;
 
