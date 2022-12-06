@@ -6,6 +6,7 @@ use crate::context::CONFIGMAP_NAME;
 use databricks_rust_git_credentials::apis::Error as GitCredentialAPIError;
 use databricks_rust_jobs::apis::Error as JobsAPIError;
 use databricks_rust_repos::apis::Error as ReposAPIError;
+use kube::runtime::finalizer::Error as KubeFinalizerError;
 
 impl<T> From<JobsAPIError<T>> for DatabricksKubeError
 where
@@ -34,6 +35,16 @@ where
     }
 }
 
+impl<T> From<KubeFinalizerError<T>> for DatabricksKubeError
+where
+    T: Debug,
+    T: Error,
+{
+    fn from(e: KubeFinalizerError<T>) -> Self {
+        Self::FinalizerError(format!("{:?}", e))
+    }
+}
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum DatabricksKubeError {
@@ -46,6 +57,7 @@ pub enum DatabricksKubeError {
     Shutdown(String),
     ResourceUpdateError(String),
     ResourceStatusError(String),
+    FinalizerError(String),
 }
 
 impl Display for DatabricksKubeError {
@@ -75,6 +87,7 @@ impl Display for DatabricksKubeError {
             DatabricksKubeError::SecretMissingError => "The secret referenced by this resource is missing".to_owned(),
             DatabricksKubeError::ResourceUpdateError(s) => format!("Unable to update K8S Resource {}", s),
             DatabricksKubeError::ResourceStatusError(s) => format!("Unable to get status {}", s),
+            DatabricksKubeError::FinalizerError(s) => format!("Finalizer failed {}", s),
         };
         write!(f, "{}", msg)
     }

@@ -1,6 +1,6 @@
 use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
 
-use crate::{context::Context, error::DatabricksKubeError, util::default_error_policy};
+use crate::{context::Context, error::DatabricksKubeError};
 
 use futures::{Future, Stream, StreamExt, TryStreamExt};
 
@@ -104,7 +104,19 @@ pub trait RemoteAPIStatus<TStatusType: 'static> {
         let root_kind_api = Api::<Self>::default_namespaced(context.client.clone());
         Controller::new(root_kind_api.clone(), ListParams::default())
             .shutdown_on_signal()
-            .run(reconcile, default_error_policy, context.clone())
+            .run(
+                reconcile,
+                |res, err, _ctx| {
+                    log::error!(
+                        "Status sync failed for {} {} (retrying in 30s):\n{}",
+                        Self::api_resource().kind,
+                        res.name_unchecked(),
+                        err,
+                    );
+                    Action::await_change()
+                },
+                context.clone(),
+            )
             .map_err(|e| DatabricksKubeError::ControllerError(e.to_string()))
             .boxed()
     }

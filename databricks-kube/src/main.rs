@@ -93,7 +93,6 @@ async fn main() -> Result<(), DatabricksKubeError> {
 
     let job_controller = DatabricksJob::controller(ctx.clone());
     let job_status_controller = DatabricksJob::status_controller(ctx.clone());
-    let job_ingest = DatabricksJob::ingest_task(ctx.clone());
 
     let git_credential_controller = GitCredential::controller(ctx.clone());
     let repo_controller = Repo::controller(ctx.clone());
@@ -119,9 +118,6 @@ async fn main() -> Result<(), DatabricksKubeError> {
                     })
             },
         )
-        .start("job_ingest", |_: SubsystemHandle<DatabricksKubeError>| {
-            job_ingest
-        })
         .start(
             "git_credential_controller",
             |_: SubsystemHandle<DatabricksKubeError>| {

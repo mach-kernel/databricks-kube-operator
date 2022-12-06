@@ -5,21 +5,23 @@ use std::{collections::BTreeMap, pin::Pin, sync::Arc, time::Duration};
 use common::fake_resource::{FakeAPIResource, FakeResource, FakeResourceSpec};
 use common::mock_k8s::{
     mock_fake_resource_created, mock_fake_resource_deleted, mock_fake_resource_updated_kube,
-    mock_ingest_resources, mock_list_fake_resource,
+    mock_list_fake_resource,
 };
 
 use databricks_kube::{
-    context::Context,
-    error::DatabricksKubeError,
-    traits::remote_api_resource::{spawn_delete_watcher, RemoteAPIResource},
+    context::Context, error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource,
 };
 
 use async_stream::try_stream;
 use flurry::HashMap;
-use futures::{FutureExt, Stream, StreamExt};
+use futures::{Future, FutureExt, Stream, StreamExt};
 use hyper::Body;
+use k8s_openapi::DeepMerge;
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 use k8s_openapi::http::{Request, Response};
+use kube::ResourceExt;
+use kube::runtime::controller::Action;
+use kube::runtime::reflector::ObjectRef;
 use kube::{
     core::object::HasSpec,
     runtime::reflector::{self, store::Writer, Store},
@@ -27,7 +29,8 @@ use kube::{
 };
 use lazy_static::lazy_static;
 use tokio::time::{sleep, timeout};
-use tower_test::mock;
+use tower_test::mock::{self};
+use tower_test::mock::Handle;
 
 /*
  * A basic integration test for the RemoteAPIResource trait against a FakeResource CRD.
@@ -124,11 +127,48 @@ impl RemoteAPIResource<FakeAPIResource> for FakeResource {
     }
 }
 
+/// Convenience wrapper: provide a kube mock future,
+/// and a function that consumes the controller for assertions
+async fn with_mocked_kube_server_and_controller<A, B>(
+    f_mock: impl Fn(Handle<Request<Body>, Response<Body>>) -> A,
+    f_assert: impl Fn(
+        Pin<
+            Box<
+                (dyn Stream<Item = Result<(ObjectRef<FakeResource>, Action), DatabricksKubeError>>
+                     + std::marker::Send
+                     + 'static),
+            >,
+        >,
+    ) -> B,
+) where
+    A: Future + Send + 'static,
+    A::Output: Send + 'static,
+    B: Future + Send + 'static,
+    B::Output: Send + 'static,
+{
+    let (mock_service, handle) = mock::pair::<Request<Body>, Response<Body>>();
+    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
+    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+
+    let kube_client = Client::new(mock_service, "default");
+
+    let context = Context::new(
+        kube_client,
+        Arc::new(api_secret_store),
+        Arc::new(configmap_store),
+    );
+
+    let kube_server = tokio::spawn(f_mock(handle));
+
+    f_assert(FakeResource::controller(context.clone())).await;
+
+    kube_server.abort();
+    TEST_STORE.pin().clear();
+}
+
 /// When the resource is created in Kubernetes
 #[tokio::test]
 async fn test_resource_created() {
-    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
-
     let created_api_resource = FakeAPIResource {
         id: 1,
         description: None,
@@ -151,40 +191,38 @@ async fn test_resource_created() {
         annots
     });
 
-    let kube_server = tokio::spawn(async move {
-        loop {
-            mock_fake_resource_created(&mut handle, created_resource.clone()).await
-        }
-    });
+    // Bind the finalizer to avoid having to mock the PATCH request from the API
+    created_resource.meta_mut().finalizers =
+        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
 
-    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
-    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+    with_mocked_kube_server_and_controller(
+        move |mut handle| {
+            let cr = created_resource.clone();
 
-    let kube_client = Client::new(mock_service, "default");
+            async move {    
+                loop {
+                    mock_fake_resource_created(&mut handle, cr.clone()).await
+                }
+            }
+        },
+        move |mut controller| {
+            let created = created_api_resource.clone();
 
-    let mut controller = FakeResource::controller(Context::new(
-        kube_client,
-        Arc::new(api_secret_store),
-        Arc::new(configmap_store),
-    ));
-
-    // It reconciled successfully and the resources are in sync
-    let reconciled = controller.next().await;
-    assert!(reconciled.unwrap().is_ok());
-    assert_eq!(
-        TEST_STORE.pin().get(&1).unwrap().clone(),
-        created_api_resource
-    );
-
-    kube_server.abort();
-    TEST_STORE.pin().clear();
+            async move {
+                let reconciled = controller.next().await;
+                assert!(reconciled.unwrap().is_ok());
+                assert_eq!(
+                    TEST_STORE.pin().get(&1).unwrap().clone(),
+                    created
+                );
+            }
+        },
+    ).await;
 }
 
 /// When an owned resource is updated in Kubernetes
 #[tokio::test]
 async fn test_resource_kube_update_operator_owned() {
-    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
-
     let mut resource: FakeResource = FakeResource::new(
         "test",
         FakeResourceSpec {
@@ -209,6 +247,10 @@ async fn test_resource_kube_update_operator_owned() {
         annots
     });
 
+    // Bind the finalizer to avoid having to mock the PATCH request from the API
+    resource.meta_mut().finalizers =
+        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
+
     let updated_api_resource = FakeAPIResource {
         id: 1,
         description: Some("foobar".to_string()),
@@ -222,51 +264,49 @@ async fn test_resource_kube_update_operator_owned() {
     );
 
     updated_resource.meta_mut().resource_version = Some("2".to_string());
+    updated_resource.meta_mut().finalizers =
+    Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
 
-    let kube_server = tokio::spawn(async move {
-        loop {
-            mock_fake_resource_updated_kube(
-                &mut handle,
-                resource.clone(),
-                updated_resource.clone(),
-                updated_resource.clone().spec().api_resource.clone(),
-                Some("MODIFIED".to_string()),
-            )
-            .await;
-        }
-    });
+    with_mocked_kube_server_and_controller(
+        move |mut handle| {
+            let r = resource.clone();
+            let ur = updated_resource.clone();
 
-    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
-    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+            async move {
+                loop {
+                    mock_fake_resource_updated_kube(
+                        &mut handle,
+                        r.clone(),
+                        ur.clone(),
+                        ur.clone().spec().api_resource.clone(),
+                        Some("MODIFIED".to_string()),
+                    )
+                    .await;
+                }
+            }
+        },
+        move |mut controller| {
+            let updated = updated_api_resource.clone();
 
-    let kube_client = Client::new(mock_service, "default");
-
-    let mut controller = FakeResource::controller(Context::new(
-        kube_client,
-        Arc::new(api_secret_store),
-        Arc::new(configmap_store),
-    ));
-
-    // It reconciled successfully and the resources are in sync
-    let reconciled = controller.next().await;
-    assert!(reconciled.unwrap().is_ok());
-    assert_eq!(
-        TEST_STORE.pin().get(&1).unwrap().clone(),
-        updated_api_resource,
-    );
-
-    // every_reconcile() was triggered
-    assert!(TEST_STORE.pin().contains_key(&-8675309));
-
-    kube_server.abort();
-    TEST_STORE.pin().clear();
+            async move {
+                // It reconciled successfully and the resources are in sync
+                let reconciled = controller.next().await;
+                assert!(reconciled.unwrap().is_ok());
+                assert_eq!(
+                    TEST_STORE.pin().get(&1).unwrap().clone(),
+                    updated,
+                );
+    
+                // every_reconcile() was triggered
+                assert!(TEST_STORE.pin().contains_key(&-8675309));
+            }
+        },
+    ).await;
 }
 
 /// When an API owned resource is updated in Kubernetes
 #[tokio::test]
 async fn test_resource_kube_update_api_owned() {
-    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
-
     let api_resource = FakeAPIResource {
         id: 1,
         description: None,
@@ -285,6 +325,9 @@ async fn test_resource_kube_update_api_owned() {
         annots.insert("databricks-operator/owner".to_string(), "api".to_string());
         annots
     });
+    // Bind the finalizer to avoid having to mock the PATCH request from the API
+    resource.meta_mut().finalizers =
+        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
 
     let updated_api_resource = FakeAPIResource {
         id: 1,
@@ -294,49 +337,45 @@ async fn test_resource_kube_update_api_owned() {
     let mut updated_resource = resource.clone();
     updated_resource.spec.api_resource = updated_api_resource.clone();
     updated_resource.meta_mut().resource_version = Some("2".to_string());
+    updated_resource.meta_mut().finalizers = resource.meta().finalizers.clone();
 
-    let kube_server = tokio::spawn(async move {
-        loop {
-            mock_fake_resource_updated_kube(
-                &mut handle,
-                resource.clone(),
-                updated_resource.clone(),
-                api_resource.clone(),
-                Some("MODIFIED".to_string()),
-            )
-            .await;
-        }
-    });
+    with_mocked_kube_server_and_controller(
+        move |mut handle| {
+            let r = resource.clone();
+            let ur = updated_resource.clone();
+            let ar = api_resource.clone();
 
-    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
-    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
-
-    let kube_client = Client::new(mock_service, "default");
-
-    let mut controller = FakeResource::controller(Context::new(
-        kube_client,
-        Arc::new(api_secret_store),
-        Arc::new(configmap_store),
-    ));
-
-    // It reconciled successfully
-    let reconciled = controller.next().await;
-    assert!(reconciled.unwrap().is_ok());
-
-    // every_reconcile() was NOT triggered as the resource is not owned
-    assert!(!TEST_STORE.pin().contains_key(&-8675309));
-
-    // The object is the original API object
-    assert_eq!(
-        TEST_STORE.pin().get(&1).unwrap().clone(),
-        FakeAPIResource {
-            id: 1,
-            description: None
+            async move {
+                loop {
+                    mock_fake_resource_updated_kube(
+                        &mut handle,
+                        r.clone(),
+                        ur.clone(),
+                        ar.clone(),
+                        Some("MODIFIED".to_string()),
+                    )
+                    .await;
+                }
+            }
         },
-    );
+        |mut controller| async move {
+            // It reconciled successfully
+            let reconciled = controller.next().await;
+            assert!(reconciled.unwrap().is_ok());
 
-    kube_server.abort();
-    TEST_STORE.pin().clear();
+            // every_reconcile() was NOT triggered as the resource is not owned
+            assert!(!TEST_STORE.pin().contains_key(&-8675309));
+
+            // The object is the original API object
+            assert_eq!(
+                TEST_STORE.pin().get(&1).unwrap().clone(),
+                FakeAPIResource {
+                    id: 1,
+                    description: None
+                },
+            );
+        },
+    ).await;
 }
 
 /// When the API resource is updated for an owned resource
@@ -362,6 +401,10 @@ async fn test_resource_api_update_operator_owned() {
         annots
     });
 
+    // Bind the finalizer to avoid having to mock the PATCH request from the API
+    resource.meta_mut().finalizers =
+        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
+
     // Remote has a different value for "description"
     let updated_resource = FakeAPIResource {
         description: Some("hello".to_string()),
@@ -369,42 +412,32 @@ async fn test_resource_api_update_operator_owned() {
     };
     TEST_STORE.pin().insert(42, updated_resource.clone());
 
-    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+    with_mocked_kube_server_and_controller(
+        move |mut handle| {
+            let r = resource.clone();
 
-    // Kube has a different version
-    let kube_server = tokio::spawn(async move {
-        loop {
-            mock_list_fake_resource(
-                &mut handle,
-                resource.clone(),
-                // assertion made during PUT call
-                Some(resource.spec().api_resource.clone()),
-                None,
-            )
-            .await;
-        }
-    });
+            async move {
+                loop {
+                    mock_list_fake_resource(
+                        &mut handle,
+                        r.clone(),
+                        // assertion made during PUT call
+                        Some(r.spec().api_resource.clone()),
+                        None,
+                    )
+                    .await;
+                }
+            }
+        },
+        |mut controller| async move {
+            // It reconciled successfully
+            let reconciled = controller.next().await;
+            assert!(reconciled.unwrap().is_ok());
 
-    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
-    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
-
-    let kube_client = Client::new(mock_service, "default");
-
-    let mut controller = FakeResource::controller(Context::new(
-        kube_client,
-        Arc::new(api_secret_store),
-        Arc::new(configmap_store),
-    ));
-
-    // It reconciled successfully
-    let reconciled = controller.next().await;
-    assert!(reconciled.unwrap().is_ok());
-
-    // every_reconcile() was triggered
-    assert!(TEST_STORE.pin().contains_key(&-8675309));
-
-    kube_server.abort();
-    TEST_STORE.pin().clear();
+            // every_reconcile() was triggered
+            assert!(TEST_STORE.pin().contains_key(&-8675309));
+        },
+    ).await;
 }
 
 /// When the API resource is updated for an API owned resource
@@ -426,6 +459,9 @@ async fn test_resource_api_update_api_owned() {
         annots.insert("databricks-operator/owner".to_string(), "api".to_string());
         annots
     });
+    // Bind the finalizer to avoid having to mock the PATCH request from the API
+    resource.meta_mut().finalizers =
+        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
 
     // Remote has a different value for "description"
     let updated_resource = FakeAPIResource {
@@ -434,49 +470,38 @@ async fn test_resource_api_update_api_owned() {
     };
     TEST_STORE.pin().insert(42, updated_resource.clone());
 
-    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
+    with_mocked_kube_server_and_controller(
+        move |mut handle| {
+            let r = resource.clone();
+            let ur = updated_resource.clone();
 
-    // Kube has a different version
-    let kube_server = tokio::spawn(async move {
-        loop {
-            mock_list_fake_resource(
-                &mut handle,
-                resource.clone(),
-                // assertion made during PUT call
-                Some(updated_resource.clone()),
-                None,
-            )
-            .await;
-        }
-    });
+            async move {
+                loop {
+                    mock_list_fake_resource(
+                        &mut handle,
+                        r.clone(),
+                        // assertion made during PUT call
+                        Some(ur.clone()),
+                        None,
+                    )
+                    .await;
+                }
+            }
+        },
+        |mut controller| async move {
+            // It reconciled successfully
+            let reconciled = controller.next().await;
+            assert!(reconciled.unwrap().is_ok());
 
-    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
-    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
-
-    let kube_client = Client::new(mock_service, "default");
-
-    let mut controller = FakeResource::controller(Context::new(
-        kube_client,
-        Arc::new(api_secret_store),
-        Arc::new(configmap_store),
-    ));
-
-    // It reconciled successfully
-    let reconciled = controller.next().await;
-    assert!(reconciled.unwrap().is_ok());
-
-    // every_reconcile() was NOT triggered as the resource is not owned
-    assert!(!TEST_STORE.pin().contains_key(&-8675309));
-
-    kube_server.abort();
-    TEST_STORE.pin().clear();
+            // every_reconcile() was NOT triggered as the resource is not owned
+            assert!(!TEST_STORE.pin().contains_key(&-8675309));
+        },
+    ).await;
 }
 
 /// When an owned Kubernetes resource matches the remote API
 #[tokio::test]
 async fn test_resource_in_sync() {
-    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
-
     let mut resource: FakeResource = FakeResource::new(
         "foo",
         FakeResourceSpec {
@@ -496,57 +521,44 @@ async fn test_resource_in_sync() {
         );
         annots
     });
+    // Bind the finalizer to avoid having to mock the PATCH request from the API
+    resource.meta_mut().finalizers =
+        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
 
     TEST_STORE
         .pin()
         .insert(1, resource.spec().api_resource.clone());
 
-    let kube_server = tokio::spawn(async move {
-        loop {
-            mock_list_fake_resource(
-                &mut handle,
-                resource.clone(),
-                Some(resource.spec().api_resource.clone()),
-                None,
-            )
-            .await;
-        }
-    });
+    with_mocked_kube_server_and_controller(
+        move |mut handle| {
+            let r = resource.clone();
 
-    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
-    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+            async move {
+                loop {
+                    mock_list_fake_resource(
+                        &mut handle,
+                        r.clone(),
+                        Some(r.spec().api_resource.clone()),
+                        None,
+                    )
+                    .await;
+                }
+            }
+        },
+        |mut controller| async move {
+            // It reconciled successfully and the resources are in sync
+            let reconciled = controller.next().await;
+            assert!(reconciled.unwrap().is_ok());
 
-    let kube_client = Client::new(mock_service, "default");
-
-    let context = Context::new(
-        kube_client,
-        Arc::new(api_secret_store),
-        Arc::new(configmap_store),
-    );
-
-    let mut controller = FakeResource::controller(context.clone());
-
-    // The reconcile spawns a delete watcher since the resource is owned
-    let reconciled = controller.next().await;
-    assert!(reconciled.unwrap().is_ok());
-    assert!(context
-        .delete_watchers
-        .pin()
-        .get("/apis/com.dstancu.test/v1/namespaces/default/fakeresources/foo")
-        .is_some());
-
-    // every_reconcile() was triggered
-    assert!(TEST_STORE.pin().contains_key(&-8675309));
-
-    kube_server.abort();
-    TEST_STORE.pin().clear();
+            // every_reconcile() was triggered
+            assert!(TEST_STORE.pin().contains_key(&-8675309));
+        },
+    ).await;
 }
 
 // When an owned Kubernetes resource is deleted
 #[tokio::test]
 async fn test_kube_delete_operator_owned() {
-    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
-
     let mut resource: FakeResource = FakeResource::new(
         "foo",
         FakeResourceSpec {
@@ -567,36 +579,33 @@ async fn test_kube_delete_operator_owned() {
         );
         annots
     });
+    // Bind the finalizer to avoid having to mock the PATCH request from the API
+    resource.meta_mut().finalizers =
+        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
 
     TEST_STORE
         .pin()
         .insert(1, resource.spec().api_resource.clone());
 
-    let serve_me = resource.clone();
-    let kube_server = tokio::spawn(async move {
-        loop {
-            mock_fake_resource_deleted(&mut handle, serve_me.clone()).await;
-        }
-    });
+    let test = with_mocked_kube_server_and_controller(
+        move |mut handle| {
+            let serve_me = resource.clone();
 
-    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
-    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+            async move {
+                loop {
+                    mock_fake_resource_deleted(&mut handle, serve_me.clone()).await;
+                }
+            }
+        },
+        |mut controller| async move {
+            // It reconciled successfully and the resources are in sync
+            let reconciled = controller.next().await;
+            assert!(reconciled.unwrap().is_ok());
 
-    let kube_client = Client::new(mock_service, "default");
-    let context = Context::new(
-        kube_client,
-        Arc::new(api_secret_store),
-        Arc::new(configmap_store),
+            // The resource was removed from the remote API
+            assert!(TEST_STORE.pin().get(&1).is_none());
+        },
     );
-
-    let resource = Arc::new(resource);
-
-    // Create watcher and insert it into the context
-    let watcher = spawn_delete_watcher(resource.clone(), context.clone()).await;
-    context
-        .delete_watchers
-        .pin()
-        .insert(resource.self_url_unchecked(), watcher.into());
 
     // We don't yield the watch stream in our task, so we have to wait
     // for the effect to happen
@@ -607,24 +616,12 @@ async fn test_kube_delete_operator_owned() {
     };
     timeout(Duration::from_secs(10), poll_store).await.unwrap();
 
-    // The resource was removed from the remote API
-    assert!(TEST_STORE.pin().get(&1).is_none());
-    // The watcher for the resource was aborted
-    assert!(context
-        .delete_watchers
-        .pin()
-        .get(&resource.self_url_unchecked())
-        .is_none());
-
-    kube_server.abort();
-    TEST_STORE.pin().clear();
+    test.await;
 }
 
 // When Kubernetes resource is deleted, but owned by remote API
 #[tokio::test]
 async fn test_kube_delete_api_owned() {
-    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
-
     let mut resource: FakeResource = FakeResource::new(
         "foo",
         FakeResourceSpec {
@@ -642,111 +639,31 @@ async fn test_kube_delete_api_owned() {
         annots.insert("databricks-operator/owner".to_string(), "api".to_string());
         annots
     });
+    // Bind the finalizer to avoid having to mock the PATCH request from the API
+    resource.meta_mut().finalizers =
+        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
 
     TEST_STORE
         .pin()
         .insert(1, resource.spec().api_resource.clone());
+    
+    with_mocked_kube_server_and_controller(
+        move |mut handle| {
+            let serve_me = resource.clone();
 
-    let serve_me = resource.clone();
-    let kube_server = tokio::spawn(async move {
-        loop {
-            mock_fake_resource_deleted(&mut handle, serve_me.clone()).await;
-        }
-    });
-
-    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
-    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
-
-    let kube_client = Client::new(mock_service, "default");
-    let context = Context::new(
-        kube_client,
-        Arc::new(api_secret_store),
-        Arc::new(configmap_store),
-    );
-
-    let resource = Arc::new(resource);
-
-    // Create watcher and insert it into the context
-    let watcher = spawn_delete_watcher(resource.clone(), context.clone()).await;
-    context
-        .delete_watchers
-        .pin()
-        .insert(resource.self_url_unchecked(), watcher.into());
-
-    // The resource was NOT removed from the remote API
-    assert!(TEST_STORE.pin().get(&1).is_some());
-
-    // We don't yield the watch stream in our task, so we have to wait
-    // for the effect to happen
-    let poll_store = async {
-        while let Some(_) = context
-            .delete_watchers
-            .pin()
-            .get(&resource.self_url_unchecked())
-        {
-            sleep(Duration::from_micros(250)).await;
-        }
-    };
-    timeout(Duration::from_secs(10), poll_store).await.unwrap();
-
-    // The watcher for the resource was still aborted
-    assert!(context
-        .delete_watchers
-        .pin()
-        .get(&resource.self_url_unchecked())
-        .is_none());
-
-    kube_server.abort();
-    TEST_STORE.pin().clear();
-}
-
-// Test that the ingest task makes the correct resources
-#[allow(unused_must_use)]
-#[tokio::test]
-async fn test_ingest_task() {
-    let (mock_service, mut handle) = mock::pair::<Request<Body>, Response<Body>>();
-
-    // Make some "remote" resources
-    let remote_resources: Vec<FakeAPIResource> = (0..5)
-        .map(|id| FakeAPIResource {
-            id,
-            description: None,
-        })
-        .collect();
-    for res in &remote_resources {
-        TEST_STORE.pin().insert(res.id, res.clone());
-    }
-
-    // The mock server has assertions for the created resources + ownership annotation
-    let kube_server = tokio::spawn(async move {
-        let mut created: i32 = 0;
-
-        loop {
-            mock_ingest_resources(&mut handle, remote_resources.clone(), &mut created).await;
-
-            if created as usize == remote_resources.len() {
-                break;
+            async move {
+                loop {
+                    mock_fake_resource_deleted(&mut handle, serve_me.clone()).await;
+                }
             }
-        }
+        },
+        |mut controller| async move {
+            // It reconciled successfully and the resources are in sync
+            let reconciled = controller.next().await;
+            assert!(reconciled.unwrap().is_ok());
 
-        // Ensure all resources created
-        assert_eq!(created as usize, remote_resources.len());
-    });
-
-    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
-    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
-
-    let kube_client = Client::new(mock_service, "default");
-    let context = Context::new(
-        kube_client,
-        Arc::new(api_secret_store),
-        Arc::new(configmap_store),
-    );
-
-    // The future loops endlessly, so the result here will show a lapsed interval
-    let ingest_task = FakeResource::ingest_task(context);
-    timeout(Duration::from_millis(50), ingest_task).await;
-
-    kube_server.await;
-    TEST_STORE.pin().clear();
+            // The resource was NOT removed from the remote API
+            assert!(TEST_STORE.pin().get(&1).is_some());
+        },
+    ).await;
 }
