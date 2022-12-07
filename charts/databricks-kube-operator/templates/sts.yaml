@@ -18,7 +18,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
       - name: dko
-        image: ghcr.io/mach-kernel/databricks-kube-operator:0.3.0
+        image: ghcr.io/mach-kernel/databricks-kube-operator:0.3.1
         imagePullPolicy: Always
         env:
           - name: DATABRICKS_KUBE_CONFIGMAP

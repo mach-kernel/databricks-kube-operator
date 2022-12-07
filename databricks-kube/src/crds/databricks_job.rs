@@ -230,38 +230,10 @@ impl RemoteAPIResource<Job> for DatabricksJob {
             return async { Ok(()) }.boxed();
         }
 
-        log::info!(
-            "{} has a run request defined, looking for running jobs...",
-            self.name_unchecked()
-        );
+        log::info!("Ensuring defined run for {}...", self.name_unchecked());
 
         async move {
-            let mut all_runs: Vec<Run> = Vec::new();
-
             let config = Job::get_rest_config(context.clone()).await.unwrap();
-            while let JobsRunsList200Response { has_more, runs } = default_api::jobs_runs_list(
-                &config,
-                Some(true),
-                Some(false),
-                job_id,
-                Some(all_runs.len() as i32),
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .await?
-            {
-                all_runs.extend(runs.iter().flatten().map(Clone::clone));
-                if !has_more.unwrap_or(false) {
-                    break;
-                }
-            }
-
-            log::info!("{} has {} active runs", &self_name, all_runs.len());
-
-            let newest_run_id = all_runs.first().map(|r| r.run_id).unwrap_or(Some(-1));
 
             let mut run_request = JobsRunNowRequest {
                 job_id,
@@ -271,19 +243,11 @@ impl RemoteAPIResource<Job> for DatabricksJob {
 
             let triggered = default_api::jobs_run_now(&config, Some(run_request)).await?;
 
-            if newest_run_id.unwrap() == triggered.run_id.unwrap() {
-                log::info!(
-                    "{} idempotency token matches; run_id still {}",
-                    &self_name,
-                    newest_run_id.unwrap()
-                );
-            } else {
-                log::info!(
-                    "{} triggered new run_id: {}",
-                    &self_name,
-                    triggered.run_id.unwrap(),
-                );
-            }
+            log::info!(
+                "Job {} reconciled run {}",
+                &self_name,
+                triggered.run_id.unwrap(),
+            );
 
             Ok::<(), DatabricksKubeError>(())
         }
