@@ -615,7 +615,19 @@ async fn test_kube_delete_operator_owned() {
     )
     .await;
 
-    let (poll_interval_millis, timeout_seconds, _) = context.get_timeout_params()?;
+    let (mock_service, handle) = mock::pair::<Request<Body>, Response<Body>>();
+    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
+    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
+
+    let kube_client = Client::new(mock_service, "default");
+
+    let context = Context::new(
+        kube_client,
+        Arc::new(api_secret_store),
+        Arc::new(configmap_store),
+    );
+
+    let (poll_interval_millis, timeout_seconds, _) = _context.get_timeout_params()?;
     // We don't yield the watch stream in our task, so we have to wait
     // for the effect to happen
     let poll_store = async {
