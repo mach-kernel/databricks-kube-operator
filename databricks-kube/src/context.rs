@@ -1,16 +1,10 @@
 use std::{collections::BTreeMap, env, sync::Arc};
 
-use crate::error::DatabricksKubeError;
-
-use flurry::HashMap;
-
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 use kube::{runtime::reflector::Store, Client};
 use lazy_static::lazy_static;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-use tokio::task::JoinHandle;
 
 lazy_static! {
     pub static ref CONFIGMAP_NAME: String =
@@ -21,7 +15,6 @@ lazy_static! {
 #[derive(Clone)]
 pub struct Context {
     pub client: Client,
-    pub delete_watchers: Arc<HashMap<String, Box<JoinHandle<Result<(), DatabricksKubeError>>>>>,
     configmap_store: Arc<Store<ConfigMap>>,
     api_secret_store: Arc<Store<Secret>>,
 }
@@ -72,7 +65,6 @@ impl Context {
             api_secret_store,
             client,
             configmap_store,
-            delete_watchers: HashMap::new().into(),
         }
         .into()
     }

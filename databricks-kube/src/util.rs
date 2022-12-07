@@ -1,9 +1,7 @@
 #![allow(dead_code)]
 
-use std::hash::Hash;
 use std::{sync::Arc, time::Duration};
 
-use crate::context::Context;
 use crate::context::CONFIGMAP_NAME;
 use crate::context::{DatabricksAPISecret, OperatorConfiguration};
 use crate::error::DatabricksKubeError;
@@ -17,31 +15,16 @@ use k8s_openapi::{
 use kube::{
     api::ListParams,
     runtime::{
-        controller::Action,
         reflector::{self, Store},
         wait::{await_condition, conditions},
         watcher::{self, Event},
     },
-    Api, CustomResourceExt, Resource, ResourceExt,
+    Api,
 };
 
 use schemars::schema_for;
 use serde_json::json;
 use tokio::time::timeout;
-
-pub fn default_error_policy<T>(obj: Arc<T>, err: &DatabricksKubeError, _ctx: Arc<Context>) -> Action
-where
-    T: Resource + ResourceExt + CustomResourceExt,
-    T::DynamicType: Default + Eq + Hash,
-{
-    log::error!(
-        "Reconciliation failed for {} {} (retrying in 30s):\n{}",
-        T::api_resource().kind,
-        obj.name_unchecked(),
-        err,
-    );
-    Action::requeue(Duration::from_secs(30))
-}
 
 pub async fn watch_api_secret(
     api_secret_name: String,

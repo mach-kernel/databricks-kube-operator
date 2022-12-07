@@ -77,7 +77,7 @@ metadata:
     databricks-operator/owner: operator
 ```
 
-By default, databricks-kube-operator will also sync existing API resources from Databricks into Kubernetes (goal: surface status). Resources owned by the API are tagged as such with an annotation on ingest:
+It is also possible to set a resource's owner to `api`, which will update the Kubernetes resource as it changes on Databricks. 
 
 ```yaml
 apiVersion: com.dstancu.databricks/v1
@@ -85,7 +85,6 @@ kind: DatabricksJob
 metadata:
   annotations:
     databricks-operator/owner: api
-  creationTimestamp: "2022-11-04T21:46:12Z"
   generation: 1
   name: hello-world
   ...
