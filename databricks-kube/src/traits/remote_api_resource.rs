@@ -84,7 +84,7 @@ where
             resource.name_unchecked()
         );
 
-        return Ok(Action::requeue(Duration::from_secs(requeue_retry_interval.parse::<u64>().unwrap())));
+        return Ok(Action::requeue(Duration::from_secs(300)));
     }
 
     let latest_remote = latest_remote?;
@@ -164,7 +164,7 @@ where
         resource.every_reconcile_owned(context.clone()).await?;
     }
 
-    Ok(Action::requeue(Duration::from_secs(requeue_retry_interval.parse::<u64>().unwrap())))
+    Ok(Action::requeue(Duration::from_secs(300)))
 }
 
 #[allow(dead_code)]
