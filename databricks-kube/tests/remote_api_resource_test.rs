@@ -615,27 +615,15 @@ async fn test_kube_delete_operator_owned() {
     )
     .await;
 
-    let (mock_service, handle) = mock::pair::<Request<Body>, Response<Body>>();
-    let (configmap_store, _): (Store<ConfigMap>, Writer<ConfigMap>) = reflector::store();
-    let (api_secret_store, _): (Store<Secret>, Writer<Secret>) = reflector::store();
-
-    let kube_client = Client::new(mock_service, "default");
-
-    let context = Context::new(
-        kube_client,
-        Arc::new(api_secret_store),
-        Arc::new(configmap_store),
-    );
-
-    let (poll_interval_millis, timeout_seconds, _) = _context.get_timeout_params()?;
+    let poll_interval_millis = 
     // We don't yield the watch stream in our task, so we have to wait
     // for the effect to happen
     let poll_store = async {
         while let Some(_) = TEST_STORE.pin().get(&1) {
-            sleep(Duration::from_millis(poll_interval_millis.parse::<i32>().unwrap())).await;
+            sleep(Duration::from_millis(250).await;
         }
     };
-    timeout(Duration::from_secs(timeout_seconds.parse::<i32>().unwrap()), poll_store).await.unwrap();
+    timeout(Duration::from_secs(10), poll_store).await.unwrap();
 }
 
 // When Kubernetes resource is deleted, but owned by remote API
