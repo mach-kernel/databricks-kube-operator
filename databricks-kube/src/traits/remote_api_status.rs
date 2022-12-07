@@ -108,7 +108,7 @@ pub trait RemoteAPIStatus<TStatusType: 'static> {
                 reconcile,
                 |res, err, _ctx| {
                     log::error!(
-                        "Status sync failed for {} {} (retrying in 30s):\n{}",
+                        "Status sync failed for {} {}:\n{}",
                         Self::api_resource().kind,
                         res.name_unchecked(),
                         err,
