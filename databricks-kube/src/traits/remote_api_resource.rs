@@ -44,7 +44,7 @@ where
     let mut resource = resource;
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
-    let Some((_, _, requeue_retry_interval)) = context.get_timeout_params() else { todo!() };
+    //let Some((_, _, requeue_retry_interval)) = context.get_timeout_params() else { todo!() };
 
     // todo: enum
     let owner = resource
