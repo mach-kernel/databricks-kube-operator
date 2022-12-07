@@ -615,12 +615,11 @@ async fn test_kube_delete_operator_owned() {
     )
     .await;
 
-    let poll_interval_millis = 
     // We don't yield the watch stream in our task, so we have to wait
     // for the effect to happen
     let poll_store = async {
         while let Some(_) = TEST_STORE.pin().get(&1) {
-            sleep(Duration::from_millis(250).await;
+            sleep(Duration::from_millis(250)).await;
         }
     };
     timeout(Duration::from_secs(10), poll_store).await.unwrap();
