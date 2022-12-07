@@ -82,6 +82,8 @@ where
             TCRDType::api_resource().kind,
             resource.name_unchecked()
         );
+
+        return Ok(Action::requeue(Duration::from_secs(300)));
     }
 
     let latest_remote = latest_remote?;

@@ -19,7 +19,7 @@ use kube::{
         wait::{await_condition, conditions},
         watcher::{self, Event},
     },
-    Api, ResourceExt,
+    Api,
 };
 
 use schemars::schema_for;

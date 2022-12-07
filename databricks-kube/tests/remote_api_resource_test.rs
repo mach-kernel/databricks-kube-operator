@@ -16,10 +16,11 @@ use async_stream::try_stream;
 use flurry::HashMap;
 use futures::{Future, FutureExt, Stream, StreamExt};
 use hyper::Body;
-use k8s_openapi::DeepMerge;
+
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+use k8s_openapi::chrono::Utc;
 use k8s_openapi::http::{Request, Response};
-use kube::ResourceExt;
 use kube::runtime::controller::Action;
 use kube::runtime::reflector::ObjectRef;
 use kube::{
@@ -29,8 +30,8 @@ use kube::{
 };
 use lazy_static::lazy_static;
 use tokio::time::{sleep, timeout};
-use tower_test::mock::{self};
 use tower_test::mock::Handle;
+use tower_test::mock::{self};
 
 /*
  * A basic integration test for the RemoteAPIResource trait against a FakeResource CRD.
@@ -130,7 +131,7 @@ impl RemoteAPIResource<FakeAPIResource> for FakeResource {
 /// Convenience wrapper: provide a kube mock future,
 /// and a function that consumes the controller for assertions
 async fn with_mocked_kube_server_and_controller<A, B>(
-    f_mock: impl Fn(Handle<Request<Body>, Response<Body>>) -> A,
+    f_mock: impl Fn(Handle<Request<Body>, Response<Body>>) -> A + Send + Sync + 'static,
     f_assert: impl Fn(
         Pin<
             Box<
@@ -158,7 +159,9 @@ async fn with_mocked_kube_server_and_controller<A, B>(
         Arc::new(configmap_store),
     );
 
-    let kube_server = tokio::spawn(f_mock(handle));
+    let kube_server = tokio::spawn(async move {
+        f_mock(handle).await;
+    });
 
     f_assert(FakeResource::controller(context.clone())).await;
 
@@ -199,7 +202,7 @@ async fn test_resource_created() {
         move |mut handle| {
             let cr = created_resource.clone();
 
-            async move {    
+            async move {
                 loop {
                     mock_fake_resource_created(&mut handle, cr.clone()).await
                 }
@@ -211,13 +214,11 @@ async fn test_resource_created() {
             async move {
                 let reconciled = controller.next().await;
                 assert!(reconciled.unwrap().is_ok());
-                assert_eq!(
-                    TEST_STORE.pin().get(&1).unwrap().clone(),
-                    created
-                );
+                assert_eq!(TEST_STORE.pin().get(&1).unwrap().clone(), created);
             }
         },
-    ).await;
+    )
+    .await;
 }
 
 /// When an owned resource is updated in Kubernetes
@@ -265,7 +266,7 @@ async fn test_resource_kube_update_operator_owned() {
 
     updated_resource.meta_mut().resource_version = Some("2".to_string());
     updated_resource.meta_mut().finalizers =
-    Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
+        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
 
     with_mocked_kube_server_and_controller(
         move |mut handle| {
@@ -292,16 +293,14 @@ async fn test_resource_kube_update_operator_owned() {
                 // It reconciled successfully and the resources are in sync
                 let reconciled = controller.next().await;
                 assert!(reconciled.unwrap().is_ok());
-                assert_eq!(
-                    TEST_STORE.pin().get(&1).unwrap().clone(),
-                    updated,
-                );
-    
+                assert_eq!(TEST_STORE.pin().get(&1).unwrap().clone(), updated,);
+
                 // every_reconcile() was triggered
                 assert!(TEST_STORE.pin().contains_key(&-8675309));
             }
         },
-    ).await;
+    )
+    .await;
 }
 
 /// When an API owned resource is updated in Kubernetes
@@ -375,7 +374,8 @@ async fn test_resource_kube_update_api_owned() {
                 },
             );
         },
-    ).await;
+    )
+    .await;
 }
 
 /// When the API resource is updated for an owned resource
@@ -437,7 +437,8 @@ async fn test_resource_api_update_operator_owned() {
             // every_reconcile() was triggered
             assert!(TEST_STORE.pin().contains_key(&-8675309));
         },
-    ).await;
+    )
+    .await;
 }
 
 /// When the API resource is updated for an API owned resource
@@ -496,7 +497,8 @@ async fn test_resource_api_update_api_owned() {
             // every_reconcile() was NOT triggered as the resource is not owned
             assert!(!TEST_STORE.pin().contains_key(&-8675309));
         },
-    ).await;
+    )
+    .await;
 }
 
 /// When an owned Kubernetes resource matches the remote API
@@ -553,7 +555,8 @@ async fn test_resource_in_sync() {
             // every_reconcile() was triggered
             assert!(TEST_STORE.pin().contains_key(&-8675309));
         },
-    ).await;
+    )
+    .await;
 }
 
 // When an owned Kubernetes resource is deleted
@@ -579,15 +582,19 @@ async fn test_kube_delete_operator_owned() {
         );
         annots
     });
+
     // Bind the finalizer to avoid having to mock the PATCH request from the API
     resource.meta_mut().finalizers =
         Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
+
+    // Mark the resource as deleted
+    resource.meta_mut().deletion_timestamp = Some(Time(Utc::now()));
 
     TEST_STORE
         .pin()
         .insert(1, resource.spec().api_resource.clone());
 
-    let test = with_mocked_kube_server_and_controller(
+    with_mocked_kube_server_and_controller(
         move |mut handle| {
             let serve_me = resource.clone();
 
@@ -605,7 +612,8 @@ async fn test_kube_delete_operator_owned() {
             // The resource was removed from the remote API
             assert!(TEST_STORE.pin().get(&1).is_none());
         },
-    );
+    )
+    .await;
 
     // We don't yield the watch stream in our task, so we have to wait
     // for the effect to happen
@@ -615,8 +623,6 @@ async fn test_kube_delete_operator_owned() {
         }
     };
     timeout(Duration::from_secs(10), poll_store).await.unwrap();
-
-    test.await;
 }
 
 // When Kubernetes resource is deleted, but owned by remote API
@@ -643,10 +649,13 @@ async fn test_kube_delete_api_owned() {
     resource.meta_mut().finalizers =
         Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
 
+    // Mark the resource as deleted
+    resource.meta_mut().deletion_timestamp = Some(Time(Utc::now()));
+
     TEST_STORE
         .pin()
         .insert(1, resource.spec().api_resource.clone());
-    
+
     with_mocked_kube_server_and_controller(
         move |mut handle| {
             let serve_me = resource.clone();
@@ -665,5 +674,6 @@ async fn test_kube_delete_api_owned() {
             // The resource was NOT removed from the remote API
             assert!(TEST_STORE.pin().get(&1).is_some());
         },
-    ).await;
+    )
+    .await;
 }

@@ -2,6 +2,7 @@
 
 use crate::common::fake_resource::FakeResource;
 
+use kube::Resource;
 use tower_test::mock::Handle;
 
 use hyper::Body;
@@ -174,24 +175,23 @@ pub async fn mock_list_fake_resource(
 
 pub async fn mock_fake_resource_deleted(
     handle: &mut Handle<Request<Body>, Response<Body>>,
-    resource: FakeResource,
+    mut resource: FakeResource,
 ) {
     let (request, send) = handle.next_request().await.expect("Service not called");
+
     let body = match (
         request.method().as_str(),
         request.uri().path().to_string().as_str(),
     ) {
         ("GET", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources") => {
             match request.uri().query() {
-                Some(q) if q.contains("watch") => {
-                    let deleted = serde_json::json!(
-                        {
-                            "type": "DELETED",
-                            "object": resource,
-                        }
-                    );
-                    serde_json::to_vec(&deleted).unwrap()
-                }
+                Some(q) if q.contains("watch") => serde_json::to_vec(&serde_json::json!(
+                    {
+                        "type": "MODIFIED",
+                        "object": resource,
+                    }
+                ))
+                .unwrap(),
                 _ => {
                     let list = serde_json::json!(
                         {
@@ -206,6 +206,20 @@ pub async fn mock_fake_resource_deleted(
                     serde_json::to_vec(&list).unwrap()
                 }
             }
+        }
+        ("PATCH", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/foo") => {
+            let parsed: Vec<serde_json::Value> =
+                serde_json::from_slice(&hyper::body::to_bytes(request.into_body()).await.unwrap())
+                    .unwrap();
+
+            // Make sure the request is for stripping the finalizers
+            assert_eq!(parsed.first().unwrap()["op"], "test");
+            assert_eq!(parsed.last().unwrap()["op"], "remove");
+            assert_eq!(parsed.last().unwrap()["path"], "/metadata/finalizers/0");
+
+            // Remove from resource before serde
+            resource.meta_mut().finalizers = None;
+            serde_json::to_vec(&resource).unwrap()
         }
         _ => panic!("Unexpected API request {:?}", request),
     };

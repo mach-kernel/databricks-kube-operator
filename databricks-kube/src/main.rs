@@ -57,7 +57,7 @@ async fn log_controller_event<TCRDType>(
 {
     match event {
         Ok((object, _)) => log::info!("{} reconciled", object.name),
-        Err(e) => log::error!("{}", e),
+        Err(e) => log::error!("{:?}", e),
     }
 }
 
