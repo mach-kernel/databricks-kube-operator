@@ -10,13 +10,13 @@ use crate::{
     traits::rest_config::RestConfig,
 };
 
-use databricks_rust_jobs::models::{JobsRunsList200Response, RunLifeCycleState, RunState};
+use databricks_rust_jobs::models::{JobsRunsList200Response, RunLifeCycleState, RunState, JobSettings};
 use databricks_rust_jobs::{
     apis::default_api,
     models::{
         job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
         JobsDeleteRequest, JobsGet200Response, JobsList200Response, JobsRunNowRequest,
-        JobsUpdateRequest, Run,
+        JobsUpdateRequest,
     },
 };
 
@@ -152,36 +152,17 @@ impl From<DatabricksJob> for Job {
 }
 
 impl DatabricksJob {
-    fn hash_run_request(request: &JobsRunNowRequest) -> u64 {
+    fn hash_run_request(request: &JobsRunNowRequest, settings: Option<Box<JobSettings>>) -> u64 {
         let mut hasher = DefaultHasher::new();
 
-        request.job_id.hash(&mut hasher);
-        request.jar_params.hash(&mut hasher);
-        request.python_params.hash(&mut hasher);
-        request.spark_submit_params.hash(&mut hasher);
+        let request_as_json = serde_json::to_string(&request).unwrap();
 
-        for val in request.python_named_params.iter().flat_map(|z| z.values()) {
-            val.to_string().hash(&mut hasher);
+        if let Some(settings) = settings {
+            let settings_as_json = serde_json::to_string(&settings).unwrap();
+            settings_as_json.hash(&mut hasher);
         }
 
-        for val in request.notebook_params.iter().flat_map(|z| z.values()) {
-            val.to_string().hash(&mut hasher);
-        }
-
-        for val in request.sql_params.iter().flat_map(|z| z.values()) {
-            val.to_string().hash(&mut hasher);
-        }
-
-        if request.pipeline_params.is_some() {
-            request
-                .pipeline_params
-                .clone()
-                .unwrap()
-                .full_refresh
-                .hash(&mut hasher);
-        }
-
-        request.dbt_commands.hash(&mut hasher);
+        request_as_json.hash(&mut hasher);
 
         // Databricks docs state a 64 char limit for the idempotency token,
         // so we can get away with coercing i64 to a string
@@ -223,6 +204,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
         context: Arc<Context>,
     ) -> Pin<Box<dyn Future<Output = Result<(), DatabricksKubeError>> + Send>> {
         let job_id = self.spec().job.job_id.clone();
+        let job_settings = self.spec().job.settings.clone();
         let run_request = self.spec().run.clone();
         let self_name = self.name_unchecked();
 
@@ -239,7 +221,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                 job_id,
                 ..run_request.unwrap()
             };
-            run_request.idempotency_token = Some(Self::hash_run_request(&run_request).to_string());
+            run_request.idempotency_token = Some(Self::hash_run_request(&run_request, job_settings).to_string());
 
             let triggered = default_api::jobs_run_now(&config, Some(run_request)).await?;
 
