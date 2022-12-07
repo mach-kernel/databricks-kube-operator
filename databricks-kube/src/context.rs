@@ -16,7 +16,7 @@ lazy_static! {
 pub struct Context {
     pub client: Client,
     configmap_store: Arc<Store<ConfigMap>>,
-    api_secret_store: Arc<Store<Secret>>,
+    api_secret_store: Arc<Store<Secret>>
 }
 
 #[derive(Clone, Deserialize, Serialize, PartialEq, JsonSchema)]
@@ -32,15 +32,24 @@ pub struct OperatorConfiguration {
 
 impl Context {
     pub fn get_databricks_url_token(&self) -> Option<(String, String)> {
-        let latest_secret = Self::latest_api_secret(self.api_secret_store.clone())?;
+        let latest_secret = Self::latest_store(self.api_secret_store.clone())?;
 
         let url = latest_secret.get("databricks_url")?;
         let token = latest_secret.get("access_token")?;
         Some((url.to_string(), token.to_string()))
     }
 
-    fn latest_api_secret(api_secret_store: Arc<Store<Secret>>) -> Option<BTreeMap<String, String>> {
-        api_secret_store
+    pub fn get_timeout_params(&self) -> Option<(String, String, String)> {
+        let latest_secret = Self::latest_store(self.api_secret_store.clone())?;
+
+        let poll_interval_millis = latest_secret.get("poll_interval_millis")?;
+        let timeout_seconds = latest_secret.get("timeout_seconds")?;
+        let requeue_retry_interval = latest_secret.get("requeue_retry_interval")?;
+        Some((poll_interval_millis.to_string(), timeout_seconds.to_string(), requeue_retry_interval.to_string()))
+    }
+
+    fn latest_store(secret_store: Arc<Store<Secret>>) -> Option<BTreeMap<String, String>> {
+        secret_store
             .state()
             .into_iter()
             .map(|x| {

@@ -615,14 +615,15 @@ async fn test_kube_delete_operator_owned() {
     )
     .await;
 
+    let (poll_interval_millis, timeout_seconds, _) = context.get_timeout_params()?;
     // We don't yield the watch stream in our task, so we have to wait
     // for the effect to happen
     let poll_store = async {
         while let Some(_) = TEST_STORE.pin().get(&1) {
-            sleep(Duration::from_millis(250)).await;
+            sleep(Duration::from_millis(poll_interval_millis.parse::<i32>().unwrap())).await;
         }
     };
-    timeout(Duration::from_secs(10), poll_store).await.unwrap();
+    timeout(Duration::from_secs(timeout_seconds.parse::<i32>().unwrap()), poll_store).await.unwrap();
 }
 
 // When Kubernetes resource is deleted, but owned by remote API

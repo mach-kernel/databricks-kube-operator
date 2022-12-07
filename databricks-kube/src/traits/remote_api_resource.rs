@@ -44,6 +44,7 @@ where
     let mut resource = resource;
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
+    let Some((_, _, requeue_retry_interval)) = context.get_timeout_params() else { todo!() };
 
     // todo: enum
     let owner = resource
@@ -83,7 +84,7 @@ where
             resource.name_unchecked()
         );
 
-        return Ok(Action::requeue(Duration::from_secs(300)));
+        return Ok(Action::requeue(Duration::from_secs(requeue_retry_interval.parse::<u64>().unwrap())));
     }
 
     let latest_remote = latest_remote?;
@@ -163,7 +164,7 @@ where
         resource.every_reconcile_owned(context.clone()).await?;
     }
 
-    Ok(Action::requeue(Duration::from_secs(300)))
+    Ok(Action::requeue(Duration::from_secs(requeue_retry_interval.parse::<u64>().unwrap())))
 }
 
 #[allow(dead_code)]
