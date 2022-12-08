@@ -1,16 +1,19 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::SystemTime;
-use std::{hash::Hash, pin::Pin};
 
 use crate::traits::remote_api_status::RemoteAPIStatus;
+use crate::util::hash_json_value;
 use crate::{
     context::Context, error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource,
     traits::rest_config::RestConfig,
 };
 
-use databricks_rust_jobs::models::{JobsRunsList200Response, RunLifeCycleState, RunState, JobSettings};
+use databricks_rust_jobs::models::{
+    JobSettings, JobsRunsList200Response, RunLifeCycleState, RunState,
+};
 use databricks_rust_jobs::{
     apis::default_api,
     models::{
@@ -155,17 +158,14 @@ impl DatabricksJob {
     fn hash_run_request(request: &JobsRunNowRequest, settings: Option<Box<JobSettings>>) -> u64 {
         let mut hasher = DefaultHasher::new();
 
-        let request_as_json = serde_json::to_string(&request).unwrap();
+        let request_as_value = serde_json::to_value(&request).unwrap();
+        hash_json_value(&mut hasher, &request_as_value);
 
         if let Some(settings) = settings {
-            let settings_as_json = serde_json::to_string(&settings).unwrap();
-            settings_as_json.hash(&mut hasher);
+            let settings_as_value = serde_json::to_value(&settings).unwrap();
+            hash_json_value(&mut hasher, &settings_as_value);
         }
 
-        request_as_json.hash(&mut hasher);
-
-        // Databricks docs state a 64 char limit for the idempotency token,
-        // so we can get away with coercing i64 to a string
         hasher.finish()
     }
 }
@@ -221,7 +221,8 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                 job_id,
                 ..run_request.unwrap()
             };
-            run_request.idempotency_token = Some(Self::hash_run_request(&run_request, job_settings).to_string());
+            run_request.idempotency_token =
+                Some(Self::hash_run_request(&run_request, job_settings).to_string());
 
             let triggered = default_api::jobs_run_now(&config, Some(run_request)).await?;
 
