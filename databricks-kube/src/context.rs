@@ -42,9 +42,13 @@ impl Context {
     pub fn get_timeout_params(&self) -> Option<(String, String, String)> {
         let latest_secret = Self::latest_store(self.api_secret_store.clone())?;
 
-        let poll_interval_millis = latest_secret.get("poll_interval_millis")?;
-        let timeout_seconds = latest_secret.get("timeout_seconds")?;
-        let requeue_retry_interval = latest_secret.get("requeue_retry_interval")?;
+        let default_poll_interval = &String::from("30");
+        let default_timeout_seconds = &String::from("15");
+        let default_requeue_retry = &String::from("300");
+
+        let poll_interval_millis = latest_secret.get("poll_interval_millis").unwrap_or(default_poll_interval);
+        let timeout_seconds = latest_secret.get("timeout_seconds").unwrap_or(default_timeout_seconds);
+        let requeue_retry_interval = latest_secret.get("requeue_retry_interval1").unwrap_or(default_requeue_retry);
         Some((poll_interval_millis.to_string(), timeout_seconds.to_string(), requeue_retry_interval.to_string()))
     }
 
