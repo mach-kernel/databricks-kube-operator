@@ -36,9 +36,9 @@ pub struct OperatorConfiguration {
 impl Default for OperatorConfiguration {
     fn default() -> Self {
         Self {
-            api_secret_name: String::from("30"),
-            default_poll_interval: String::from("30"),
-            default_timeout_seconds: String::from("30"),
+            api_secret_name: String::from("default_secret_name"),
+            default_poll_interval: String::from("250"),
+            default_timeout_seconds: String::from("10"),
             default_requeue_interval: String::from("300")
         }
     }
@@ -54,19 +54,6 @@ impl Context {
         let url = latest_secret.get("databricks_url")?;
         let token = latest_secret.get("access_token")?;
         Some((url.to_string(), token.to_string()))
-    }
-
-    pub fn get_timeout_params(&self) -> Option<(String, String, String)> {
-        let latest_secret = Self::latest_store(self.api_secret_store.clone())?;
-
-        let default_poll_interval = &String::from("30");
-        let default_timeout_seconds = &String::from("15");
-        let default_requeue_retry = &String::from("300");
-
-        let poll_interval_millis = latest_secret.get("poll_interval_millis").unwrap_or(default_poll_interval);
-        let timeout_seconds = latest_secret.get("timeout_seconds").unwrap_or(default_timeout_seconds);
-        let requeue_retry_interval = latest_secret.get("requeue_retry_interval").unwrap_or(default_requeue_retry);
-        Some((poll_interval_millis.to_string(), timeout_seconds.to_string(), requeue_retry_interval.to_string()))
     }
 
     fn latest_store(secret_store: Arc<Store<Secret>>) -> Option<BTreeMap<String, String>> {
