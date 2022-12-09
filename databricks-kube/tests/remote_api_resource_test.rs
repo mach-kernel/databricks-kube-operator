@@ -33,9 +33,6 @@ use tokio::time::{sleep, timeout};
 use tower_test::mock::Handle;
 use tower_test::mock::{self};
 
-use crate::{context::Context, error::DatabricksKubeError};
-use crate::context::{DatabricksAPISecret, OperatorConfiguration};
-
 /*
  * A basic integration test for the RemoteAPIResource trait against a FakeResource CRD.
  *
@@ -618,19 +615,14 @@ async fn test_kube_delete_operator_owned() {
     )
     .await;
 
-    let default_operator = OperatorConfiguration::default();
-
-    let poll_interval = default_operator.default_poll_interval.parse::<u64>().unwrap();
-    let default_timeout_seconds = default_operator.default_timeout_seconds.parse::<u64>().unwrap();
-
     // We don't yield the watch stream in our task, so we have to wait
     // for the effect to happen
     let poll_store = async {
         while let Some(_) = TEST_STORE.pin().get(&1) {
-            sleep(Duration::from_millis(poll_interval)).await;
+            sleep(Duration::from_millis(250)).await;
         }
     };
-    timeout(Duration::from_secs(default_timeout_seconds), poll_store).await.unwrap();
+    timeout(Duration::from_secs(10), poll_store).await.unwrap();
 }
 
 // When Kubernetes resource is deleted, but owned by remote API
