@@ -33,7 +33,7 @@ use tokio::time::{sleep, timeout};
 use tower_test::mock::Handle;
 use tower_test::mock::{self};
 
-//use crate::{context::Context, error::DatabricksKubeError};
+use crate::{context::Context, error::DatabricksKubeError};
 use crate::context::{DatabricksAPISecret, OperatorConfiguration};
 
 /*
