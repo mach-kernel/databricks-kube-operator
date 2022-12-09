@@ -1,6 +1,7 @@
 use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
 
 use crate::{context::Context, error::DatabricksKubeError};
+use crate::context::{DatabricksAPISecret, OperatorConfiguration};
 
 use assert_json_diff::assert_json_matches_no_panic;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
@@ -44,7 +45,8 @@ where
     let mut resource = resource;
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
-    let Some((_, _)) = context.get_databricks_url_token() else { todo!() };
+
+    let requeue_interval_sec = OperatorConfiguration::default().default_requeue_interval;
 
     // todo: enum
     let owner = resource
@@ -84,7 +86,7 @@ where
             resource.name_unchecked()
         );
 
-        return Ok(Action::requeue(Duration::from_secs(300)));
+        return Ok(Action::requeue(Duration::from_secs(requeue_interval_sec)));
     }
 
     let latest_remote = latest_remote?;
@@ -164,7 +166,7 @@ where
         resource.every_reconcile_owned(context.clone()).await?;
     }
 
-    Ok(Action::requeue(Duration::from_secs(300)))
+    Ok(Action::requeue(Duration::from_secs(requeue_interval_sec)))
 }
 
 #[allow(dead_code)]
