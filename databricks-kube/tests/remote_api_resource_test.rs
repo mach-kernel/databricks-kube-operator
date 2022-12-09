@@ -33,6 +33,8 @@ use tokio::time::{sleep, timeout};
 use tower_test::mock::Handle;
 use tower_test::mock::{self};
 
+use crate::context::{DatabricksAPISecret, OperatorConfiguration};
+
 /*
  * A basic integration test for the RemoteAPIResource trait against a FakeResource CRD.
  *
