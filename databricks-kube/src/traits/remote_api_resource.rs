@@ -46,7 +46,7 @@ where
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
 
-    let requeue_interval_sec = OperatorConfiguration::default().default_requeue_interval;
+    let requeue_interval_sec = OperatorConfiguration::default().default_requeue_interval.parse::<u64>().unwrap();
 
     // todo: enum
     let owner = resource
