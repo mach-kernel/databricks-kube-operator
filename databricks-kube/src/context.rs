@@ -19,10 +19,19 @@ pub struct Context {
     api_secret_store: Arc<Store<Secret>>
 }
 
-#[derive(Clone, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Clone, Deserialize, Serialize, PartialEq, JsonSchema, Debug)]
 pub struct DatabricksAPISecret {
     pub databricks_url: String,
     pub access_token: String,
+}
+
+impl Default for DatabricksAPISecret {
+    fn default() -> Self {
+        Self {
+            databricks_url: String::from("default_url"),
+            access_token: String::from("default_token")
+        }
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize, PartialEq, JsonSchema)]
@@ -31,6 +40,7 @@ pub struct OperatorConfiguration {
     pub default_poll_interval: String,
     pub default_timeout_seconds: String,
     pub default_requeue_interval: String,
+    pub secrets: Option<BTreeMap<String, String>>
 }
 
 impl Default for OperatorConfiguration {
@@ -39,21 +49,28 @@ impl Default for OperatorConfiguration {
             api_secret_name: String::from("default_secret_name"),
             default_poll_interval: String::from("250"),
             default_timeout_seconds: String::from("10"),
-            default_requeue_interval: String::from("300")
+            default_requeue_interval: String::from("300"),
+            secrets: Some(BTreeMap::new())
         }
     }
 }
 
 impl Context {
-    pub fn get_databricks_url_token(&self) -> Option<(String, String)> {
+    pub fn get_databricks_url_token(&self) -> Option<BTreeMap<String, String>> {
         let latest_secret = Self::latest_store(self.api_secret_store.clone())?;
 
         let options = OperatorConfiguration::default();
-        log::info!("{}", options.default_requeue_interval);
+        //log::info!("{:#?}", options.secrets.unwrap());
 
         let url = latest_secret.get("databricks_url")?;
         let token = latest_secret.get("access_token")?;
-        Some((url.to_string(), token.to_string()))
+
+        let mut secret_map = options.secrets.unwrap();
+        secret_map.insert(String::from("databricks_url"), String::from(url.to_string()));
+        secret_map.insert(String::from("access_token"), String::from(token.to_string()));
+        //options.secrets.clone()
+        Some(secret_map)
+        //Some((url.to_string(), token.to_string()))
     }
 
     fn latest_store(secret_store: Arc<Store<Secret>>) -> Option<BTreeMap<String, String>> {

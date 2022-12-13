@@ -33,7 +33,8 @@ impl RestConfig<JobClientConfig> for Job {
                 log::info!("Waiting for REST credentials...");
             }
 
-            let (url, token) = context.get_databricks_url_token()?;
+            let opConfig = context.get_databricks_url_token()?;
+            let (url, token) = (opConfig.get("databricks_url").unwrap().to_string(), opConfig.get("access_token").unwrap().to_string());
             Some(JobClientConfig {
                 base_path: url,
                 bearer_access_token: Some(token),
@@ -57,7 +58,8 @@ impl RestConfig<GitCredentialClientConfig> for GitCredential {
                 log::info!("Waiting for REST credentials...");
             }
 
-            let (url, token) = context.get_databricks_url_token()?;
+            let opConfig = context.get_databricks_url_token()?;
+            let (url, token) = (opConfig.get("databricks_url").unwrap().to_string(), opConfig.get("access_token").unwrap().to_string());
             Some(GitCredentialClientConfig {
                 base_path: format!("{}/2.0", url),
                 bearer_access_token: Some(token),
@@ -80,7 +82,8 @@ impl RestConfig<RepoClientConfig> for Repo {
                 log::info!("Waiting for REST credentials...");
             }
 
-            let (url, token) = context.get_databricks_url_token()?;
+            let opConfig = context.get_databricks_url_token()?;
+            let (url, token) = (opConfig.get("databricks_url").unwrap().to_string(), opConfig.get("access_token").unwrap().to_string());
             Some(RepoClientConfig {
                 base_path: format!("{}/2.0", url),
                 bearer_access_token: Some(token),
