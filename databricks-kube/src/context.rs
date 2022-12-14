@@ -16,7 +16,7 @@ lazy_static! {
 pub struct Context {
     pub client: Client,
     configmap_store: Arc<Store<ConfigMap>>,
-    api_secret_store: Arc<Store<Secret>>
+    api_secret_store: Arc<Store<Secret>>,
 }
 
 #[derive(Clone, Deserialize, Serialize, PartialEq, JsonSchema, Debug)]
@@ -29,7 +29,7 @@ impl Default for DatabricksAPISecret {
     fn default() -> Self {
         Self {
             databricks_url: String::from("default_url"),
-            access_token: String::from("default_token")
+            access_token: String::from("default_token"),
         }
     }
 }
@@ -60,7 +60,6 @@ impl Context {
         let latest_secret = Self::latest_store(self.api_secret_store.clone())?;
 
         let options = OperatorConfiguration::default();
-        //log::info!("{:#?}", options.secrets.unwrap());
 
         let url = latest_secret.get("databricks_url")?;
         let token = latest_secret.get("access_token")?;
@@ -68,9 +67,7 @@ impl Context {
         let mut secret_map = options.secrets.unwrap();
         secret_map.insert(String::from("databricks_url"), String::from(url.to_string()));
         secret_map.insert(String::from("access_token"), String::from(token.to_string()));
-        //options.secrets.clone()
         Some(secret_map)
-        //Some((url.to_string(), token.to_string()))
     }
 
     fn latest_store(secret_store: Arc<Store<Secret>>) -> Option<BTreeMap<String, String>> {
