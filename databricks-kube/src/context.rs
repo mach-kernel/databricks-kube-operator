@@ -19,7 +19,7 @@ pub struct Context {
     api_secret_store: Arc<Store<Secret>>,
 }
 
-#[derive(Clone, Deserialize, Serialize, PartialEq, JsonSchema, Debug, Default)]
+#[derive(Clone, Deserialize, Serialize, PartialEq, JsonSchema, Default)]
 pub struct DatabricksAPISecret {
     pub databricks_url: Option<String>,
     pub access_token: Option<String>,
