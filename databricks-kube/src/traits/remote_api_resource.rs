@@ -1,7 +1,6 @@
 use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
 
 use crate::{context::Context, error::DatabricksKubeError};
-use crate::context::{OperatorConfiguration};
 
 use assert_json_diff::assert_json_matches_no_panic;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
@@ -46,7 +45,7 @@ where
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
 
-    let requeue_interval_sec = OperatorConfiguration::default().default_requeue_interval.parse::<u64>().unwrap();
+    let requeue_interval_sec = context.get_operator_config().unwrap().default_requeue_interval.unwrap();
 
     // todo: enum
     let owner = resource

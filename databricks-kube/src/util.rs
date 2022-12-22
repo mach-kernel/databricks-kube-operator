@@ -5,6 +5,8 @@ use std::{sync::Arc, time::Duration};
 use crate::context::CONFIGMAP_NAME;
 use crate::context::{DatabricksAPISecret, OperatorConfiguration};
 use crate::error::DatabricksKubeError;
+use serde_json::Number;
+use std::str::FromStr;
 
 use futures::{StreamExt, TryStreamExt};
 use jsonschema::is_valid;
@@ -171,7 +173,14 @@ pub async fn ensure_configmap(cm_api: Api<ConfigMap>) -> Result<ConfigMap, Datab
                     let mut val_map = serde_json::Map::new();
                     val_map.extend(
                         data.iter()
-                            .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone()))),
+                            .map(|(k, v)| (k.clone(), {
+                                if v.clone().parse::<f64>().is_ok() {
+                                    serde_json::Value::Number(Number::from_str(&v.clone()).unwrap())
+                                }
+                                else{
+                                    serde_json::Value::String(v.clone())
+                                }
+                            })),
                     );
 
                     let valid = is_valid(&schema, &serde_json::Value::Object(val_map));
