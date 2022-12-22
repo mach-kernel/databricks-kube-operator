@@ -52,8 +52,6 @@ where
         requeue_interval_sec = op_config.unwrap().default_requeue_interval.unwrap();
     }
 
-    log::info!("{}", requeue_interval_sec);
-
     // todo: enum
     let owner = resource
         .annotations()

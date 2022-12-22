@@ -36,7 +36,7 @@ pub struct OperatorConfiguration {
 impl Default for OperatorConfiguration {
     fn default() -> Self {
         Self {
-            api_secret_name: Some(String::from("default_secret_name")),
+            api_secret_name: Some("default_secret_name".to_string()),
             default_poll_interval: Some(250),
             default_timeout_seconds: Some(10),
             default_requeue_interval: Some(300)
