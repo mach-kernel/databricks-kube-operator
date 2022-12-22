@@ -1,7 +1,6 @@
 use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
 
 use crate::{context::Context, error::DatabricksKubeError};
-use crate::context::{OperatorConfiguration};
 
 use assert_json_diff::assert_json_matches_no_panic;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
