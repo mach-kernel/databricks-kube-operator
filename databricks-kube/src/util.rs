@@ -5,8 +5,6 @@ use std::{sync::Arc, time::Duration};
 use crate::context::CONFIGMAP_NAME;
 use crate::context::{DatabricksAPISecret, OperatorConfiguration};
 use crate::error::DatabricksKubeError;
-use serde_json::Number;
-use std::str::FromStr;
 
 use futures::{StreamExt, TryStreamExt};
 use jsonschema::is_valid;
@@ -120,28 +118,18 @@ pub async fn ensure_api_secret(
         secret_api.clone(),
         &api_secret_name,
         |co: Option<&Secret>| {
-            if let Some(secret) = co {
-                if let Some(data) = &secret.data {
-                    let schema = json!(schema_for!(DatabricksAPISecret));
+            if let Some(data) = co.and_then(|cm| cm.data.clone()) {
+                let schema = json!(schema_for!(DatabricksAPISecret));
+                let json_data = json!(data);
 
-                    let mut val_map = serde_json::Map::new();
-                    val_map.extend(data.iter().map(|(k, v)| {
-                        (
-                            k.clone(),
-                            serde_json::Value::String(
-                                std::str::from_utf8(&v.0).unwrap().to_string(),
-                            ),
-                        )
-                    }));
-
-                    let valid = is_valid(&schema, &serde_json::Value::Object(val_map));
-                    if !valid {
-                        log::error!("Secret {} does not have a valid schema.", api_secret_name);
-                    }
-
-                    return valid;
+                let valid = is_valid(&schema, &json_data);
+                if !valid {
+                    log::error!("Secret {} does not have a valid schema.", api_secret_name);
                 }
+
+                return valid;
             }
+
             false
         },
     );
@@ -166,33 +154,18 @@ pub async fn ensure_configmap(cm_api: Api<ConfigMap>) -> Result<ConfigMap, Datab
         cm_api.clone(),
         CONFIGMAP_NAME.as_str(),
         move |co: Option<&ConfigMap>| {
-            if let Some(cmap) = co {
-                if let Some(data) = &cmap.data {
-                    let schema = json!(schema_for!(OperatorConfiguration));
+            if let Some(data) = co.and_then(|cm| cm.data.clone()) {
+                let schema = json!(schema_for!(OperatorConfiguration));
+                let json_data = json!(data);
 
-                    let mut val_map = serde_json::Map::new();
-                    val_map.extend(
-                        data.iter()
-                            .map(|(k, v)| (k.clone(), {
-                                if v.clone().parse::<f64>().is_ok() {
-                                    serde_json::Value::Number(Number::from_str(&v.clone()).unwrap())
-                                }
-                                else{
-                                    serde_json::Value::String(v.clone())
-                                }
-                            })),
+                let valid = is_valid(&schema, &json_data);
+                if !valid {
+                    log::error!(
+                        "Configmap {} does not have a valid schema.",
+                        *CONFIGMAP_NAME
                     );
-
-                    let valid = is_valid(&schema, &serde_json::Value::Object(val_map));
-                    if !valid {
-                        log::error!(
-                            "Configmap {} does not have a valid schema.",
-                            *CONFIGMAP_NAME
-                        );
-                    }
-
-                    return valid;
                 }
+                return valid;
             }
             false
         },

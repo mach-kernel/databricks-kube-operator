@@ -30,16 +30,16 @@ pub struct OperatorConfiguration {
     pub api_secret_name: Option<String>,
     pub default_poll_interval: Option<u32>,
     pub default_timeout_seconds: Option<u32>,
-    pub default_requeue_interval: Option<u64>
+    pub default_requeue_interval: Option<u64>,
 }
 
 impl Default for OperatorConfiguration {
     fn default() -> Self {
         Self {
-            api_secret_name: Some("default_secret_name".to_string()),
+            api_secret_name: None,
             default_poll_interval: Some(250),
             default_timeout_seconds: Some(10),
-            default_requeue_interval: Some(300)
+            default_requeue_interval: Some(300),
         }
     }
 }
@@ -47,43 +47,36 @@ impl Default for OperatorConfiguration {
 impl Context {
     pub fn get_operator_config(&self) -> Option<OperatorConfiguration> {
         let latest_config = Self::latest_config(self.configmap_store.clone())?;
+        let defaults = OperatorConfiguration::default();
 
-        let mut op_config = OperatorConfiguration::default();
-        
-        op_config.api_secret_name = Some(String::from(latest_config.get("api_secret_name").unwrap().to_string()));
-        op_config.default_poll_interval = Some(latest_config.get("default_poll_interval")?.parse::<u32>().unwrap());
-        op_config.default_timeout_seconds = Some(latest_config.get("default_timeout_seconds")?.parse::<u32>().unwrap());
-        op_config.default_requeue_interval = Some(latest_config.get("default_requeue_interval")?.parse::<u64>().unwrap());
-
-        Some(op_config)
+        Some(OperatorConfiguration {
+            api_secret_name: latest_config.get("api_secret_name").cloned(),
+            default_poll_interval: latest_config
+                .get("default_poll_interval")
+                .and_then(|v| v.parse::<u32>().ok().or(defaults.default_poll_interval)),
+            default_timeout_seconds: latest_config
+                .get("default_timeout_seconds")
+                .and_then(|v| v.parse::<u32>().ok().or(defaults.default_timeout_seconds)),
+            default_requeue_interval: latest_config
+                .get("default_requeue_interval")
+                .and_then(|v| v.parse::<u64>().ok().or(defaults.default_requeue_interval)),
+        })
     }
 
     pub fn get_api_secret(&self) -> Option<DatabricksAPISecret> {
-        let latest_secret = Self::latest_store(self.api_secret_store.clone())?;
+        let latest_secrets = Self::latest_store(self.api_secret_store.clone())?;
 
-        let mut api_secret = DatabricksAPISecret::default();
-
-        api_secret.databricks_url = Some(String::from(latest_secret.get("databricks_url").unwrap().to_string()));
-        api_secret.access_token = Some(String::from(latest_secret.get("access_token").unwrap().to_string()));
-
-        Some(api_secret)
-
+        Some(DatabricksAPISecret {
+            databricks_url: latest_secrets.get("databricks_url").cloned(),
+            access_token: latest_secrets.get("access_token").cloned(),
+        })
     }
-    
 
     fn latest_store(secret_store: Arc<Store<Secret>>) -> Option<BTreeMap<String, String>> {
         secret_store
             .state()
             .into_iter()
-            .map(|x| {
-                BTreeMap::from_iter(
-                    x.data
-                        .clone()
-                        .unwrap()
-                        .into_iter()
-                        .map(|(k, v)| (k, std::str::from_utf8(&v.0).unwrap().to_string())),
-                )
-            })
+            .flat_map(|s| s.string_data.as_ref().map(|m| m.clone()))
             .next()
     }
 
@@ -91,15 +84,7 @@ impl Context {
         config_store
             .state()
             .into_iter()
-            .map(|x| {
-                BTreeMap::from_iter(
-                    x.data
-                        .clone()
-                        .unwrap()
-                        .into_iter()
-                        .map(|(k, v)| (k, v)),
-                )
-            })
+            .flat_map(|x| x.data.clone())
             .next()
     }
 
