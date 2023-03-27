@@ -16,9 +16,12 @@ spec:
     spec:
       serviceAccountName: databricks-kube-operator
       terminationGracePeriodSeconds: 10
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
       containers:
       - name: dko
-        image: ghcr.io/mach-kernel/databricks-kube-operator:0.3.3
+        image: ghcr.io/mach-kernel/databricks-kube-operator:0.4.0
         imagePullPolicy: Always
         env:
           - name: DATABRICKS_KUBE_CONFIGMAP
