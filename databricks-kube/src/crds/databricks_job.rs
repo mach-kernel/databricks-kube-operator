@@ -1,22 +1,25 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::SystemTime;
-use std::{hash::Hash, pin::Pin};
 
 use crate::traits::remote_api_status::RemoteAPIStatus;
+use crate::util::hash_json_value;
 use crate::{
     context::Context, error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource,
     traits::rest_config::RestConfig,
 };
 
-use databricks_rust_jobs::models::{JobsRunsList200Response, RunLifeCycleState, RunState};
+use databricks_rust_jobs::models::{
+    JobSettings, JobsRunsList200Response, RunLifeCycleState, RunState,
+};
 use databricks_rust_jobs::{
     apis::default_api,
     models::{
         job::Job, job_settings, jobs_create_request, JobsCreate200Response, JobsCreateRequest,
         JobsDeleteRequest, JobsGet200Response, JobsList200Response, JobsRunNowRequest,
-        JobsUpdateRequest, Run,
+        JobsUpdateRequest,
     },
 };
 
@@ -152,39 +155,17 @@ impl From<DatabricksJob> for Job {
 }
 
 impl DatabricksJob {
-    fn hash_run_request(request: &JobsRunNowRequest) -> u64 {
+    fn hash_run_request(request: &JobsRunNowRequest, settings: Option<Box<JobSettings>>) -> u64 {
         let mut hasher = DefaultHasher::new();
 
-        request.job_id.hash(&mut hasher);
-        request.jar_params.hash(&mut hasher);
-        request.python_params.hash(&mut hasher);
-        request.spark_submit_params.hash(&mut hasher);
+        let request_as_value = serde_json::to_value(&request).unwrap();
+        hash_json_value(&mut hasher, &request_as_value);
 
-        for val in request.python_named_params.iter().flat_map(|z| z.values()) {
-            val.to_string().hash(&mut hasher);
+        if let Some(settings) = settings {
+            let settings_as_value = serde_json::to_value(&settings).unwrap();
+            hash_json_value(&mut hasher, &settings_as_value);
         }
 
-        for val in request.notebook_params.iter().flat_map(|z| z.values()) {
-            val.to_string().hash(&mut hasher);
-        }
-
-        for val in request.sql_params.iter().flat_map(|z| z.values()) {
-            val.to_string().hash(&mut hasher);
-        }
-
-        if request.pipeline_params.is_some() {
-            request
-                .pipeline_params
-                .clone()
-                .unwrap()
-                .full_refresh
-                .hash(&mut hasher);
-        }
-
-        request.dbt_commands.hash(&mut hasher);
-
-        // Databricks docs state a 64 char limit for the idempotency token,
-        // so we can get away with coercing i64 to a string
         hasher.finish()
     }
 }
@@ -223,6 +204,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
         context: Arc<Context>,
     ) -> Pin<Box<dyn Future<Output = Result<(), DatabricksKubeError>> + Send>> {
         let job_id = self.spec().job.job_id.clone();
+        let job_settings = self.spec().job.settings.clone();
         let run_request = self.spec().run.clone();
         let self_name = self.name_unchecked();
 
@@ -230,60 +212,25 @@ impl RemoteAPIResource<Job> for DatabricksJob {
             return async { Ok(()) }.boxed();
         }
 
-        log::info!(
-            "{} has a run request defined, looking for running jobs...",
-            self.name_unchecked()
-        );
+        log::info!("Ensuring defined run for {}...", self.name_unchecked());
 
         async move {
-            let mut all_runs: Vec<Run> = Vec::new();
-
             let config = Job::get_rest_config(context.clone()).await.unwrap();
-            while let JobsRunsList200Response { has_more, runs } = default_api::jobs_runs_list(
-                &config,
-                Some(true),
-                Some(false),
-                job_id,
-                Some(all_runs.len() as i32),
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .await?
-            {
-                all_runs.extend(runs.iter().flatten().map(Clone::clone));
-                if !has_more.unwrap_or(false) {
-                    break;
-                }
-            }
-
-            log::info!("{} has {} active runs", &self_name, all_runs.len());
-
-            let newest_run_id = all_runs.first().map(|r| r.run_id).unwrap_or(Some(-1));
 
             let mut run_request = JobsRunNowRequest {
                 job_id,
                 ..run_request.unwrap()
             };
-            run_request.idempotency_token = Some(Self::hash_run_request(&run_request).to_string());
+            run_request.idempotency_token =
+                Some(Self::hash_run_request(&run_request, job_settings).to_string());
 
             let triggered = default_api::jobs_run_now(&config, Some(run_request)).await?;
 
-            if newest_run_id.unwrap() == triggered.run_id.unwrap() {
-                log::info!(
-                    "{} idempotency token matches; run_id still {}",
-                    &self_name,
-                    newest_run_id.unwrap()
-                );
-            } else {
-                log::info!(
-                    "{} triggered new run_id: {}",
-                    &self_name,
-                    triggered.run_id.unwrap(),
-                );
-            }
+            log::info!(
+                "Job {} reconciled run {}",
+                &self_name,
+                triggered.run_id.unwrap(),
+            );
 
             Ok::<(), DatabricksKubeError>(())
         }

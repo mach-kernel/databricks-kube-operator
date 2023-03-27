@@ -1,5 +1,10 @@
 #![allow(dead_code)]
 
+use serde_json::{json, Value};
+use std::collections::hash_map::DefaultHasher;
+
+use std::hash::Hash;
+
 use std::{sync::Arc, time::Duration};
 
 use crate::context::CONFIGMAP_NAME;
@@ -23,7 +28,6 @@ use kube::{
 };
 
 use schemars::schema_for;
-use serde_json::json;
 use tokio::time::timeout;
 
 pub async fn watch_api_secret(
@@ -201,4 +205,26 @@ pub async fn ensure_crd(
         .last()
         .flatten()
         .ok_or(DatabricksKubeError::CRDMissingError(name.to_string()))
+}
+
+pub fn hash_json_value(hash: &mut DefaultHasher, value: &Value) {
+    match value {
+        Value::Null => 0.hash(hash),
+        Value::Bool(b) => b.hash(hash),
+        Value::String(s) => s.hash(hash),
+        Value::Number(n) => n.hash(hash),
+        Value::Array(a) => {
+            for v in a {
+                hash_json_value(hash, v)
+            }
+        }
+        Value::Object(o) => {
+            let mut keys: Vec<String> = o.keys().cloned().collect();
+            keys.sort();
+
+            for k in keys {
+                hash_json_value(hash, o.get(&k).unwrap())
+            }
+        }
+    }
 }
