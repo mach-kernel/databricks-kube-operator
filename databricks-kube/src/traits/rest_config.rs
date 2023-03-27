@@ -28,12 +28,16 @@ impl RestConfig<JobClientConfig> for Job {
         let mut wait = interval(Duration::from_secs(15));
 
         async move {
-            while let None = context.get_databricks_url_token() {
+            while let None = context.get_api_secret() {
                 wait.tick().await;
                 log::info!("Waiting for REST credentials...");
             }
 
-            let (url, token) = context.get_databricks_url_token()?;
+            let api_secret = context.get_api_secret()?;
+            let (url, token) = (
+                api_secret.databricks_url.unwrap().to_string(),
+                api_secret.access_token.unwrap().to_string(),
+            );
             Some(JobClientConfig {
                 base_path: url,
                 bearer_access_token: Some(token),
@@ -52,12 +56,16 @@ impl RestConfig<GitCredentialClientConfig> for GitCredential {
         let mut wait = interval(Duration::from_secs(15));
 
         async move {
-            while let None = context.get_databricks_url_token() {
+            while let None = context.get_api_secret() {
                 wait.tick().await;
                 log::info!("Waiting for REST credentials...");
             }
 
-            let (url, token) = context.get_databricks_url_token()?;
+            let api_secret = context.get_api_secret()?;
+            let (url, token) = (
+                api_secret.databricks_url.unwrap().to_string(),
+                api_secret.access_token.unwrap().to_string(),
+            );
             Some(GitCredentialClientConfig {
                 base_path: format!("{}/2.0", url),
                 bearer_access_token: Some(token),
@@ -75,12 +83,16 @@ impl RestConfig<RepoClientConfig> for Repo {
         let mut wait = interval(Duration::from_secs(15));
 
         async move {
-            while let None = context.get_databricks_url_token() {
+            while let None = context.get_api_secret() {
                 wait.tick().await;
                 log::info!("Waiting for REST credentials...");
             }
 
-            let (url, token) = context.get_databricks_url_token()?;
+            let api_secret = context.get_api_secret()?;
+            let (url, token) = (
+                api_secret.databricks_url.unwrap().to_string(),
+                api_secret.access_token.unwrap().to_string(),
+            );
             Some(RepoClientConfig {
                 base_path: format!("{}/2.0", url),
                 bearer_access_token: Some(token),

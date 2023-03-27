@@ -45,6 +45,13 @@ where
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
     let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
 
+    let op_config = context.clone().get_operator_config();
+    let mut requeue_interval_sec = 300;
+
+    if op_config.is_some() {
+        requeue_interval_sec = op_config.unwrap().default_requeue_interval.unwrap();
+    }
+
     // todo: enum
     let owner = resource
         .annotations()
@@ -83,7 +90,7 @@ where
             resource.name_unchecked()
         );
 
-        return Ok(Action::requeue(Duration::from_secs(300)));
+        return Ok(Action::requeue(Duration::from_secs(requeue_interval_sec)));
     }
 
     let latest_remote = latest_remote?;
@@ -163,7 +170,7 @@ where
         resource.every_reconcile_owned(context.clone()).await?;
     }
 
-    Ok(Action::requeue(Duration::from_secs(300)))
+    Ok(Action::requeue(Duration::from_secs(requeue_interval_sec)))
 }
 
 #[allow(dead_code)]
