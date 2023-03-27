@@ -1,6 +1,9 @@
 use std::{collections::BTreeMap, env, sync::Arc};
 
-use k8s_openapi::api::core::v1::{ConfigMap, Secret};
+use k8s_openapi::{
+    api::core::v1::{ConfigMap, Secret},
+    ByteString,
+};
 use kube::{runtime::reflector::Store, Client};
 use lazy_static::lazy_static;
 use schemars::JsonSchema;
@@ -25,7 +28,7 @@ pub struct DatabricksAPISecret {
     pub access_token: Option<String>,
 }
 
-#[derive(Clone, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct OperatorConfiguration {
     pub api_secret_name: Option<String>,
     pub default_poll_interval: Option<u32>,
@@ -53,13 +56,16 @@ impl Context {
             api_secret_name: latest_config.get("api_secret_name").cloned(),
             default_poll_interval: latest_config
                 .get("default_poll_interval")
-                .and_then(|v| v.parse::<u32>().ok().or(defaults.default_poll_interval)),
+                .map(|v| v.parse::<u32>().unwrap())
+                .or(defaults.default_poll_interval),
             default_timeout_seconds: latest_config
                 .get("default_timeout_seconds")
-                .and_then(|v| v.parse::<u32>().ok().or(defaults.default_timeout_seconds)),
+                .map(|v| v.parse::<u32>().unwrap())
+                .or(defaults.default_timeout_seconds),
             default_requeue_interval: latest_config
                 .get("default_requeue_interval")
-                .and_then(|v| v.parse::<u64>().ok().or(defaults.default_requeue_interval)),
+                .map(|v| v.parse::<u64>().unwrap())
+                .or(defaults.default_requeue_interval),
         })
     }
 
@@ -75,15 +81,21 @@ impl Context {
     fn latest_store(secret_store: Arc<Store<Secret>>) -> Option<BTreeMap<String, String>> {
         secret_store
             .state()
-            .into_iter()
-            .flat_map(|s| s.string_data.as_ref().map(|m| m.clone()))
+            .iter()
+            .flat_map(|s| {
+                s.data.as_ref().map(|m| {
+                    BTreeMap::from_iter(m.iter().map(|(k, ByteString(v))| {
+                        (k.clone(), String::from_utf8(v.clone()).unwrap())
+                    }))
+                })
+            })
             .next()
     }
 
     fn latest_config(config_store: Arc<Store<ConfigMap>>) -> Option<BTreeMap<String, String>> {
         config_store
             .state()
-            .into_iter()
+            .iter()
             .flat_map(|x| x.data.clone())
             .next()
     }

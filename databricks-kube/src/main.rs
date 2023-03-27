@@ -44,9 +44,7 @@ fn latest_config(configmap_store: Arc<Store<ConfigMap>>) -> Option<BTreeMap<Stri
 }
 
 fn get_store_key(map: Option<BTreeMap<String, String>>, key: &str) -> Option<String> {
-    map.into_iter()
-        .flat_map(|c| c.get(key).map(String::clone))
-        .next()
+    map.into_iter().flat_map(|c| c.get(key).cloned()).next()
 }
 
 async fn log_controller_event<TCRDType>(
@@ -83,8 +81,8 @@ async fn main() -> Result<(), DatabricksKubeError> {
         sleep(Duration::from_millis(250)).await;
     }
 
-    let api_secret_name =
-        get_store_key(latest_config(configmap_store.clone()), "api_secret_name").unwrap();
+    let api_secret_name = get_store_key(latest_config(configmap_store.clone()), "api_secret_name")
+        .expect("Must define api_secret_name");
 
     ensure_api_secret(api_secret_name.clone(), secret_api.clone()).await?;
     let api_secret_store = watch_api_secret(api_secret_name.clone(), secret_api).await?;
