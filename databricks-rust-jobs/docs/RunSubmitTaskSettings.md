@@ -11,10 +11,11 @@ Name | Type | Description | Notes
 **notebook_task** | Option<[**crate::models::NotebookTask**](NotebookTask.md)> |  | [optional]
 **spark_jar_task** | Option<[**crate::models::SparkJarTask**](SparkJarTask.md)> |  | [optional]
 **spark_python_task** | Option<[**crate::models::SparkPythonTask**](SparkPythonTask.md)> |  | [optional]
-**spark_submit_task** | Option<[**crate::models::SparkSubmitTask**](SparkSubmitTask.md)> |  | [optional]
+**spark_submit_task** | Option<[**crate::models::TaskSparkSubmitTask**](TaskSparkSubmitTask.md)> |  | [optional]
 **pipeline_task** | Option<[**crate::models::PipelineTask**](PipelineTask.md)> |  | [optional]
 **python_wheel_task** | Option<[**crate::models::PythonWheelTask**](PythonWheelTask.md)> |  | [optional]
 **sql_task** | Option<[**crate::models::SqlTask**](SqlTask.md)> |  | [optional]
+**dbt_task** | Option<[**crate::models::DbtTask**](DbtTask.md)> |  | [optional]
 **libraries** | Option<[**Vec<crate::models::Library>**](Library.md)> | An optional list of libraries to be installed on the cluster that executes the task. The default value is an empty list. | [optional]
 **timeout_seconds** | Option<**i32**> | An optional timeout applied to each run of this job task. The default behavior is to have no timeout. | [optional]
 

@@ -1,6 +1,6 @@
 # \DefaultApi
 
-All URIs are relative to *https://<databricks-instance>/api*
+All URIs are relative to *http://localhost*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
@@ -35,7 +35,7 @@ Create a new job.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**jobs_create_request** | Option<[**JobsCreateRequest**](JobsCreateRequest.md)> |  |  |
+**jobs_create_request** | [**JobsCreateRequest**](JobsCreateRequest.md) |  | [required] |
 
 ### Return type
 
@@ -65,7 +65,7 @@ Deletes a job.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**jobs_delete_request** | Option<[**JobsDeleteRequest**](JobsDeleteRequest.md)> |  |  |
+**jobs_delete_request** | [**JobsDeleteRequest**](JobsDeleteRequest.md) |  | [required] |
 
 ### Return type
 
@@ -95,7 +95,7 @@ Retrieves the details for a single job.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**job_id** | Option<**i64**> | The canonical identifier of the job to retrieve information about. This field is required. |  |
+**job_id** | **i64** | The canonical identifier of the job to retrieve information about. This field is required. | [required] |
 
 ### Return type
 
@@ -115,7 +115,7 @@ Name | Type | Description  | Required | Notes
 
 ## jobs_list
 
-> crate::models::JobsList200Response jobs_list(limit, offset, expand_tasks)
+> crate::models::JobsList200Response jobs_list(limit, offset, name, expand_tasks)
 List all jobs
 
 Retrieves a list of jobs.
@@ -127,6 +127,7 @@ Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
 **limit** | Option<**i32**> | The number of jobs to return. This value must be greater than 0 and less or equal to 25. The default value is 20. |  |[default to 20]
 **offset** | Option<**i32**> | The offset of the first job to return, relative to the most recently created job. |  |[default to 0]
+**name** | Option<**String**> | A filter on the list based on the exact (case insensitive) job name. |  |
 **expand_tasks** | Option<**bool**> | Whether to include task and cluster details in the response. |  |[default to false]
 
 ### Return type
@@ -157,7 +158,7 @@ Overwrites all the settings for a specific job. Use the Update endpoint to updat
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**jobs_reset_request** | Option<[**JobsResetRequest**](JobsResetRequest.md)> |  |  |
+**jobs_reset_request** | [**JobsResetRequest**](JobsResetRequest.md) |  | [required] |
 
 ### Return type
 
@@ -187,7 +188,7 @@ Run a job and return the `run_id` of the triggered run.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**jobs_run_now_request** | Option<[**JobsRunNowRequest**](JobsRunNowRequest.md)> |  |  |
+**jobs_run_now_request** | [**JobsRunNowRequest**](JobsRunNowRequest.md) |  | [required] |
 
 ### Return type
 
@@ -217,7 +218,7 @@ Cancels a job run. The run is canceled asynchronously, so it may still be runnin
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**jobs_runs_cancel_request** | Option<[**JobsRunsCancelRequest**](JobsRunsCancelRequest.md)> |  |  |
+**jobs_runs_cancel_request** | [**JobsRunsCancelRequest**](JobsRunsCancelRequest.md) |  | [required] |
 
 ### Return type
 
@@ -247,7 +248,7 @@ Cancels all active runs of a job. The runs are canceled asynchronously, so it do
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**jobs_runs_cancel_all_request** | Option<[**JobsRunsCancelAllRequest**](JobsRunsCancelAllRequest.md)> |  |  |
+**jobs_runs_cancel_all_request** | [**JobsRunsCancelAllRequest**](JobsRunsCancelAllRequest.md) |  | [required] |
 
 ### Return type
 
@@ -277,7 +278,7 @@ Deletes a non-active run. Returns an error if the run is active.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**jobs_runs_delete_request** | Option<[**JobsRunsDeleteRequest**](JobsRunsDeleteRequest.md)> |  |  |
+**jobs_runs_delete_request** | [**JobsRunsDeleteRequest**](JobsRunsDeleteRequest.md) |  | [required] |
 
 ### Return type
 
@@ -307,7 +308,7 @@ Export and retrieve the job run task.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**run_id** | Option<**i64**> | The canonical identifier for the run. This field is required. |  |
+**run_id** | **i64** | The canonical identifier for the run. This field is required. | [required] |
 **views_to_export** | Option<[**ViewsToExport**](.md)> | Which views to export (CODE, DASHBOARDS, or ALL). Defaults to CODE. |  |
 
 ### Return type
@@ -338,7 +339,7 @@ Retrieve the metadata of a run.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**run_id** | Option<**i64**> | The canonical identifier of the run for which to retrieve the metadata. This field is required. |  |
+**run_id** | **i64** | The canonical identifier of the run for which to retrieve the metadata. This field is required. | [required] |
 **include_history** | Option<**bool**> | Whether to include the repair history in the response. |  |
 
 ### Return type
@@ -369,7 +370,7 @@ Retrieve the output and metadata of a single task run. When a notebook task retu
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**run_id** | Option<**i64**> | The canonical identifier for the run. This field is required. |  |
+**run_id** | **i64** | The canonical identifier for the run. This field is required. | [required] |
 
 ### Return type
 
@@ -437,7 +438,7 @@ Re-run one or more tasks. Tasks are re-run as part of the original job run, use 
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**jobs_runs_repair_request** | Option<[**JobsRunsRepairRequest**](JobsRunsRepairRequest.md)> |  |  |
+**jobs_runs_repair_request** | [**JobsRunsRepairRequest**](JobsRunsRepairRequest.md) |  | [required] |
 
 ### Return type
 
@@ -467,7 +468,7 @@ Submit a one-time run. This endpoint allows you to submit a workload directly wi
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**jobs_runs_submit_request** | Option<[**JobsRunsSubmitRequest**](JobsRunsSubmitRequest.md)> |  |  |
+**jobs_runs_submit_request** | [**JobsRunsSubmitRequest**](JobsRunsSubmitRequest.md) |  | [required] |
 
 ### Return type
 
@@ -497,7 +498,7 @@ Add, update, or remove specific settings of an existing job. Use the Reset endpo
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**jobs_update_request** | Option<[**JobsUpdateRequest**](JobsUpdateRequest.md)> |  |  |
+**jobs_update_request** | [**JobsUpdateRequest**](JobsUpdateRequest.md) |  | [required] |
 
 ### Return type
 

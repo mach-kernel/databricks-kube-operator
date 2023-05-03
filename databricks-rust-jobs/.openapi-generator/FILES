@@ -26,6 +26,7 @@ docs/ClusterSize.md
 docs/ClusterSource.md
 docs/ClusterSpec.md
 docs/ClusterState.md
+docs/Continuous.md
 docs/CronSchedule.md
 docs/DbfsStorageInfo.md
 docs/DbtOutput.md
@@ -73,6 +74,7 @@ docs/ListOrder.md
 docs/LogSyncStatus.md
 docs/MavenLibrary.md
 docs/NewCluster.md
+docs/NewTaskCluster.md
 docs/NodeType.md
 docs/NotebookOutput.md
 docs/NotebookTask.md
@@ -117,6 +119,7 @@ docs/SqlTaskAlert.md
 docs/SqlTaskDashboard.md
 docs/SqlTaskQuery.md
 docs/TaskDependenciesInner.md
+docs/TaskSparkSubmitTask.md
 docs/TerminationCode.md
 docs/TerminationParameter.md
 docs/TerminationReason.md
@@ -125,6 +128,8 @@ docs/TriggerType.md
 docs/ViewItem.md
 docs/ViewType.md
 docs/ViewsToExport.md
+docs/WebhookNotifications.md
+docs/WebhookNotificationsOnStartInner.md
 git_push.sh
 src/apis/configuration.rs
 src/apis/default_api.rs
@@ -153,6 +158,7 @@ src/models/cluster_size.rs
 src/models/cluster_source.rs
 src/models/cluster_spec.rs
 src/models/cluster_state.rs
+src/models/continuous.rs
 src/models/cron_schedule.rs
 src/models/dbfs_storage_info.rs
 src/models/dbt_output.rs
@@ -200,6 +206,7 @@ src/models/log_sync_status.rs
 src/models/maven_library.rs
 src/models/mod.rs
 src/models/new_cluster.rs
+src/models/new_task_cluster.rs
 src/models/node_type.rs
 src/models/notebook_output.rs
 src/models/notebook_task.rs
@@ -244,6 +251,7 @@ src/models/sql_task_alert.rs
 src/models/sql_task_dashboard.rs
 src/models/sql_task_query.rs
 src/models/task_dependencies_inner.rs
+src/models/task_spark_submit_task.rs
 src/models/termination_code.rs
 src/models/termination_parameter.rs
 src/models/termination_reason.rs
@@ -252,3 +260,5 @@ src/models/trigger_type.rs
 src/models/view_item.rs
 src/models/view_type.rs
 src/models/views_to_export.rs
+src/models/webhook_notifications.rs
+src/models/webhook_notifications_on_start_inner.rs

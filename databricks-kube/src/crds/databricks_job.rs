@@ -45,7 +45,7 @@ impl Default for DatabricksJobStatus {
     fn default() -> Self {
         Self {
             latest_run_state: Some(RunState {
-                life_cycle_state: Some(RunLifeCycleState::NoRuns),
+                life_cycle_state: Some(RunLifeCycleState::Pending),
                 ..RunState::default()
             }),
         }
@@ -182,7 +182,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                 jobs,
                 has_more,
                 ..
-            } = default_api::jobs_list(&config, None, Some(offset), Some(true)).await? {
+            } = default_api::jobs_list(&config, None, Some(offset), None, Some(true)).await? {
                 if let Some(jobs) = jobs {
                     offset = jobs.len() as i32;
 
@@ -224,7 +224,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
             run_request.idempotency_token =
                 Some(Self::hash_run_request(&run_request, job_settings).to_string());
 
-            let triggered = default_api::jobs_run_now(&config, Some(run_request)).await?;
+            let triggered = default_api::jobs_run_now(&config, run_request).await?;
 
             log::info!(
                 "Job {} reconciled run {}",
@@ -242,8 +242,10 @@ impl RemoteAPIResource<Job> for DatabricksJob {
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {
         let job_id = self.spec().job.job_id;
+        if job_id.is_none() { return tokio_stream::empty().boxed(); }
 
         try_stream! {
+            let job_id = job_id.unwrap();
             let config = Job::get_rest_config(context.clone()).await.unwrap();
 
             let JobsGet200Response {
@@ -282,7 +284,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
 
                 /// TODO: unsupported atm
                 // access_control_list: job.access_control_list
-                Some(JobsCreateRequest {
+                JobsCreateRequest {
                     name: Some(self.name_unchecked()),
                     tags: job_settings.tags,
                     tasks: job_settings.tasks,
@@ -294,7 +296,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                     git_source: job_settings.git_source,
                     format: job_settings.format.map(job_settings_to_create_format),
                     ..JobsCreateRequest::default()
-                })
+                }
             ).await?;
 
             // The response only contains an ID, but there are other fields
@@ -320,6 +322,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
         let job_settings = job.settings.as_ref().cloned();
 
         let job_id = self.spec().job.job_id;
+        if job_id.is_none() { return tokio_stream::empty().boxed(); }
 
         try_stream! {
             let config = Job::get_rest_config(context.clone()).await.unwrap();
@@ -329,11 +332,11 @@ impl RemoteAPIResource<Job> for DatabricksJob {
 
                 /// TODO: unsupported atm
                 // access_control_list: job.access_control_list
-                Some(JobsUpdateRequest {
+                JobsUpdateRequest {
                     job_id: job_id.unwrap(),
                     new_settings: job_settings,
                     ..JobsUpdateRequest::default()
-                })
+                }
             ).await?;
 
             let mut with_response = self.clone();
@@ -353,7 +356,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
             let config = Job::get_rest_config(context.clone()).await.unwrap();
             default_api::jobs_delete(
                 &config,
-                Some(JobsDeleteRequest { job_id: job_id.unwrap(), })
+                JobsDeleteRequest { job_id: job_id.unwrap(), }
             ).await?;
 
             yield ()
