@@ -32,7 +32,7 @@ pub struct RunTask {
     )]
     pub existing_cluster_id: Option<String>,
     #[serde(rename = "new_cluster", skip_serializing_if = "Option::is_none")]
-    pub new_cluster: Option<Box<crate::models::NewCluster>>,
+    pub new_cluster: Option<Box<crate::models::NewTaskCluster>>,
     /// An optional list of libraries to be installed on the cluster that executes the job. The default value is an empty list.
     #[serde(rename = "libraries", skip_serializing_if = "Option::is_none")]
     pub libraries: Option<Vec<crate::models::Library>>,
@@ -43,11 +43,11 @@ pub struct RunTask {
     #[serde(rename = "spark_python_task", skip_serializing_if = "Option::is_none")]
     pub spark_python_task: Option<Box<crate::models::SparkPythonTask>>,
     #[serde(rename = "spark_submit_task", skip_serializing_if = "Option::is_none")]
-    pub spark_submit_task: Option<Box<crate::models::SparkSubmitTask>>,
+    pub spark_submit_task: Option<Box<crate::models::TaskSparkSubmitTask>>,
     #[serde(rename = "pipeline_task", skip_serializing_if = "Option::is_none")]
     pub pipeline_task: Option<Box<crate::models::PipelineTask>>,
     #[serde(rename = "python_wheel_task", skip_serializing_if = "Option::is_none")]
-    pub python_wheel_task: Option<Box<crate::models::PythonWheelTask>>,
+    pub python_wheel_task: Option<crate::models::PythonWheelTask>,
     #[serde(rename = "sql_task", skip_serializing_if = "Option::is_none")]
     pub sql_task: Option<Box<crate::models::SqlTask>>,
     #[serde(rename = "dbt_task", skip_serializing_if = "Option::is_none")]
@@ -55,7 +55,7 @@ pub struct RunTask {
     /// The time at which this run was started in epoch milliseconds (milliseconds since 1/1/1970 UTC). This may not be the time when the job task starts executing, for example, if the job is scheduled to run on a new cluster, this is the time the cluster creation call is issued.
     #[serde(rename = "start_time", skip_serializing_if = "Option::is_none")]
     pub start_time: Option<i64>,
-    /// The time it took to set up the cluster in milliseconds. For runs that run on new clusters this is the cluster creation time, for runs that run on existing clusters this time should be very short.
+    /// The time in milliseconds it took to set up the cluster. For runs that run on new clusters this is the cluster creation time, for runs that run on existing clusters this time should be very short. The duration of a task run is the sum of the `setup_duration`, `execution_duration`, and the `cleanup_duration`. The `setup_duration` field is set to 0 for multitask job runs. The total duration of a multitask job run is the value of the `run_duration` field.
     #[serde(rename = "setup_duration", skip_serializing_if = "Option::is_none")]
     pub setup_duration: Option<i64>,
     /// The time in milliseconds it took to execute the commands in the JAR or notebook until they completed, failed, timed out, were cancelled, or encountered an unexpected error.

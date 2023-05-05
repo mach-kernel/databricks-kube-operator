@@ -11,8 +11,6 @@ use schemars::JsonSchema;
 
 #[derive(JsonSchema, Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct ClusterAttributes {
-    #[serde(rename = "data_security_mode", skip_serializing_if = "Option::is_none")]
-    pub data_security_mode: Option<DataSecurityMode>,
     /// Cluster name requested by the user. This doesn’t have to be unique. If not specified at creation, the cluster name is an empty string.
     #[serde(rename = "cluster_name", skip_serializing_if = "Option::is_none")]
     pub cluster_name: Option<String>,
@@ -38,7 +36,7 @@ pub struct ClusterAttributes {
     pub ssh_public_keys: Option<Vec<String>>,
     /// An object with key value pairs. The key length must be between 1 and 127 UTF-8 characters, inclusive. The value length must be less than or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag Restrictions: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>
     #[serde(rename = "custom_tags", skip_serializing_if = "Option::is_none")]
-    pub custom_tags: Option<::std::collections::HashMap<String, String>>,
+    pub custom_tags: Option<::std::collections::HashMap<String, serde_json::Value>>,
     #[serde(rename = "cluster_log_conf", skip_serializing_if = "Option::is_none")]
     pub cluster_log_conf: Option<Box<crate::models::ClusterLogConf>>,
     /// The configuration for storing init scripts. Any number of destinations can be specified. The scripts are executed sequentially in the order provided. If `cluster_log_conf` is specified, init script logs are sent to `<destination>/<cluster-ID>/init_scripts`.
@@ -46,6 +44,9 @@ pub struct ClusterAttributes {
     pub init_scripts: Option<Vec<crate::models::InitScriptInfo>>,
     #[serde(rename = "docker_image", skip_serializing_if = "Option::is_none")]
     pub docker_image: Option<Box<crate::models::DockerImage>>,
+    /// The type of runtime engine to use. If not specified, the runtime engine type is inferred based on the `spark_version` value. Allowed values include  * `PHOTON`: Use the Photon runtime engine type. * `STANDARD`: Use the standard runtime engine type.  This field is optional.
+    #[serde(rename = "runtime_engine", skip_serializing_if = "Option::is_none")]
+    pub runtime_engine: Option<String>,
     /// An arbitrary object where the object key is an environment variable name and the value is an environment variable value.
     #[serde(rename = "spark_env_vars", skip_serializing_if = "Option::is_none")]
     pub spark_env_vars: Option<::std::collections::HashMap<String, serde_json::Value>>,
@@ -69,12 +70,17 @@ pub struct ClusterAttributes {
     /// A [cluster policy](https://docs.databricks.com/dev-tools/api/latest/policies.html) ID.
     #[serde(rename = "policy_id", skip_serializing_if = "Option::is_none")]
     pub policy_id: Option<String>,
+    /// Determines whether encryption of the disks attached to the cluster locally is enabled.
+    #[serde(
+        rename = "enable_local_disk_encryption",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub enable_local_disk_encryption: Option<bool>,
 }
 
 impl ClusterAttributes {
     pub fn new() -> ClusterAttributes {
         ClusterAttributes {
-            data_security_mode: None,
             cluster_name: None,
             spark_version: None,
             spark_conf: None,
@@ -86,31 +92,14 @@ impl ClusterAttributes {
             cluster_log_conf: None,
             init_scripts: None,
             docker_image: None,
+            runtime_engine: None,
             spark_env_vars: None,
             autotermination_minutes: None,
             enable_elastic_disk: None,
             instance_pool_id: None,
             cluster_source: None,
             policy_id: None,
+            enable_local_disk_encryption: None,
         }
-    }
-}
-
-///
-#[derive(
-    JsonSchema, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
-)]
-pub enum DataSecurityMode {
-    #[serde(rename = "NONE")]
-    None,
-    #[serde(rename = "LEGACY_TABLE_ACL")]
-    LegacyTableAcl,
-    #[serde(rename = "LEGACY_SINGLE_USER_STANDARD")]
-    LegacySingleUserStandard,
-}
-
-impl Default for DataSecurityMode {
-    fn default() -> DataSecurityMode {
-        Self::None
     }
 }

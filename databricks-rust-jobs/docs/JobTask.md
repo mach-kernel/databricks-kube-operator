@@ -11,6 +11,7 @@ Name | Type | Description | Notes
 **pipeline_task** | Option<[**crate::models::PipelineTask**](PipelineTask.md)> |  | [optional]
 **python_wheel_task** | Option<[**crate::models::PythonWheelTask**](PythonWheelTask.md)> |  | [optional]
 **sql_task** | Option<[**crate::models::SqlTask**](SqlTask.md)> |  | [optional]
+**dbt_task** | Option<[**crate::models::DbtTask**](DbtTask.md)> |  | [optional]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

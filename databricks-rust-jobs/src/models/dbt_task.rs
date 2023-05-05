@@ -23,6 +23,9 @@ pub struct DbtTask {
     /// ID of the SQL warehouse to connect to. If provided, we automatically generate and provide the profile and connection details to dbt. It can be overridden on a per-command basis by using the `--profiles-dir` command line argument.
     #[serde(rename = "warehouse_id", skip_serializing_if = "Option::is_none")]
     pub warehouse_id: Option<String>,
+    /// Optional name of the catalog to use. The value is the top level in the 3-level namespace of Unity Catalog (catalog / schema / relation). The catalog value can only be specified if a warehouse_id is specified. Requires dbt-databricks >= 1.1.1.
+    #[serde(rename = "catalog", skip_serializing_if = "Option::is_none")]
+    pub catalog: Option<String>,
     /// Optional (relative) path to the profiles directory. Can only be specified if no warehouse_id is specified. If no warehouse_id is specified and this folder is unset, the root directory is used.
     #[serde(rename = "profiles_directory", skip_serializing_if = "Option::is_none")]
     pub profiles_directory: Option<String>,
@@ -35,6 +38,7 @@ impl DbtTask {
             commands,
             schema: None,
             warehouse_id: None,
+            catalog: None,
             profiles_directory: None,
         }
     }

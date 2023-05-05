@@ -1,18 +1,15 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hasher;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::SystemTime;
 
 use crate::traits::remote_api_status::RemoteAPIStatus;
-use crate::util::hash_json_value;
 use crate::{
     context::Context, error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource,
     traits::rest_config::RestConfig,
 };
 
 use databricks_rust_jobs::models::{
-    JobSettings, JobsRunsList200Response, RunLifeCycleState, RunState,
+    JobsRunsList200Response, RunLifeCycleState, RunState,
 };
 use databricks_rust_jobs::{
     apis::default_api,
@@ -45,7 +42,7 @@ impl Default for DatabricksJobStatus {
     fn default() -> Self {
         Self {
             latest_run_state: Some(RunState {
-                life_cycle_state: Some(RunLifeCycleState::NoRuns),
+                life_cycle_state: Some(RunLifeCycleState::Pending),
                 ..RunState::default()
             }),
         }
@@ -154,22 +151,6 @@ impl From<DatabricksJob> for Job {
     }
 }
 
-impl DatabricksJob {
-    fn hash_run_request(request: &JobsRunNowRequest, settings: Option<Box<JobSettings>>) -> u64 {
-        let mut hasher = DefaultHasher::new();
-
-        let request_as_value = serde_json::to_value(&request).unwrap();
-        hash_json_value(&mut hasher, &request_as_value);
-
-        if let Some(settings) = settings {
-            let settings_as_value = serde_json::to_value(&settings).unwrap();
-            hash_json_value(&mut hasher, &settings_as_value);
-        }
-
-        hasher.finish()
-    }
-}
-
 impl RemoteAPIResource<Job> for DatabricksJob {
     fn remote_list_all(
         context: Arc<Context>,
@@ -182,7 +163,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                 jobs,
                 has_more,
                 ..
-            } = default_api::jobs_list(&config, None, Some(offset), Some(true)).await? {
+            } = default_api::jobs_list(&config, None, Some(offset), None, Some(true)).await? {
                 if let Some(jobs) = jobs {
                     offset = jobs.len() as i32;
 
@@ -201,40 +182,9 @@ impl RemoteAPIResource<Job> for DatabricksJob {
     #[allow(irrefutable_let_patterns)]
     fn every_reconcile_owned(
         &self,
-        context: Arc<Context>,
+        _: Arc<Context>,
     ) -> Pin<Box<dyn Future<Output = Result<(), DatabricksKubeError>> + Send>> {
-        let job_id = self.spec().job.job_id.clone();
-        let job_settings = self.spec().job.settings.clone();
-        let run_request = self.spec().run.clone();
-        let self_name = self.name_unchecked();
-
-        if run_request.is_none() {
-            return async { Ok(()) }.boxed();
-        }
-
-        log::info!("Ensuring defined run for {}...", self.name_unchecked());
-
-        async move {
-            let config = Job::get_rest_config(context.clone()).await.unwrap();
-
-            let mut run_request = JobsRunNowRequest {
-                job_id,
-                ..run_request.unwrap()
-            };
-            run_request.idempotency_token =
-                Some(Self::hash_run_request(&run_request, job_settings).to_string());
-
-            let triggered = default_api::jobs_run_now(&config, Some(run_request)).await?;
-
-            log::info!(
-                "Job {} reconciled run {}",
-                &self_name,
-                triggered.run_id.unwrap(),
-            );
-
-            Ok::<(), DatabricksKubeError>(())
-        }
-        .boxed()
+        async { Ok(()) }.boxed()
     }
 
     fn remote_get(
@@ -244,6 +194,10 @@ impl RemoteAPIResource<Job> for DatabricksJob {
         let job_id = self.spec().job.job_id;
 
         try_stream! {
+            if job_id.is_none() {
+                yield Err(DatabricksKubeError::APIError("Resource does not exist".to_string()))?;
+            }
+
             let config = Job::get_rest_config(context.clone()).await.unwrap();
 
             let JobsGet200Response {
@@ -252,7 +206,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                 settings,
                 created_time,
                 ..
-            } = default_api::jobs_get(&config, job_id).await?;
+            } = default_api::jobs_get(&config, job_id.unwrap()).await?;
 
             yield Job {
                 job_id,
@@ -282,7 +236,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
 
                 /// TODO: unsupported atm
                 // access_control_list: job.access_control_list
-                Some(JobsCreateRequest {
+                JobsCreateRequest {
                     name: Some(self.name_unchecked()),
                     tags: job_settings.tags,
                     tasks: job_settings.tasks,
@@ -293,8 +247,9 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                     max_concurrent_runs: job_settings.max_concurrent_runs,
                     git_source: job_settings.git_source,
                     format: job_settings.format.map(job_settings_to_create_format),
+                    continuous: job_settings.continuous,
                     ..JobsCreateRequest::default()
-                })
+                }
             ).await?;
 
             // The response only contains an ID, but there are other fields
@@ -318,10 +273,13 @@ impl RemoteAPIResource<Job> for DatabricksJob {
     {
         let job = self.spec().job.clone();
         let job_settings = job.settings.as_ref().cloned();
-
         let job_id = self.spec().job.job_id;
 
         try_stream! {
+            if job_id.is_none() {
+                yield Err(DatabricksKubeError::APIError("Resource does not exist".to_string()))?;
+            }
+
             let config = Job::get_rest_config(context.clone()).await.unwrap();
 
             default_api::jobs_update(
@@ -329,11 +287,11 @@ impl RemoteAPIResource<Job> for DatabricksJob {
 
                 /// TODO: unsupported atm
                 // access_control_list: job.access_control_list
-                Some(JobsUpdateRequest {
+                JobsUpdateRequest {
                     job_id: job_id.unwrap(),
                     new_settings: job_settings,
                     ..JobsUpdateRequest::default()
-                })
+                }
             ).await?;
 
             let mut with_response = self.clone();
@@ -350,10 +308,14 @@ impl RemoteAPIResource<Job> for DatabricksJob {
         let job_id = self.spec().job.job_id;
 
         try_stream! {
+            if job_id.is_none() {
+                yield Err(DatabricksKubeError::APIError("Resource does not exist".to_string()))?;
+            }
+
             let config = Job::get_rest_config(context.clone()).await.unwrap();
             default_api::jobs_delete(
                 &config,
-                Some(JobsDeleteRequest { job_id: job_id.unwrap(), })
+                JobsDeleteRequest { job_id: job_id.unwrap(), }
             ).await?;
 
             yield ()

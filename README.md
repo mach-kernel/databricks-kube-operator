@@ -16,7 +16,7 @@ A [kube-rs](https://kube.rs/) operator to enable GitOps style management of Data
 | Git Credentials 2.0 | GitCredential |
 | Repos 2.0           | Repo          |
 
-WIP and experimental! See the GitHub project board for the roadmap. Contributions and feedback are welcome!
+Experimental headed towards stable. See the GitHub project board for the roadmap. Contributions and feedback are welcome!
 
 [Read the docs](https://databricks-kube-operator.gitbook.io/doc)
 

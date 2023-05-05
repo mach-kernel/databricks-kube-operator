@@ -32,13 +32,15 @@ pub struct RunSubmitTaskSettings {
     #[serde(rename = "spark_python_task", skip_serializing_if = "Option::is_none")]
     pub spark_python_task: Option<Box<crate::models::SparkPythonTask>>,
     #[serde(rename = "spark_submit_task", skip_serializing_if = "Option::is_none")]
-    pub spark_submit_task: Option<Box<crate::models::SparkSubmitTask>>,
+    pub spark_submit_task: Option<Box<crate::models::TaskSparkSubmitTask>>,
     #[serde(rename = "pipeline_task", skip_serializing_if = "Option::is_none")]
     pub pipeline_task: Option<Box<crate::models::PipelineTask>>,
     #[serde(rename = "python_wheel_task", skip_serializing_if = "Option::is_none")]
-    pub python_wheel_task: Option<Box<crate::models::PythonWheelTask>>,
+    pub python_wheel_task: Option<crate::models::PythonWheelTask>,
     #[serde(rename = "sql_task", skip_serializing_if = "Option::is_none")]
     pub sql_task: Option<Box<crate::models::SqlTask>>,
+    #[serde(rename = "dbt_task", skip_serializing_if = "Option::is_none")]
+    pub dbt_task: Option<Box<crate::models::DbtTask>>,
     /// An optional list of libraries to be installed on the cluster that executes the task. The default value is an empty list.
     #[serde(rename = "libraries", skip_serializing_if = "Option::is_none")]
     pub libraries: Option<Vec<crate::models::Library>>,
@@ -61,6 +63,7 @@ impl RunSubmitTaskSettings {
             pipeline_task: None,
             python_wheel_task: None,
             sql_task: None,
+            dbt_task: None,
             libraries: None,
             timeout_seconds: None,
         }

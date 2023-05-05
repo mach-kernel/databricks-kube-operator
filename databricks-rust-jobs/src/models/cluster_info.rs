@@ -58,7 +58,7 @@ pub struct ClusterInfo {
     pub ssh_public_keys: Option<Vec<String>>,
     /// An object with key value pairs. The key length must be between 1 and 127 UTF-8 characters, inclusive. The value length must be less than or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag Restrictions: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>
     #[serde(rename = "custom_tags", skip_serializing_if = "Option::is_none")]
-    pub custom_tags: Option<::std::collections::HashMap<String, String>>,
+    pub custom_tags: Option<::std::collections::HashMap<String, serde_json::Value>>,
     #[serde(rename = "cluster_log_conf", skip_serializing_if = "Option::is_none")]
     pub cluster_log_conf: Option<Box<crate::models::ClusterLogConf>>,
     /// The configuration for storing init scripts. Any number of destinations can be specified. The scripts are executed sequentially in the order provided. If `cluster_log_conf` is specified, init script logs are sent to `<destination>/<cluster-ID>/init_scripts`.
@@ -114,7 +114,7 @@ pub struct ClusterInfo {
     pub cluster_cores: Option<f32>,
     /// An object with key value pairs. The key length must be between 1 and 127 UTF-8 characters, inclusive. The value length must be less than or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag Restrictions: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>
     #[serde(rename = "default_tags", skip_serializing_if = "Option::is_none")]
-    pub default_tags: Option<::std::collections::HashMap<String, String>>,
+    pub default_tags: Option<::std::collections::HashMap<String, serde_json::Value>>,
     #[serde(rename = "cluster_log_status", skip_serializing_if = "Option::is_none")]
     pub cluster_log_status: Option<Box<crate::models::LogSyncStatus>>,
     #[serde(rename = "termination_reason", skip_serializing_if = "Option::is_none")]

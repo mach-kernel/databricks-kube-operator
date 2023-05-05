@@ -33,6 +33,8 @@ pub struct Run {
     pub state: Option<Box<crate::models::RunState>>,
     #[serde(rename = "schedule", skip_serializing_if = "Option::is_none")]
     pub schedule: Option<Box<crate::models::CronSchedule>>,
+    #[serde(rename = "continuous", skip_serializing_if = "Option::is_none")]
+    pub continuous: Option<Box<crate::models::Continuous>>,
     /// The list of tasks performed by the run. Each task has its own `run_id` which you can use to call `JobsGetOutput` to retrieve the run resutls.
     #[serde(rename = "tasks", skip_serializing_if = "Option::is_none")]
     pub tasks: Option<Vec<crate::models::RunTask>>,
@@ -53,18 +55,21 @@ pub struct Run {
     /// The time at which this run was started in epoch milliseconds (milliseconds since 1/1/1970 UTC). This may not be the time when the job task starts executing, for example, if the job is scheduled to run on a new cluster, this is the time the cluster creation call is issued.
     #[serde(rename = "start_time", skip_serializing_if = "Option::is_none")]
     pub start_time: Option<i64>,
-    /// The time it took to set up the cluster in milliseconds. For runs that run on new clusters this is the cluster creation time, for runs that run on existing clusters this time should be very short.
+    /// The time in milliseconds it took to set up the cluster. For runs that run on new clusters this is the cluster creation time, for runs that run on existing clusters this time should be very short. The duration of a task run is the sum of the `setup_duration`, `execution_duration`, and the `cleanup_duration`. The `setup_duration` field is set to 0 for multitask job runs. The total duration of a multitask job run is the value of the `run_duration` field.
     #[serde(rename = "setup_duration", skip_serializing_if = "Option::is_none")]
     pub setup_duration: Option<i64>,
-    /// The time in milliseconds it took to execute the commands in the JAR or notebook until they completed, failed, timed out, were cancelled, or encountered an unexpected error.
+    /// The time in milliseconds it took to execute the commands in the JAR or notebook until they  completed, failed, timed out, were cancelled, or encountered an unexpected error. The duration of a task run is the sum of the `setup_duration`, `execution_duration`, and the  `cleanup_duration`. The `execution_duration` field is set to 0 for multitask job runs. The total  duration of a multitask job run is the value of the `run_duration` field.
     #[serde(rename = "execution_duration", skip_serializing_if = "Option::is_none")]
     pub execution_duration: Option<i64>,
-    /// The time in milliseconds it took to terminate the cluster and clean up any associated artifacts. The total duration of the run is the sum of the setup_duration, the execution_duration, and the cleanup_duration.
+    /// The time in milliseconds it took to terminate the cluster and clean up any associated artifacts. The duration of a task run is the sum of the `setup_duration`, `execution_duration`, and the `cleanup_duration`. The `cleanup_duration` field is set to 0 for multitask job runs. The total duration of a multitask job run is the value of the `run_duration` field.
     #[serde(rename = "cleanup_duration", skip_serializing_if = "Option::is_none")]
     pub cleanup_duration: Option<i64>,
     /// The time at which this run ended in epoch milliseconds (milliseconds since 1/1/1970 UTC). This field is set to 0 if the job is still running.
     #[serde(rename = "end_time", skip_serializing_if = "Option::is_none")]
     pub end_time: Option<i64>,
+    /// The time in milliseconds it took the job run and all of its repairs to finish. This field is only set for multitask job runs and not task runs. The duration of a task run is the sum of the `setup_duration`, `execution_duration`, and the `cleanup_duration`.
+    #[serde(rename = "run_duration", skip_serializing_if = "Option::is_none")]
+    pub run_duration: Option<i32>,
     #[serde(rename = "trigger", skip_serializing_if = "Option::is_none")]
     pub trigger: Option<crate::models::TriggerType>,
     /// An optional name for the run. The maximum allowed length is 4096 bytes in UTF-8 encoding.
@@ -90,6 +95,7 @@ impl Run {
             original_attempt_run_id: None,
             state: None,
             schedule: None,
+            continuous: None,
             tasks: None,
             job_clusters: None,
             cluster_spec: None,
@@ -101,6 +107,7 @@ impl Run {
             execution_duration: None,
             cleanup_duration: None,
             end_time: None,
+            run_duration: None,
             trigger: None,
             run_name: None,
             run_page_url: None,

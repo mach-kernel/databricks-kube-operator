@@ -15,10 +15,16 @@ pub struct AccessControlRequest {
     #[serde(rename = "user_name", skip_serializing_if = "Option::is_none")]
     pub user_name: Option<String>,
     #[serde(rename = "permission_level", skip_serializing_if = "Option::is_none")]
-    pub permission_level: Option<Box<crate::models::PermissionLevelForGroup>>,
+    pub permission_level: Option<Box<crate::models::PermissionLevel>>,
     /// Group name. There are two built-in groups: `users` for all users, and `admins` for administrators.
     #[serde(rename = "group_name", skip_serializing_if = "Option::is_none")]
     pub group_name: Option<String>,
+    /// Name of an Azure service principal.
+    #[serde(
+        rename = "service_principal_name",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub service_principal_name: Option<String>,
 }
 
 impl AccessControlRequest {
@@ -27,6 +33,7 @@ impl AccessControlRequest {
             user_name: None,
             permission_level: None,
             group_name: None,
+            service_principal_name: None,
         }
     }
 }

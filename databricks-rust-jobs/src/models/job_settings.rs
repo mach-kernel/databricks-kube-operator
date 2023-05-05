@@ -16,7 +16,7 @@ pub struct JobSettings {
     pub name: Option<String>,
     /// A map of tags associated with the job. These are forwarded to the cluster as cluster tags for jobs clusters, and are subject to the same limitations as cluster tags. A maximum of 25 tags can be added to the job.
     #[serde(rename = "tags", skip_serializing_if = "Option::is_none")]
-    pub tags: Option<::std::collections::HashMap<String, String>>,
+    pub tags: Option<::std::collections::HashMap<String, serde_json::Value>>,
     /// A list of task specifications to be executed by this job.
     #[serde(rename = "tasks", skip_serializing_if = "Option::is_none")]
     pub tasks: Option<Vec<crate::models::JobTaskSettings>>,
@@ -28,11 +28,18 @@ pub struct JobSettings {
         skip_serializing_if = "Option::is_none"
     )]
     pub email_notifications: Option<Box<crate::models::JobEmailNotifications>>,
+    #[serde(
+        rename = "webhook_notifications",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub webhook_notifications: Option<Box<crate::models::WebhookNotifications>>,
     /// An optional timeout applied to each run of this job. The default behavior is to have no timeout.
     #[serde(rename = "timeout_seconds", skip_serializing_if = "Option::is_none")]
     pub timeout_seconds: Option<i32>,
     #[serde(rename = "schedule", skip_serializing_if = "Option::is_none")]
     pub schedule: Option<Box<crate::models::CronSchedule>>,
+    #[serde(rename = "continuous", skip_serializing_if = "Option::is_none")]
+    pub continuous: Option<Box<crate::models::Continuous>>,
     /// An optional maximum allowed number of concurrent runs of the job.  Set this value if you want to be able to execute multiple runs of the same job concurrently. This is useful for example if you trigger your job on a frequent schedule and want to allow consecutive runs to overlap with each other, or if you want to trigger multiple runs which differ by their input parameters.  This setting affects only new runs. For example, suppose the job’s concurrency is 4 and there are 4 concurrent active runs. Then setting the concurrency to 3 won’t kill any of the active runs. However, from then on, new runs are skipped unless there are fewer than 3 active runs.  This value cannot exceed 1000\\. Setting this value to 0 causes all new runs to be skipped. The default behavior is to allow only 1 concurrent run.
     #[serde(
         rename = "max_concurrent_runs",
@@ -54,8 +61,10 @@ impl JobSettings {
             tasks: None,
             job_clusters: None,
             email_notifications: None,
+            webhook_notifications: None,
             timeout_seconds: None,
             schedule: None,
+            continuous: None,
             max_concurrent_runs: None,
             git_source: None,
             format: None,

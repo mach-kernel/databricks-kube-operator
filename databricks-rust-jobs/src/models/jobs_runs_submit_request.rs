@@ -16,6 +16,11 @@ pub struct JobsRunsSubmitRequest {
     /// An optional name for the run. The default value is `Untitled`.
     #[serde(rename = "run_name", skip_serializing_if = "Option::is_none")]
     pub run_name: Option<String>,
+    #[serde(
+        rename = "webhook_notifications",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub webhook_notifications: Option<Box<crate::models::WebhookNotifications>>,
     #[serde(rename = "git_source", skip_serializing_if = "Option::is_none")]
     pub git_source: Option<Box<crate::models::GitSource>>,
     /// An optional timeout applied to each run of this job. The default behavior is to have no timeout.
@@ -37,6 +42,7 @@ impl JobsRunsSubmitRequest {
         JobsRunsSubmitRequest {
             tasks: None,
             run_name: None,
+            webhook_notifications: None,
             git_source: None,
             timeout_seconds: None,
             idempotency_token: None,

@@ -177,7 +177,7 @@ pub enum JobsUpdateError {
 /// Create a new job.
 pub async fn jobs_create(
     configuration: &configuration::Configuration,
-    jobs_create_request: Option<crate::models::JobsCreateRequest>,
+    jobs_create_request: crate::models::JobsCreateRequest,
 ) -> Result<crate::models::JobsCreate200Response, Error<JobsCreateError>> {
     let local_var_configuration = configuration;
 
@@ -219,7 +219,7 @@ pub async fn jobs_create(
 /// Deletes a job.
 pub async fn jobs_delete(
     configuration: &configuration::Configuration,
-    jobs_delete_request: Option<crate::models::JobsDeleteRequest>,
+    jobs_delete_request: crate::models::JobsDeleteRequest,
 ) -> Result<serde_json::Value, Error<JobsDeleteError>> {
     let local_var_configuration = configuration;
 
@@ -261,7 +261,7 @@ pub async fn jobs_delete(
 /// Retrieves the details for a single job.
 pub async fn jobs_get(
     configuration: &configuration::Configuration,
-    job_id: Option<i64>,
+    job_id: i64,
 ) -> Result<crate::models::JobsGet200Response, Error<JobsGetError>> {
     let local_var_configuration = configuration;
 
@@ -271,10 +271,7 @@ pub async fn jobs_get(
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::GET, local_var_uri_str.as_str());
 
-    if let Some(ref local_var_str) = job_id {
-        local_var_req_builder =
-            local_var_req_builder.query(&[("job_id", &local_var_str.to_string())]);
-    }
+    local_var_req_builder = local_var_req_builder.query(&[("job_id", &job_id.to_string())]);
     if let Some(ref local_var_user_agent) = local_var_configuration.user_agent {
         local_var_req_builder =
             local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
@@ -307,6 +304,7 @@ pub async fn jobs_list(
     configuration: &configuration::Configuration,
     limit: Option<i32>,
     offset: Option<i32>,
+    name: Option<&str>,
     expand_tasks: Option<bool>,
 ) -> Result<crate::models::JobsList200Response, Error<JobsListError>> {
     let local_var_configuration = configuration;
@@ -324,6 +322,10 @@ pub async fn jobs_list(
     if let Some(ref local_var_str) = offset {
         local_var_req_builder =
             local_var_req_builder.query(&[("offset", &local_var_str.to_string())]);
+    }
+    if let Some(ref local_var_str) = name {
+        local_var_req_builder =
+            local_var_req_builder.query(&[("name", &local_var_str.to_string())]);
     }
     if let Some(ref local_var_str) = expand_tasks {
         local_var_req_builder =
@@ -359,7 +361,7 @@ pub async fn jobs_list(
 /// Overwrites all the settings for a specific job. Use the Update endpoint to update job settings partially.
 pub async fn jobs_reset(
     configuration: &configuration::Configuration,
-    jobs_reset_request: Option<crate::models::JobsResetRequest>,
+    jobs_reset_request: crate::models::JobsResetRequest,
 ) -> Result<serde_json::Value, Error<JobsResetError>> {
     let local_var_configuration = configuration;
 
@@ -401,7 +403,7 @@ pub async fn jobs_reset(
 /// Run a job and return the `run_id` of the triggered run.
 pub async fn jobs_run_now(
     configuration: &configuration::Configuration,
-    jobs_run_now_request: Option<crate::models::JobsRunNowRequest>,
+    jobs_run_now_request: crate::models::JobsRunNowRequest,
 ) -> Result<crate::models::JobsRunNow200Response, Error<JobsRunNowError>> {
     let local_var_configuration = configuration;
 
@@ -443,7 +445,7 @@ pub async fn jobs_run_now(
 /// Cancels a job run. The run is canceled asynchronously, so it may still be running when this request completes.
 pub async fn jobs_runs_cancel(
     configuration: &configuration::Configuration,
-    jobs_runs_cancel_request: Option<crate::models::JobsRunsCancelRequest>,
+    jobs_runs_cancel_request: crate::models::JobsRunsCancelRequest,
 ) -> Result<serde_json::Value, Error<JobsRunsCancelError>> {
     let local_var_configuration = configuration;
 
@@ -485,7 +487,7 @@ pub async fn jobs_runs_cancel(
 /// Cancels all active runs of a job. The runs are canceled asynchronously, so it doesn't prevent new runs from being started.
 pub async fn jobs_runs_cancel_all(
     configuration: &configuration::Configuration,
-    jobs_runs_cancel_all_request: Option<crate::models::JobsRunsCancelAllRequest>,
+    jobs_runs_cancel_all_request: crate::models::JobsRunsCancelAllRequest,
 ) -> Result<serde_json::Value, Error<JobsRunsCancelAllError>> {
     let local_var_configuration = configuration;
 
@@ -530,7 +532,7 @@ pub async fn jobs_runs_cancel_all(
 /// Deletes a non-active run. Returns an error if the run is active.
 pub async fn jobs_runs_delete(
     configuration: &configuration::Configuration,
-    jobs_runs_delete_request: Option<crate::models::JobsRunsDeleteRequest>,
+    jobs_runs_delete_request: crate::models::JobsRunsDeleteRequest,
 ) -> Result<serde_json::Value, Error<JobsRunsDeleteError>> {
     let local_var_configuration = configuration;
 
@@ -572,7 +574,7 @@ pub async fn jobs_runs_delete(
 /// Export and retrieve the job run task.
 pub async fn jobs_runs_export(
     configuration: &configuration::Configuration,
-    run_id: Option<i64>,
+    run_id: i64,
     views_to_export: Option<ViewsToExport>,
 ) -> Result<crate::models::JobsRunsExport200Response, Error<JobsRunsExportError>> {
     let local_var_configuration = configuration;
@@ -583,10 +585,7 @@ pub async fn jobs_runs_export(
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::GET, local_var_uri_str.as_str());
 
-    if let Some(ref local_var_str) = run_id {
-        local_var_req_builder =
-            local_var_req_builder.query(&[("run_id", &local_var_str.to_string())]);
-    }
+    local_var_req_builder = local_var_req_builder.query(&[("run_id", &run_id.to_string())]);
     if let Some(ref local_var_str) = views_to_export {
         local_var_req_builder =
             local_var_req_builder.query(&[("views_to_export", &local_var_str.to_string())]);
@@ -622,7 +621,7 @@ pub async fn jobs_runs_export(
 /// Retrieve the metadata of a run.
 pub async fn jobs_runs_get(
     configuration: &configuration::Configuration,
-    run_id: Option<i64>,
+    run_id: i64,
     include_history: Option<bool>,
 ) -> Result<crate::models::JobsRunsGet200Response, Error<JobsRunsGetError>> {
     let local_var_configuration = configuration;
@@ -633,10 +632,7 @@ pub async fn jobs_runs_get(
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::GET, local_var_uri_str.as_str());
 
-    if let Some(ref local_var_str) = run_id {
-        local_var_req_builder =
-            local_var_req_builder.query(&[("run_id", &local_var_str.to_string())]);
-    }
+    local_var_req_builder = local_var_req_builder.query(&[("run_id", &run_id.to_string())]);
     if let Some(ref local_var_str) = include_history {
         local_var_req_builder =
             local_var_req_builder.query(&[("include_history", &local_var_str.to_string())]);
@@ -672,7 +668,7 @@ pub async fn jobs_runs_get(
 /// Retrieve the output and metadata of a single task run. When a notebook task returns a value through the dbutils.notebook.exit() call, you can use this endpoint to retrieve that value. Databricks restricts this API to return the first 5 MB of the output. To return a larger result, you can store job results in a cloud storage service. This endpoint validates that the run_id parameter is valid and returns an HTTP status code 400 if the run_id parameter is invalid. Runs are automatically removed after 60 days. If you to want to reference them beyond 60 days, you must save old run results before they expire. To export using the UI, see Export job run results. To export using the Jobs API, see Runs export.
 pub async fn jobs_runs_get_output(
     configuration: &configuration::Configuration,
-    run_id: Option<i64>,
+    run_id: i64,
 ) -> Result<crate::models::JobsRunsGetOutput200Response, Error<JobsRunsGetOutputError>> {
     let local_var_configuration = configuration;
 
@@ -685,10 +681,7 @@ pub async fn jobs_runs_get_output(
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::GET, local_var_uri_str.as_str());
 
-    if let Some(ref local_var_str) = run_id {
-        local_var_req_builder =
-            local_var_req_builder.query(&[("run_id", &local_var_str.to_string())]);
-    }
+    local_var_req_builder = local_var_req_builder.query(&[("run_id", &run_id.to_string())]);
     if let Some(ref local_var_user_agent) = local_var_configuration.user_agent {
         local_var_req_builder =
             local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
@@ -805,7 +798,7 @@ pub async fn jobs_runs_list(
 /// Re-run one or more tasks. Tasks are re-run as part of the original job run, use the current job and task settings, and can be viewed in the history for the original job run.
 pub async fn jobs_runs_repair(
     configuration: &configuration::Configuration,
-    jobs_runs_repair_request: Option<crate::models::JobsRunsRepairRequest>,
+    jobs_runs_repair_request: crate::models::JobsRunsRepairRequest,
 ) -> Result<crate::models::JobsRunsRepair200Response, Error<JobsRunsRepairError>> {
     let local_var_configuration = configuration;
 
@@ -847,7 +840,7 @@ pub async fn jobs_runs_repair(
 /// Submit a one-time run. This endpoint allows you to submit a workload directly without creating a job. Use the `jobs/runs/get` API to check the run state after the job is submitted.
 pub async fn jobs_runs_submit(
     configuration: &configuration::Configuration,
-    jobs_runs_submit_request: Option<crate::models::JobsRunsSubmitRequest>,
+    jobs_runs_submit_request: crate::models::JobsRunsSubmitRequest,
 ) -> Result<crate::models::JobsRunsSubmit200Response, Error<JobsRunsSubmitError>> {
     let local_var_configuration = configuration;
 
@@ -889,7 +882,7 @@ pub async fn jobs_runs_submit(
 /// Add, update, or remove specific settings of an existing job. Use the Reset endpoint to overwrite all job settings.
 pub async fn jobs_update(
     configuration: &configuration::Configuration,
-    jobs_update_request: Option<crate::models::JobsUpdateRequest>,
+    jobs_update_request: crate::models::JobsUpdateRequest,
 ) -> Result<serde_json::Value, Error<JobsUpdateError>> {
     let local_var_configuration = configuration;
 

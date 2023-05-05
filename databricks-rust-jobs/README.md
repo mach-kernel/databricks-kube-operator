@@ -22,7 +22,7 @@ databricks_rust_jobs = { path = "./databricks_rust_jobs" }
 
 ## Documentation for API Endpoints
 
-All URIs are relative to *https://<databricks-instance>/api*
+All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
@@ -69,6 +69,7 @@ Class | Method | HTTP request | Description
  - [ClusterSource](docs/ClusterSource.md)
  - [ClusterSpec](docs/ClusterSpec.md)
  - [ClusterState](docs/ClusterState.md)
+ - [Continuous](docs/Continuous.md)
  - [CronSchedule](docs/CronSchedule.md)
  - [DbfsStorageInfo](docs/DbfsStorageInfo.md)
  - [DbtOutput](docs/DbtOutput.md)
@@ -115,6 +116,7 @@ Class | Method | HTTP request | Description
  - [LogSyncStatus](docs/LogSyncStatus.md)
  - [MavenLibrary](docs/MavenLibrary.md)
  - [NewCluster](docs/NewCluster.md)
+ - [NewTaskCluster](docs/NewTaskCluster.md)
  - [NodeType](docs/NodeType.md)
  - [NotebookOutput](docs/NotebookOutput.md)
  - [NotebookTask](docs/NotebookTask.md)
@@ -159,6 +161,7 @@ Class | Method | HTTP request | Description
  - [SqlTaskDashboard](docs/SqlTaskDashboard.md)
  - [SqlTaskQuery](docs/SqlTaskQuery.md)
  - [TaskDependenciesInner](docs/TaskDependenciesInner.md)
+ - [TaskSparkSubmitTask](docs/TaskSparkSubmitTask.md)
  - [TerminationCode](docs/TerminationCode.md)
  - [TerminationParameter](docs/TerminationParameter.md)
  - [TerminationReason](docs/TerminationReason.md)
@@ -167,6 +170,8 @@ Class | Method | HTTP request | Description
  - [ViewItem](docs/ViewItem.md)
  - [ViewType](docs/ViewType.md)
  - [ViewsToExport](docs/ViewsToExport.md)
+ - [WebhookNotifications](docs/WebhookNotifications.md)
+ - [WebhookNotificationsOnStartInner](docs/WebhookNotificationsOnStartInner.md)
 
 
 To get access to the crate's generated documentation, use:

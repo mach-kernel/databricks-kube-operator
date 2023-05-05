@@ -1,4 +1,4 @@
-openapi: 3.0.0
+openapi: 3.1.0
 info:
   title: Jobs API 2.1
   description: >-
@@ -999,6 +999,7 @@ components:
         git_url:
           type: string
           example: https://github.com/databricks/databricks-cli
+          required: true
           description: |-
             URL of the repository to be cloned by this job.
             The maximum length is 300 characters.
@@ -1014,6 +1015,7 @@ components:
             - gitLabEnterpriseEdition
             - awsCodeCommit
           example: github
+          required: true
           description: >-
             Unique identifier of the service used to host the Git repository.
             The value is case insensitive.
@@ -1193,11 +1195,10 @@ components:
           description: An optional name for the job.
         tags:
           type: object
-          additionalProperties: true
           example:
             cost-center: engineering
             team: jobs
-          default: {}
+          default: '{}'
           description: >-
             A map of tags associated with the job. These are forwarded to the
             cluster as cluster tags for jobs clusters, and are subject to the
@@ -1586,8 +1587,7 @@ components:
             task.
           $ref: '#/components/schemas/NewCluster'
     NewCluster:
-      required:
-       - spark_version
+      required: spark_version
       properties:
         num_workers:
           type: integer
@@ -1796,6 +1796,7 @@ components:
         notebook_path:
           type: string
           example: /Users/user.name@databricks.com/notebook_to_run
+          required: true
           description: >-
             The path of the notebook to be run in the Databricks workspace or
             remote repository. For notebooks stored in the Databricks workspace,
@@ -1808,6 +1809,7 @@ components:
           enum:
             - WORKSPACE
             - GIT
+          required: false
           description: >-
             Optional location type of the notebook. When set to `WORKSPACE`, the
             notebook will be retrieved from the local Databricks workspace. When
@@ -2296,7 +2298,6 @@ components:
         * `SUBMIT_RUN` \- Submit run. A run created with [Run
         Submit](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit).
     RunParameters:
-      type: object
       properties:
         jar_params:
           type: array
@@ -2404,7 +2405,6 @@ components:
           items:
             type: string
         python_named_params:
-          additionalProperties: true
           type: object
           example:
             name: task
@@ -2420,7 +2420,6 @@ components:
               description: If true, triggers a full refresh on the delta live table.
         sql_params:
           type: object
-          additionalProperties: true
           example:
             name: john doe
             age: '35'
@@ -2430,8 +2429,6 @@ components:
             support custom parameters.
         dbt_commands:
           type: array
-          items:
-            type: string
           example:
             - dbt deps
             - dbt seed
@@ -2556,8 +2553,6 @@ components:
           description: If true, a full refresh will be triggered on the delta live table.
           default: false
     PythonWheelTask:
-      type: object
-      additionalProperties: true
       properties:
         package_name:
           type: string
@@ -2580,7 +2575,6 @@ components:
           items:
             type: string
         named_parameters:
-          additionalProperties: true
           type: object
           example:
             name: task
@@ -2592,7 +2586,6 @@ components:
     SqlTask:
       required:
         - warehouse_id
-      type: object
       properties:
         query:
           description: If query, indicates that this job must execute a SQL query.
@@ -2605,7 +2598,6 @@ components:
           $ref: '#/components/schemas/SqlTaskAlert'
         parameters:
           type: object
-          additionalProperties: true
           example:
             name: John Doe
             age: 35
@@ -2742,8 +2734,6 @@ components:
             provided, the root of the git repository is used.
         commands:
           type: array
-          items:
-            type: string
           example:
             - dbt deps
             - dbt seed
@@ -2859,14 +2849,10 @@ components:
     TriggerType:
       type: string
       enum:
-        - CONTINUOUS
         - PERIODIC
         - ONE_TIME
         - RETRY
       description: >-
-        * `CONTINUOUS`: Indicates that the job should be running perpetually; will
-        start if not triggered
-        
         * `PERIODIC`: Schedules that periodically trigger runs, such as a cron
         scheduler.
 
@@ -3022,6 +3008,7 @@ components:
           items:
             type: string
         custom_tags:
+          type: array
           description: >-
             An object containing a set of tags for cluster resources. Databricks
             tags all cluster resources (such as AWS instances and EBS volumes)
@@ -3035,7 +3022,8 @@ components:
             compute-optimized and memory-optimized
 
             * Databricks allows at most 45 custom tags
-          $ref: '#/components/schemas/ClusterTag'
+          items:
+            $ref: '#/components/schemas/ClusterTag'
         cluster_log_conf:
           description: >-
             The configuration for delivering Spark logs to a long-term storage
@@ -3751,7 +3739,8 @@ components:
         to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag
         Restrictions:
         <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>
-      additionalProperties: true
+      additionalProperties:
+        type: string
     DbfsStorageInfo:
       properties:
         destination:
