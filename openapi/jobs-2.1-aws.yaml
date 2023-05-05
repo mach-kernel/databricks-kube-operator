@@ -1193,6 +1193,7 @@ components:
           description: An optional name for the job.
         tags:
           type: object
+          additionalProperties: true
           example:
             cost-center: engineering
             team: jobs
@@ -2403,6 +2404,7 @@ components:
           items:
             type: string
         python_named_params:
+          additionalProperties: true
           type: object
           example:
             name: task
@@ -2418,6 +2420,7 @@ components:
               description: If true, triggers a full refresh on the delta live table.
         sql_params:
           type: object
+          additionalProperties: true
           example:
             name: john doe
             age: '35'
@@ -2553,6 +2556,8 @@ components:
           description: If true, a full refresh will be triggered on the delta live table.
           default: false
     PythonWheelTask:
+      type: object
+      additionalProperties: true
       properties:
         package_name:
           type: string
@@ -2575,6 +2580,7 @@ components:
           items:
             type: string
         named_parameters:
+          additionalProperties: true
           type: object
           example:
             name: task
@@ -2586,6 +2592,7 @@ components:
     SqlTask:
       required:
         - warehouse_id
+      type: object
       properties:
         query:
           description: If query, indicates that this job must execute a SQL query.
@@ -2598,6 +2605,7 @@ components:
           $ref: '#/components/schemas/SqlTaskAlert'
         parameters:
           type: object
+          additionalProperties: true
           example:
             name: John Doe
             age: 35

@@ -22,7 +22,7 @@ pub struct SqlTask {
     pub alert: Option<Box<crate::models::SqlTaskAlert>>,
     /// Parameters to be used for each run of this job. The SQL alert task does not support custom parameters.
     #[serde(rename = "parameters", skip_serializing_if = "Option::is_none")]
-    pub parameters: Option<serde_json::Value>,
+    pub parameters: Option<::std::collections::HashMap<String, serde_json::Value>>,
     /// The canonical identifier of the SQL warehouse. Only serverless and pro SQL warehouses are supported.
     #[serde(rename = "warehouse_id")]
     pub warehouse_id: String,

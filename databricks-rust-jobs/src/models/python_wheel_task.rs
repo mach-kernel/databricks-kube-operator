@@ -25,7 +25,7 @@ pub struct PythonWheelTask {
     pub parameters: Option<Vec<String>>,
     /// Command-line parameters passed to Python wheel task in the form of `[\"--name=task\", \"--data=dbfs:/path/to/data.json\"]`. Leave it empty if `parameters` is not null.
     #[serde(rename = "named_parameters", skip_serializing_if = "Option::is_none")]
-    pub named_parameters: Option<serde_json::Value>,
+    pub named_parameters: Option<::std::collections::HashMap<String, serde_json::Value>>,
 }
 
 impl PythonWheelTask {

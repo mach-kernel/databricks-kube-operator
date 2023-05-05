@@ -19,7 +19,7 @@ pub struct JobsCreateRequest {
     pub name: Option<String>,
     /// A map of tags associated with the job. These are forwarded to the cluster as cluster tags for jobs clusters, and are subject to the same limitations as cluster tags. A maximum of 25 tags can be added to the job.
     #[serde(rename = "tags", skip_serializing_if = "Option::is_none")]
-    pub tags: Option<serde_json::Value>,
+    pub tags: Option<::std::collections::HashMap<String, serde_json::Value>>,
     /// A list of task specifications to be executed by this job.
     #[serde(rename = "tasks", skip_serializing_if = "Option::is_none")]
     pub tasks: Option<Vec<crate::models::JobTaskSettings>>,

@@ -34,12 +34,12 @@ pub struct JobsRunNowRequest {
     pub spark_submit_params: Option<Vec<String>>,
     /// A map from keys to values for jobs with Python wheel task, for example `\"python_named_params\": {\"name\": \"task\", \"data\": \"dbfs:/path/to/data.json\"}`.
     #[serde(rename = "python_named_params", skip_serializing_if = "Option::is_none")]
-    pub python_named_params: Option<serde_json::Value>,
+    pub python_named_params: Option<::std::collections::HashMap<String, serde_json::Value>>,
     #[serde(rename = "pipeline_params", skip_serializing_if = "Option::is_none")]
     pub pipeline_params: Option<Box<crate::models::RunParametersPipelineParams>>,
     /// A map from keys to values for SQL tasks, for example `\"sql_params\": {\"name\": \"john doe\", \"age\": \"35\"}`. The SQL alert task does not support custom parameters.
     #[serde(rename = "sql_params", skip_serializing_if = "Option::is_none")]
-    pub sql_params: Option<serde_json::Value>,
+    pub sql_params: Option<::std::collections::HashMap<String, serde_json::Value>>,
     /// An array of commands to execute for jobs with the dbt task, for example `\"dbt_commands\": [\"dbt deps\", \"dbt seed\", \"dbt run\"]`
     #[serde(rename = "dbt_commands", skip_serializing_if = "Option::is_none")]
     pub dbt_commands: Option<Vec<String>>,
