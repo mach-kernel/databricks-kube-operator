@@ -1,0 +1,59 @@
+apiVersion: com.dstancu.databricks/v1
+kind: DatabricksJob
+metadata:
+  name: word-count
+  namespace: default
+spec:
+  run:
+    notebook_params:
+      foo: bar
+      abc: 2
+    spark_submit_params:
+      - --conf spark.executor.extraJavaOptions="-Djdk.httpclient.keepalive.timeout=120"
+  job:
+    settings:
+      email_notifications:
+        no_alert_for_skipped_runs: false
+      format: MULTI_TASK
+      job_clusters:
+      - job_cluster_key: word-count-cluster
+        new_cluster:
+          aws_attributes:
+            availability: SPOT_WITH_FALLBACK
+            ebs_volume_count: 1
+            ebs_volume_size: 32
+            ebs_volume_type: GENERAL_PURPOSE_SSD
+            first_on_demand: 1
+            spot_bid_price_percent: 100
+            zone_id: us-east-1e
+          custom_tags:
+            ResourceClass: SingleNode
+          driver_node_type_id: m4.large
+          enable_elastic_disk: false
+          node_type_id: m4.large
+          num_workers: 0
+          spark_conf:
+            spark.databricks.cluster.profile: singleNode
+            spark.master: local[*, 4]
+          spark_env_vars:
+            PYSPARK_PYTHON: /databricks/python3/bin/python3
+          spark_version: 10.4.x-scala2.12
+      max_concurrent_runs: 1
+      name: word-count
+      git_source:
+        git_branch: master
+        git_provider: gitHub
+        git_url: https://github.com/mach-kernel/databricks-kube-operator
+      tasks:
+      - email_notifications: {}
+        job_cluster_key: word-count-cluster
+        notebook_task:
+          notebook_path: examples/job
+          source: GIT
+        task_key: word-count
+        timeout_seconds: 0
+      timeout_seconds: 0
+      # Use me with Spark Structured Streaming to perpetually run the job
+      # NOTE: incompatible with retry policy keys
+      continuous:
+        pause_status: UNPAUSED
