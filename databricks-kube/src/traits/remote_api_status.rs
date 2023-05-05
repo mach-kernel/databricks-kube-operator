@@ -7,10 +7,9 @@ use futures::{Future, Stream, StreamExt, TryStreamExt};
 use k8s_openapi::{DeepMerge, NamespaceResourceScope};
 
 use kube::{
-    api::ListParams,
     api::PostParams,
     core::object::HasStatus,
-    runtime::{controller::Action, reflector::ObjectRef, Controller},
+    runtime::{controller::Action, reflector::ObjectRef, watcher, Controller},
     Api, CustomResourceExt, Resource, ResourceExt,
 };
 
@@ -102,7 +101,7 @@ pub trait RemoteAPIStatus<TStatusType: 'static> {
         TStatusType: Serialize,
     {
         let root_kind_api = Api::<Self>::default_namespaced(context.client.clone());
-        Controller::new(root_kind_api.clone(), ListParams::default())
+        Controller::new(root_kind_api.clone(), watcher::Config::default())
             .shutdown_on_signal()
             .run(
                 reconcile,

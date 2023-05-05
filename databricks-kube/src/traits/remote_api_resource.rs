@@ -8,9 +8,10 @@ use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 use k8s_openapi::{DeepMerge, NamespaceResourceScope};
 
 use kube::{
-    api::ListParams,
     api::PostParams,
-    runtime::{controller::Action, finalizer, finalizer::Event, reflector::ObjectRef, Controller},
+    runtime::{
+        controller::Action, finalizer, finalizer::Event, reflector::ObjectRef, watcher, Controller,
+    },
     Api, CustomResourceExt, Resource, ResourceExt,
 };
 
@@ -146,10 +147,10 @@ where
         let mut latest_as_kube: TCRDType = latest_remote.into();
         latest_as_kube
             .annotations_mut()
-            .merge_from(resource.annotations().clone());
+            .extend(resource.annotations().clone());
         latest_as_kube
             .labels_mut()
-            .merge_from(resource.labels().clone());
+            .extend(resource.labels().clone());
         latest_as_kube
             .meta_mut()
             .merge_from(resource.meta().clone());
@@ -292,7 +293,7 @@ pub trait RemoteAPIResource<TAPIType: 'static> {
     {
         let root_kind_api = Api::<Self>::default_namespaced(context.client.clone());
 
-        Controller::new(root_kind_api.clone(), ListParams::default())
+        Controller::new(root_kind_api.clone(), watcher::Config::default())
             .shutdown_on_signal()
             .run(
                 reconcile,

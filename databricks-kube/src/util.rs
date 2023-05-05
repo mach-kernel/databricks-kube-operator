@@ -18,7 +18,6 @@ use k8s_openapi::{
     apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
 };
 use kube::{
-    api::ListParams,
     runtime::{
         reflector::{self, Store},
         wait::{await_condition, conditions},
@@ -34,9 +33,9 @@ pub async fn watch_api_secret(
     api_secret_name: String,
     secret_api: Api<Secret>,
 ) -> Result<Arc<Store<Secret>>, DatabricksKubeError> {
-    let params = ListParams {
+    let params = watcher::Config {
         field_selector: Some(format!("metadata.name={}", api_secret_name.clone())),
-        ..ListParams::default()
+        ..watcher::Config::default()
     };
 
     // Make a new reflector store, pin it
@@ -75,9 +74,9 @@ pub async fn watch_api_secret(
 pub async fn watch_configmap(
     cm_api: Api<ConfigMap>,
 ) -> Result<Arc<Store<ConfigMap>>, DatabricksKubeError> {
-    let params = ListParams {
+    let params = watcher::Config {
         field_selector: Some(format!("metadata.name={}", *CONFIGMAP_NAME)),
-        ..ListParams::default()
+        ..watcher::Config::default()
     };
 
     // Make a new reflector store, pin it
