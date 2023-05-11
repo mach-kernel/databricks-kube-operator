@@ -1,2 +1,14 @@
 configMapName: databricks-kube-operator
 installCRDs: true
+
+image:
+  repository: ghcr.io/mach-kernel/databricks-kube-operator
+  # -- Overrides the image tag whose default is the chart appVersion
+  tag: ""
+
+podAnnotations: {}
+nodeSelector:
+  kubernetes.io/os: linux
+  kubernetes.io/arch: amd64
+resources: {}
+affinity: {}

@@ -3,6 +3,9 @@ kind: StatefulSet
 metadata:
   name: databricks-kube-operator
   namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "databricks-kube-operator.name" . }}
+    release: {{ .Release.Name }}
 spec:
   selector:
     matchLabels:
@@ -11,20 +14,25 @@ spec:
   serviceName: databricks-kube-operator
   template:
     metadata:
+      annotations:
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
       labels:
-        app: databricks-kube-operator
+        app: {{ template "databricks-kube-operator.name" . }}
     spec:
       serviceAccountName: databricks-kube-operator
       terminationGracePeriodSeconds: 10
-      nodeSelector:
-        kubernetes.io/os: linux
-        kubernetes.io/arch: amd64
       containers:
       - name: dko
-        image: ghcr.io/mach-kernel/databricks-kube-operator:0.5.0
+        image: {{ .Values.image.repository }}:{{default .Chart.AppVersion .Values.image.tag }}
         imagePullPolicy: Always
         env:
           - name: DATABRICKS_KUBE_CONFIGMAP
             value: {{ .Values.configMapName }}
           - name: RUST_LOG
             value: databricks_kube
+      resources:
+        {{- toYaml .Values.resources | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
