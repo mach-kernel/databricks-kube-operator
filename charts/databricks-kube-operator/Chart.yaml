@@ -2,7 +2,7 @@ apiVersion: v2
 appVersion: 0.5.0
 name: databricks-kube-operator
 description: A kube-rs operator for managing Databricks API resources
-version: 0.5.1
+version: 0.5.2
 
 home: https://github.com/mach-kernel/databricks-kube-operator
 sources:
