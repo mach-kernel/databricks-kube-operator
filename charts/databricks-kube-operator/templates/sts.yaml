@@ -30,8 +30,8 @@ spec:
             value: {{ .Values.configMapName }}
           - name: RUST_LOG
             value: databricks_kube
-      resources:
-        {{- toYaml .Values.resources | nindent 8 }}
+        resources:
+          {{- toYaml .Values.resources | nindent 8 }}
       affinity:
         {{- toYaml .Values.affinity | nindent 8 }}
       nodeSelector:
