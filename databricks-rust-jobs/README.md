@@ -22,7 +22,7 @@ databricks_rust_jobs = { path = "./databricks_rust_jobs" }
 
 ## Documentation for API Endpoints
 
-All URIs are relative to *http://localhost*
+All URIs are relative to *https://<databricks-instance>/api*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------

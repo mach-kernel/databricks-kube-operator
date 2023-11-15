@@ -2851,6 +2851,7 @@ components:
         - FAILED
         - TIMEDOUT
         - CANCELED
+        - MAXIMUM_CONCURRENT_RUNS_REACHED
       description: |-
         * `SUCCESS`: The task completed successfully.
         * `FAILED`: The task completed with an error.
