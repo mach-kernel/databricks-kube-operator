@@ -5,12 +5,9 @@ use crate::context::Context;
 use crate::traits::rest_config::RestConfig;
 use crate::{error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource};
 
-use databricks_rust_repos::{
-    apis::default_api,
-    models::{CreateRepoRequest, GetRepoResponse as APIRepo, GetReposResponse, UpdateRepoRequest},
-};
-
 use async_stream::try_stream;
+use databricks_rust_openapi::apis::repos_api;
+use databricks_rust_openapi::models::{WorkspaceRepoInfo, WorkspaceListReposResponse, WorkspaceCreateRepo, WorkspaceUpdateRepo, WorkspaceSparseCheckoutUpdate};
 use futures::{Stream, StreamExt};
 use k8s_openapi::serde::{Deserialize, Serialize};
 use kube::{core::object::HasSpec, CustomResource};
@@ -26,12 +23,12 @@ use schemars::JsonSchema;
     namespaced
 )]
 pub struct RepoSpec {
-    pub repository: APIRepo,
+    pub repository: WorkspaceRepoInfo,
 }
 
 /// API -> CRD
-impl From<APIRepo> for Repo {
-    fn from(repository: APIRepo) -> Self {
+impl From<WorkspaceRepoInfo> for Repo {
+    fn from(repository: WorkspaceRepoInfo) -> Self {
         let repo_name = if let Some(cid) = &repository.id {
             cid.to_string()
         } else {
@@ -49,24 +46,24 @@ impl From<APIRepo> for Repo {
 }
 
 /// CRD -> API
-impl From<Repo> for APIRepo {
+impl From<Repo> for WorkspaceRepoInfo {
     fn from(value: Repo) -> Self {
         value.spec().repository.clone()
     }
 }
 
-impl RemoteAPIResource<APIRepo> for Repo {
+impl RemoteAPIResource<WorkspaceRepoInfo> for Repo {
     fn remote_list_all(
         context: Arc<Context>,
-    ) -> Pin<Box<dyn Stream<Item = Result<APIRepo, DatabricksKubeError>> + Send>> {
+    ) -> Pin<Box<dyn Stream<Item = Result<WorkspaceRepoInfo, DatabricksKubeError>> + Send>> {
         try_stream! {
-            let config = APIRepo::get_rest_config(context.clone()).await.unwrap();
+            let config = WorkspaceRepoInfo::get_rest_config(context.clone()).await.unwrap();
             let mut next_page: Option<String> = None;
 
-            while let GetReposResponse {
+            while let WorkspaceListReposResponse {
                 repos,
                 next_page_token,
-            } = default_api::get_repos(&config, None, next_page.map(|s| s.to_owned()).as_ref().map(|x| &**x)).await? {
+            } = repos_api::reposlist(&config, None, next_page.map(|s| s.to_owned()).as_ref().map(|x| &**x)).await? {
                 if let Some(repos) = repos {
                     for repo in repos {
                         yield repo;
@@ -86,7 +83,7 @@ impl RemoteAPIResource<APIRepo> for Repo {
     fn remote_get(
         &self,
         context: Arc<Context>,
-    ) -> Pin<Box<dyn Stream<Item = Result<APIRepo, DatabricksKubeError>> + Send>> {
+    ) -> Pin<Box<dyn Stream<Item = Result<WorkspaceRepoInfo, DatabricksKubeError>> + Send>> {
         let repository_id = self
             .spec()
             .repository
@@ -96,8 +93,8 @@ impl RemoteAPIResource<APIRepo> for Repo {
             ));
 
         try_stream! {
-            let config = APIRepo::get_rest_config(context.clone()).await.unwrap();
-            let res = default_api::get_repo(&config, &repository_id?.to_string()).await?;
+            let config = WorkspaceRepoInfo::get_rest_config(context.clone()).await.unwrap();
+            let res = repos_api::reposget(&config, repository_id?).await?;
             yield res
         }
         .boxed()
@@ -113,14 +110,15 @@ impl RemoteAPIResource<APIRepo> for Repo {
         let repository = self.spec().repository.clone();
 
         try_stream! {
-            let config = APIRepo::get_rest_config(context.clone()).await.unwrap();
+            let config = WorkspaceRepoInfo::get_rest_config(context.clone()).await.unwrap();
 
-            let new_repo = default_api::create_repo(
+            let new_repo = repos_api::reposcreate(
                 &config,
-                CreateRepoRequest {
+                WorkspaceCreateRepo {
                     url: repository.url.unwrap(),
                     provider: repository.provider.unwrap(),
                     path: repository.path,
+                    sparse_checkout: repository.sparse_checkout
                 }
             ).await?;
 
@@ -139,22 +137,27 @@ impl RemoteAPIResource<APIRepo> for Repo {
         Self: Sized,
     {
         let repository = self.spec().repository.clone();
-        let repository_id = repository.id.unwrap().to_string();
 
         try_stream! {
-            let config = APIRepo::get_rest_config(context.clone()).await.unwrap();
+            let config = WorkspaceRepoInfo::get_rest_config(context.clone()).await.unwrap();
+            // TODO
+            let _sparse_checkout = repository.sparse_checkout.map(|s| WorkspaceSparseCheckoutUpdate {
+                patterns: s.patterns
+            });
 
-            let new_repo = default_api::update_repo(
+            repos_api::reposupdate(
                 &config,
-                &repository_id,
-                UpdateRepoRequest {
-                    branch: repository.branch.unwrap(),
-                    tag: "todo".to_string(),
+                repository.id.expect("Need Repo ID for update"),
+                WorkspaceUpdateRepo {
+                    branch: repository.branch,
+                    tag: None,
+                    // TODO
+                    sparse_checkout: None
                 }
             ).await?;
 
             let mut with_response = self.clone();
-            with_response.spec.repository = new_repo;
+            with_response.spec.repository = self.remote_get(context.clone()).next().await.unwrap()?;
             yield with_response;
         }
         .boxed()
@@ -167,10 +170,10 @@ impl RemoteAPIResource<APIRepo> for Repo {
         let repository_id = self.spec().repository.id;
 
         try_stream! {
-            let config = APIRepo::get_rest_config(context.clone()).await.unwrap();
-            default_api::delete_repo(
+            let config = WorkspaceRepoInfo::get_rest_config(context.clone()).await.unwrap();
+            repos_api::reposdelete(
                 &config,
-                &repository_id.map(|i| i.to_string()).unwrap()
+                repository_id.expect("Need Repo ID for delete")
             ).await?;
 
             yield ()

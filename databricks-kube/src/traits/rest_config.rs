@@ -2,16 +2,9 @@ use std::sync::Arc;
 use std::{pin::Pin, time::Duration};
 
 use crate::context::Context;
+use databricks_rust_openapi::apis::configuration::Configuration;
 
-use databricks_rust_git_credentials::{
-    apis::configuration::Configuration as GitCredentialClientConfig,
-    models::GetCredentialResponse as GitCredential,
-};
-use databricks_rust_jobs::{apis::configuration::Configuration as JobClientConfig, models::Job};
-use databricks_rust_repos::{
-    apis::configuration::Configuration as RepoClientConfig, models::GetRepoResponse as Repo,
-};
-
+use databricks_rust_openapi::models::{JobsJob, WorkspaceCredentialInfo, WorkspaceRepoInfo};
 use futures::FutureExt;
 use tokio::time::interval;
 
@@ -21,10 +14,10 @@ pub trait RestConfig<TConfigType> {
     ) -> Pin<Box<dyn futures::Future<Output = Option<TConfigType>> + std::marker::Send>>;
 }
 
-impl RestConfig<JobClientConfig> for Job {
+impl RestConfig<Configuration> for JobsJob {
     fn get_rest_config(
         context: Arc<Context>,
-    ) -> Pin<Box<dyn futures::Future<Output = Option<JobClientConfig>> + std::marker::Send>> {
+    ) -> Pin<Box<dyn futures::Future<Output = Option<Configuration>> + std::marker::Send>> {
         let mut wait = interval(Duration::from_secs(15));
 
         async move {
@@ -38,20 +31,20 @@ impl RestConfig<JobClientConfig> for Job {
                 api_secret.databricks_url.unwrap().to_string(),
                 api_secret.access_token.unwrap().to_string(),
             );
-            Some(JobClientConfig {
+            Some(Configuration {
                 base_path: url,
                 bearer_access_token: Some(token),
-                ..JobClientConfig::default()
+                ..Configuration::default()
             })
         }
         .boxed()
     }
 }
 
-impl RestConfig<GitCredentialClientConfig> for GitCredential {
+impl RestConfig<Configuration> for WorkspaceCredentialInfo {
     fn get_rest_config(
         context: Arc<Context>,
-    ) -> Pin<Box<dyn futures::Future<Output = Option<GitCredentialClientConfig>> + std::marker::Send>>
+    ) -> Pin<Box<dyn futures::Future<Output = Option<Configuration>> + std::marker::Send>>
     {
         let mut wait = interval(Duration::from_secs(15));
 
@@ -66,20 +59,20 @@ impl RestConfig<GitCredentialClientConfig> for GitCredential {
                 api_secret.databricks_url.unwrap().to_string(),
                 api_secret.access_token.unwrap().to_string(),
             );
-            Some(GitCredentialClientConfig {
+            Some(Configuration {
                 base_path: format!("{}/2.0", url),
                 bearer_access_token: Some(token),
-                ..GitCredentialClientConfig::default()
+                ..Configuration::default()
             })
         }
         .boxed()
     }
 }
 
-impl RestConfig<RepoClientConfig> for Repo {
+impl RestConfig<Configuration> for WorkspaceRepoInfo {
     fn get_rest_config(
         context: Arc<Context>,
-    ) -> Pin<Box<dyn futures::Future<Output = Option<RepoClientConfig>> + std::marker::Send>> {
+    ) -> Pin<Box<dyn futures::Future<Output = Option<Configuration>> + std::marker::Send>> {
         let mut wait = interval(Duration::from_secs(15));
 
         async move {
@@ -93,10 +86,10 @@ impl RestConfig<RepoClientConfig> for Repo {
                 api_secret.databricks_url.unwrap().to_string(),
                 api_secret.access_token.unwrap().to_string(),
             );
-            Some(RepoClientConfig {
+            Some(Configuration {
                 base_path: format!("{}/2.0", url),
                 bearer_access_token: Some(token),
-                ..RepoClientConfig::default()
+                ..Configuration::default()
             })
         }
         .boxed()

@@ -5,13 +5,11 @@ path = "src/crdgen.rs"
 [package]
 name = "databricks_kube"
 default-run = "databricks_kube"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2021"
 
 [dependencies]
-databricks_rust_jobs = { path = "../databricks-rust-jobs" }
-databricks_rust_git_credentials = { path = "../databricks-rust-git-credentials" }
-databricks_rust_repos = { path = "../databricks-rust-repos" }
+databricks_rust_openapi = { path = "../databricks-rust-openapi" }
 
 async-stream = "0.3.3"
 assert-json-diff = "2.0.2"

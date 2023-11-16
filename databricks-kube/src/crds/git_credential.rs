@@ -5,15 +5,10 @@ use crate::context::Context;
 use crate::traits::rest_config::RestConfig;
 use crate::{error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource};
 
-use databricks_rust_git_credentials::{
-    apis::default_api,
-    models::{
-        CreateCredentialRequest, GetCredentialResponse as APICredential, GetCredentialsResponse,
-        UpdateCredentialRequest,
-    },
-};
 
 use async_stream::try_stream;
+use databricks_rust_openapi::apis::git_credentials_api;
+use databricks_rust_openapi::models::{WorkspaceCredentialInfo, WorkspaceGetCredentialsResponse, WorkspaceCreateCredentials, WorkspaceCreateCredentialsResponse, WorkspaceUpdateCredentials};
 use futures::{Stream, StreamExt};
 use k8s_openapi::{
     api::core::v1::Secret,
@@ -32,7 +27,7 @@ use schemars::JsonSchema;
     namespaced
 )]
 pub struct GitCredentialSpec {
-    pub credential: APICredential,
+    pub credential: WorkspaceCredentialInfo,
     // The user provides an API token during a create request, but it
     // is otherwise no longer retrievable. Even with Helm/GitOps workflow,
     // the secret doesn't have to be checked in and could come from AWS
@@ -41,8 +36,8 @@ pub struct GitCredentialSpec {
 }
 
 /// API -> CRD
-impl From<APICredential> for GitCredential {
-    fn from(credential: APICredential) -> Self {
+impl From<WorkspaceCredentialInfo> for GitCredential {
+    fn from(credential: WorkspaceCredentialInfo) -> Self {
         let credential_name = if let Some(cid) = &credential.credential_id {
             cid.to_string()
         } else if let Some(git_username) = &credential.git_username {
@@ -68,23 +63,23 @@ impl From<APICredential> for GitCredential {
 }
 
 /// CRD -> API
-impl From<GitCredential> for APICredential {
+impl From<GitCredential> for WorkspaceCredentialInfo {
     fn from(value: GitCredential) -> Self {
         value.spec().credential.clone()
     }
 }
 
-impl RemoteAPIResource<APICredential> for GitCredential {
+impl RemoteAPIResource<WorkspaceCredentialInfo> for GitCredential {
     fn remote_list_all(
         context: Arc<Context>,
-    ) -> Pin<Box<dyn Stream<Item = Result<APICredential, DatabricksKubeError>> + Send>> {
+    ) -> Pin<Box<dyn Stream<Item = Result<WorkspaceCredentialInfo, DatabricksKubeError>> + Send>> {
         try_stream! {
-            let config = APICredential::get_rest_config(context.clone()).await.unwrap();
+            let config = WorkspaceCredentialInfo::get_rest_config(context.clone()).await.unwrap();
 
-            while let GetCredentialsResponse {
+            while let WorkspaceGetCredentialsResponse {
                 credentials,
                 ..
-            } = default_api::get_git_credential_list(&config).await? {
+            } = git_credentials_api::git_credentialslist(&config).await? {
                 if let Some(credentials) = credentials {
                     for credential in credentials {
                         yield credential;
@@ -98,7 +93,7 @@ impl RemoteAPIResource<APICredential> for GitCredential {
     fn remote_get(
         &self,
         context: Arc<Context>,
-    ) -> Pin<Box<dyn Stream<Item = Result<APICredential, DatabricksKubeError>> + Send>> {
+    ) -> Pin<Box<dyn Stream<Item = Result<WorkspaceCredentialInfo, DatabricksKubeError>> + Send>> {
         let credential_id =
             self.spec()
                 .credential
@@ -108,10 +103,8 @@ impl RemoteAPIResource<APICredential> for GitCredential {
                 ));
 
         try_stream! {
-            let config = APICredential::get_rest_config(context.clone()).await.unwrap();
-
-            let res = default_api::get_git_credential(&config, &credential_id?.to_string()).await?;
-
+            let config = WorkspaceCredentialInfo::get_rest_config(context.clone()).await.unwrap();
+            let res = git_credentials_api::git_credentialsget(&config, credential_id?).await?;
             yield res
         }
         .boxed()
@@ -124,7 +117,7 @@ impl RemoteAPIResource<APICredential> for GitCredential {
         let credential = self.spec().credential.clone();
 
         try_stream! {
-            let config = APICredential::get_rest_config(context.clone()).await.unwrap();
+            let config = WorkspaceCredentialInfo::get_rest_config(context.clone()).await.unwrap();
 
             let secret_name = self.spec().secret_name.clone().ok_or(DatabricksKubeError::SecretMissingError)?;
             log::info!("Reading secret {}", secret_name);
@@ -140,17 +133,25 @@ impl RemoteAPIResource<APICredential> for GitCredential {
                 .next()
                 .ok_or(DatabricksKubeError::SecretMissingError)?;
 
-            let new_credential = default_api::create_git_credential(
+            let WorkspaceCreateCredentialsResponse {
+                credential_id,
+                git_provider,
+                git_username
+            } = git_credentials_api::git_credentialscreate(
                 &config,
-                CreateCredentialRequest {
-                    personal_access_token,
-                    git_username: credential.git_username.unwrap(),
+                WorkspaceCreateCredentials {
+                    personal_access_token: Some(personal_access_token),
+                    git_username: credential.git_username,
                     git_provider: credential.git_provider.unwrap(),
                 }
             ).await?;
 
             let mut with_response = self.clone();
-            with_response.spec.credential = new_credential;
+            with_response.spec.credential = WorkspaceCredentialInfo {
+                credential_id,
+                git_provider,
+                git_username
+            };
             yield with_response;
         }.boxed()
     }
@@ -166,7 +167,7 @@ impl RemoteAPIResource<APICredential> for GitCredential {
         let credential_id = self.spec().credential.credential_id;
 
         try_stream! {
-            let config = APICredential::get_rest_config(context.clone()).await.unwrap();
+            let config = WorkspaceCredentialInfo::get_rest_config(context.clone()).await.unwrap();
 
             let secret_name = self.spec().secret_name.clone().ok_or(DatabricksKubeError::SecretMissingError)?;
             log::info!("Reading secret {}", secret_name);
@@ -182,14 +183,14 @@ impl RemoteAPIResource<APICredential> for GitCredential {
                 .next()
                 .ok_or(DatabricksKubeError::SecretMissingError)?;
 
-            default_api::update_git_credential(
+            git_credentials_api::git_credentialsupdate(
                 &config,
-                &credential_id.unwrap().to_string(),
-                UpdateCredentialRequest {
+                credential_id.expect("Must have credential ID for update"),
+                WorkspaceUpdateCredentials {
                     git_username: credential.git_username,
                     git_provider: credential.git_provider,
-                    personal_access_token,
-                    ..UpdateCredentialRequest::default()
+                    personal_access_token: Some(personal_access_token),
+                    ..WorkspaceUpdateCredentials::default()
                 }
             ).await?;
 
@@ -207,10 +208,10 @@ impl RemoteAPIResource<APICredential> for GitCredential {
         let credential_id = self.spec().credential.credential_id;
 
         try_stream! {
-            let config = APICredential::get_rest_config(context.clone()).await.unwrap();
-            default_api::delete_git_credential(
+            let config = WorkspaceCredentialInfo::get_rest_config(context.clone()).await.unwrap();
+            git_credentials_api::git_credentialsdelete(
                 &config,
-                &credential_id.map(|i| i.to_string()).unwrap()
+                credential_id.expect("Must have credential ID for delete")
             )
             .await?;
 

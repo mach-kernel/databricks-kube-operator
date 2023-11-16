@@ -392,13 +392,11 @@ dependencies = [
 
 [[package]]
 name = "databricks_kube"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "assert-json-diff",
  "async-stream",
- "databricks_rust_git_credentials",
- "databricks_rust_jobs",
- "databricks_rust_repos",
+ "databricks_rust_openapi",
  "env_logger",
  "flurry",
  "futures",
@@ -420,20 +418,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "databricks_rust_git_credentials"
-version = "2.1.0"
-dependencies = [
- "reqwest",
- "schemars",
- "serde",
- "serde_derive",
- "serde_json",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "databricks_rust_jobs"
+name = "databricks_rust_openapi"
 version = "2.1.0"
 dependencies = [
  "reqwest",
@@ -442,19 +427,6 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "serde_with",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "databricks_rust_repos"
-version = "2.0.0"
-dependencies = [
- "reqwest",
- "schemars",
- "serde",
- "serde_derive",
- "serde_json",
  "url",
  "uuid",
 ]
@@ -1714,9 +1686,9 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "0.8.11"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a5fb6c61f29e723026dc8e923d94c694313212abbecbbe5f55a7748eec5b307"
+checksum = "45a28f4c49489add4ce10783f7911893516f15afe45d015608d41faca6bc4d29"
 dependencies = [
  "dyn-clone",
  "schemars_derive",
@@ -1726,9 +1698,9 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "0.8.11"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f188d036977451159430f3b8dc82ec76364a42b7e289c2b18a9a18f4470058e9"
+checksum = "c767fd6fa65d9ccf9cf026122c1b555f2ef9a4f0cea69da4d7dbc3e258d30967"
 dependencies = [
  "proc-macro2",
  "quote",

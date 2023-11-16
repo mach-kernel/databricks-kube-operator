@@ -3,34 +3,14 @@ use std::fmt::{Debug, Display};
 
 use crate::context::CONFIGMAP_NAME;
 
-use databricks_rust_git_credentials::apis::Error as GitCredentialAPIError;
-use databricks_rust_jobs::apis::Error as JobsAPIError;
-use databricks_rust_repos::apis::Error as ReposAPIError;
+use databricks_rust_openapi::apis::Error as ClientError;
 use kube::runtime::finalizer::Error as KubeFinalizerError;
 
-impl<T> From<JobsAPIError<T>> for DatabricksKubeError
+impl<T> From<ClientError<T>> for DatabricksKubeError
 where
     T: Debug,
 {
-    fn from(e: JobsAPIError<T>) -> Self {
-        Self::APIError(format!("{:?}", e))
-    }
-}
-
-impl<T> From<GitCredentialAPIError<T>> for DatabricksKubeError
-where
-    T: Debug,
-{
-    fn from(e: GitCredentialAPIError<T>) -> Self {
-        Self::APIError(format!("{:?}", e))
-    }
-}
-
-impl<T> From<ReposAPIError<T>> for DatabricksKubeError
-where
-    T: Debug,
-{
-    fn from(e: ReposAPIError<T>) -> Self {
+    fn from(e: ClientError<T>) -> Self {
         Self::APIError(format!("{:?}", e))
     }
 }
