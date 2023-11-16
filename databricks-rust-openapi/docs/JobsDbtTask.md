@@ -1,0 +1,16 @@
+# JobsDbtTask
+
+## Properties
+
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**catalog** | Option<**String**> | Optional name of the catalog to use. The value is the top level in the 3-level namespace of Unity Catalog (catalog / schema / relation). The catalog value can only be specified if a warehouse_id is specified. Requires dbt-databricks >= 1.1.1. | [optional]
+**commands** | **Vec<String>** |  | 
+**profiles_directory** | Option<**String**> | Optional (relative) path to the profiles directory. Can only be specified if no warehouse_id is specified. If no warehouse_id is specified and this folder is unset, the root directory is used. | [optional]
+**project_directory** | Option<**String**> | Optional (relative) path to the project directory, if no value is provided, the root of the git repository is used. | [optional]
+**schema** | Option<**String**> | Optional schema to write to. This parameter is only used when a warehouse_id is also provided. If not provided, the `default` schema is used. | [optional]
+**warehouse_id** | Option<**String**> | ID of the SQL warehouse to connect to. If provided, we automatically generate and provide the profile and connection details to dbt. It can be overridden on a per-command basis by using the `--profiles-dir` command line argument. | [optional]
+
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

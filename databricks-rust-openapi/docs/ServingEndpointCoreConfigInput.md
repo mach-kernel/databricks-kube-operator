@@ -1,0 +1,12 @@
+# ServingEndpointCoreConfigInput
+
+## Properties
+
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**served_models** | [**Vec<crate::models::ServingServedModelInput>**](ServingServedModelInput.md) |  | 
+**traffic_config** | Option<[**crate::models::ServingTrafficConfig**](ServingTrafficConfig.md)> | The traffic config defining how invocations to the serving endpoint should be routed. | [optional]
+
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+
