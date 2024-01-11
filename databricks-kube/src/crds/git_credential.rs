@@ -99,13 +99,11 @@ impl RemoteAPIResource<APICredential> for GitCredential {
         &self,
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<APICredential, DatabricksKubeError>> + Send>> {
-        let credential_id =
-            self.spec()
-                .credential
-                .credential_id
-                .ok_or(DatabricksKubeError::APIError(
-                    "Remote resource cannot exist".to_string(),
-                ));
+        let credential_id = self
+            .spec()
+            .credential
+            .credential_id
+            .ok_or(DatabricksKubeError::IDUnsetError);
 
         try_stream! {
             let config = APICredential::get_rest_config(context.clone()).await.unwrap();
@@ -126,7 +124,7 @@ impl RemoteAPIResource<APICredential> for GitCredential {
         try_stream! {
             let config = APICredential::get_rest_config(context.clone()).await.unwrap();
 
-            let secret_name = self.spec().secret_name.clone().ok_or(DatabricksKubeError::SecretMissingError)?;
+            let secret_name = self.spec().secret_name.clone().ok_or(DatabricksKubeError::SecretMissingError("".to_string()))?;
             log::info!("Reading secret {}", secret_name);
 
             let secrets_api = Api::<Secret>::default_namespaced(context.client.clone());
@@ -138,7 +136,7 @@ impl RemoteAPIResource<APICredential> for GitCredential {
                 .flat_map(|m| m.get("personal_access_token").map(Clone::clone))
                 .flat_map(|buf| std::str::from_utf8(&buf.0).ok().map(ToString::to_string))
                 .next()
-                .ok_or(DatabricksKubeError::SecretMissingError)?;
+                .ok_or(DatabricksKubeError::SecretMissingError(secret_name))?;
 
             let new_credential = default_api::create_git_credential(
                 &config,
@@ -168,7 +166,7 @@ impl RemoteAPIResource<APICredential> for GitCredential {
         try_stream! {
             let config = APICredential::get_rest_config(context.clone()).await.unwrap();
 
-            let secret_name = self.spec().secret_name.clone().ok_or(DatabricksKubeError::SecretMissingError)?;
+            let secret_name = self.spec().secret_name.clone().ok_or(DatabricksKubeError::SecretMissingError("".to_string()))?;
             log::info!("Reading secret {}", secret_name);
 
             let secrets_api = Api::<Secret>::default_namespaced(context.client.clone());
@@ -180,7 +178,7 @@ impl RemoteAPIResource<APICredential> for GitCredential {
                 .flat_map(|m| m.get("personal_access_token").map(Clone::clone))
                 .flat_map(|buf| std::str::from_utf8(&buf.0).ok().map(ToString::to_string))
                 .next()
-                .ok_or(DatabricksKubeError::SecretMissingError)?;
+                .ok_or(DatabricksKubeError::SecretMissingError(secret_name))?;
 
             default_api::update_git_credential(
                 &config,

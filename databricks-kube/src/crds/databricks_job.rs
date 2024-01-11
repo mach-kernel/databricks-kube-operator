@@ -8,9 +8,7 @@ use crate::{
     traits::rest_config::RestConfig,
 };
 
-use databricks_rust_jobs::models::{
-    JobsRunsList200Response, RunLifeCycleState, RunState,
-};
+use databricks_rust_jobs::models::{JobsRunsList200Response, RunLifeCycleState, RunState};
 use databricks_rust_jobs::{
     apis::default_api,
     models::{
@@ -36,8 +34,6 @@ pub struct DatabricksJobStatus {
     pub latest_run_state: Option<RunState>,
 }
 
-// TODO: We added `NO_RUNS` to `RunLifeCycleState` because
-// it was the laziest way to surface this, but should probably revisit
 impl Default for DatabricksJobStatus {
     fn default() -> Self {
         Self {
@@ -180,7 +176,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
     }
 
     #[allow(irrefutable_let_patterns)]
-    fn every_reconcile_owned(
+    fn every_reconcile(
         &self,
         _: Arc<Context>,
     ) -> Pin<Box<dyn Future<Output = Result<(), DatabricksKubeError>> + Send>> {
@@ -191,13 +187,13 @@ impl RemoteAPIResource<Job> for DatabricksJob {
         &self,
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<Job, DatabricksKubeError>> + Send>> {
-        let job_id = self.spec().job.job_id;
+        let job_id = self
+            .spec()
+            .job
+            .job_id
+            .ok_or(DatabricksKubeError::IDUnsetError);
 
         try_stream! {
-            if job_id.is_none() {
-                yield Err(DatabricksKubeError::APIError("Resource does not exist".to_string()))?;
-            }
-
             let config = Job::get_rest_config(context.clone()).await.unwrap();
 
             let JobsGet200Response {
@@ -206,7 +202,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                 settings,
                 created_time,
                 ..
-            } = default_api::jobs_get(&config, job_id.unwrap()).await?;
+            } = default_api::jobs_get(&config, job_id?).await?;
 
             yield Job {
                 job_id,
@@ -273,13 +269,14 @@ impl RemoteAPIResource<Job> for DatabricksJob {
     {
         let job = self.spec().job.clone();
         let job_settings = job.settings.as_ref().cloned();
-        let job_id = self.spec().job.job_id;
+
+        let job_id = self
+            .spec()
+            .job
+            .job_id
+            .ok_or(DatabricksKubeError::IDUnsetError);
 
         try_stream! {
-            if job_id.is_none() {
-                yield Err(DatabricksKubeError::APIError("Resource does not exist".to_string()))?;
-            }
-
             let config = Job::get_rest_config(context.clone()).await.unwrap();
 
             default_api::jobs_update(
@@ -288,7 +285,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                 /// TODO: unsupported atm
                 // access_control_list: job.access_control_list
                 JobsUpdateRequest {
-                    job_id: job_id.unwrap(),
+                    job_id: job_id?,
                     new_settings: job_settings,
                     ..JobsUpdateRequest::default()
                 }
@@ -305,17 +302,18 @@ impl RemoteAPIResource<Job> for DatabricksJob {
         &self,
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<(), DatabricksKubeError>> + Send + '_>> {
-        let job_id = self.spec().job.job_id;
+        let job_id = self
+            .spec()
+            .job
+            .job_id
+            .ok_or(DatabricksKubeError::IDUnsetError);
 
         try_stream! {
-            if job_id.is_none() {
-                yield Err(DatabricksKubeError::APIError("Resource does not exist".to_string()))?;
-            }
-
             let config = Job::get_rest_config(context.clone()).await.unwrap();
+
             default_api::jobs_delete(
                 &config,
-                JobsDeleteRequest { job_id: job_id.unwrap(), }
+                JobsDeleteRequest { job_id: job_id?, }
             ).await?;
 
             yield ()

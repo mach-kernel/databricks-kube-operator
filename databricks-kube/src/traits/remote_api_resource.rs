@@ -5,7 +5,7 @@ use crate::{context::Context, error::DatabricksKubeError};
 use assert_json_diff::assert_json_matches_no_panic;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 
-use k8s_openapi::{DeepMerge, NamespaceResourceScope};
+use k8s_openapi::NamespaceResourceScope;
 
 use kube::{
     api::PostParams,
@@ -44,134 +44,91 @@ where
 {
     let mut resource = resource;
     let kube_api = Api::<TCRDType>::default_namespaced(context.client.clone());
-    let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
-
-    let op_config = context.clone().get_operator_config();
-    let mut requeue_interval_sec = 300;
-
-    if op_config.is_some() {
-        requeue_interval_sec = op_config.unwrap().default_requeue_interval.unwrap();
-    }
-
-    // todo: enum
-    let owner = resource
-        .annotations()
-        .get("databricks-operator/owner")
-        .map(Clone::clone)
-        .unwrap_or("operator".to_string());
-
-    // Create if owned
-    if (owner == "operator") && latest_remote.is_err() {
-        log::info!(
-            "Resource {} {} is missing in Databricks, creating",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked()
-        );
-
-        let created = resource
-            .remote_create(context.clone())
-            .next()
-            .await
-            .unwrap()?;
-
-        log::info!(
-            "Created {} {} in Databricks",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked()
-        );
-
-        kube_api
-            .replace(&resource.name_unchecked(), &PostParams::default(), &created)
-            .await
-            .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
-
-        log::info!(
-            "Updated {} {} in K8S",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked()
-        );
-
-        return Ok(Action::requeue(Duration::from_secs(requeue_interval_sec)));
-    }
-
-    let latest_remote = latest_remote?;
     let kube_as_api: TAPIType = resource.as_ref().clone().into();
 
-    if latest_remote != kube_as_api {
-        log::info!(
-            "Resource {} {} drifted!\nDiff (remote, kube):\n{}",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked(),
-            assert_json_matches_no_panic(
-                &latest_remote,
-                &kube_as_api,
-                assert_json_diff::Config::new(assert_json_diff::CompareMode::Strict)
-            )
-            .unwrap_err()
-        );
+    let latest_remote = resource.remote_get(context.clone()).next().await.unwrap();
+    let requeue_secs = context
+        .as_ref()
+        .get_operator_config()
+        .and_then(|c| c.default_requeue_interval)
+        .unwrap_or(300);
+
+    match latest_remote {
+        Err(DatabricksKubeError::IDUnsetError) => {
+            log::info!(
+                "Resource {} {} is missing in Databricks, creating",
+                TCRDType::api_resource().kind,
+                resource.name_unchecked()
+            );
+
+            let created = resource
+                .remote_create(context.clone())
+                .next()
+                .await
+                .unwrap()?;
+
+            log::info!(
+                "Created {} {} in Databricks",
+                TCRDType::api_resource().kind,
+                resource.name_unchecked()
+            );
+
+            kube_api
+                .replace(&resource.name_unchecked(), &PostParams::default(), &created)
+                .await
+                .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
+
+            log::info!(
+                "Updated {} {} in K8S",
+                TCRDType::api_resource().kind,
+                resource.name_unchecked()
+            );
+        }
+        Err(other) => return Err(other),
+        Ok(remote) => {
+            if remote != kube_as_api {
+                log::info!(
+                    "Resource {} {} drifted!\nDiff (remote, kube):\n{}",
+                    TCRDType::api_resource().kind,
+                    resource.name_unchecked(),
+                    assert_json_matches_no_panic(
+                        &remote,
+                        &kube_as_api,
+                        assert_json_diff::Config::new(assert_json_diff::CompareMode::Strict)
+                    )
+                    .unwrap_err()
+                );
+
+                log::info!(
+                    "Resource {} {} reconciling drift...",
+                    TCRDType::api_resource().kind,
+                    resource.name_unchecked()
+                );
+
+                let updated = resource
+                    .remote_update(context.clone())
+                    .next()
+                    .await
+                    .unwrap()?;
+
+                let replaced = kube_api
+                    .replace(&resource.name_unchecked(), &PostParams::default(), &updated)
+                    .await
+                    .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
+
+                resource = replaced.into();
+
+                log::info!(
+                    "Updated {} {} in K8S",
+                    TCRDType::api_resource().kind,
+                    resource.name_unchecked()
+                );
+            }
+        }
     }
 
-    // Push to API if operator owned, or let user know
-    if (latest_remote != kube_as_api) && (owner == "operator") {
-        log::info!(
-            "Resource {} {} is owned by databricks-kube-operator, reconciling drift...",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked()
-        );
-
-        let updated = resource
-            .remote_update(context.clone())
-            .next()
-            .await
-            .unwrap()?;
-
-        let replaced = kube_api
-            .replace(&resource.name_unchecked(), &PostParams::default(), &updated)
-            .await
-            .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
-
-        resource = replaced.into();
-
-        log::info!(
-            "Updated {} {} in K8S",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked()
-        );
-    } else if latest_remote != kube_as_api {
-        log::info!(
-            "Resource {} {} is not owned by databricks-kube-operator, updating Kubernetes object.\nTo push updates to Databricks, ensure databricks-operator/owner: operator",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked()
-        );
-
-        let mut latest_as_kube: TCRDType = latest_remote.into();
-        latest_as_kube
-            .annotations_mut()
-            .extend(resource.annotations().clone());
-        latest_as_kube
-            .labels_mut()
-            .extend(resource.labels().clone());
-        latest_as_kube
-            .meta_mut()
-            .merge_from(resource.meta().clone());
-
-        let replaced = kube_api
-            .replace(
-                &resource.name_unchecked(),
-                &PostParams::default(),
-                &latest_as_kube,
-            )
-            .await
-            .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
-
-        resource = replaced.into();
-    }
-
-    if owner == "operator" {
-        resource.every_reconcile_owned(context.clone()).await?;
-    }
-
-    Ok(Action::requeue(Duration::from_secs(requeue_interval_sec)))
+    resource.every_reconcile(context.clone()).await?;
+    Ok(Action::requeue(Duration::from_secs(requeue_secs)))
 }
 
 #[allow(dead_code)]
@@ -199,27 +156,19 @@ where
     TAPIType: Serialize,
     TAPIType: 'static,
 {
-    let owner = resource
-        .annotations()
-        .get("databricks-operator/owner")
-        .map(Clone::clone)
-        .unwrap_or("operator".to_string());
+    log::info!(
+        "Removing {} {} from Databricks",
+        TCRDType::api_resource().kind,
+        resource.name_unchecked()
+    );
 
-    if owner == "operator" {
-        log::info!(
-            "Removing {} {} from Databricks",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked()
-        );
+    resource.remote_delete(context.clone()).next().await;
 
-        resource.remote_delete(context.clone()).next().await;
-
-        log::info!(
-            "Removed {} {} from Databricks",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked()
-        );
-    }
+    log::info!(
+        "Removed {} {} from Databricks",
+        TCRDType::api_resource().kind,
+        resource.name_unchecked()
+    );
 
     Ok(Action::await_change())
 }
@@ -325,7 +274,7 @@ pub trait RemoteAPIResource<TAPIType: 'static> {
         )
     }
 
-    fn every_reconcile_owned(
+    fn every_reconcile(
         &self,
         _context: Arc<Context>,
     ) -> Pin<Box<dyn Future<Output = Result<(), DatabricksKubeError>> + Send>> {

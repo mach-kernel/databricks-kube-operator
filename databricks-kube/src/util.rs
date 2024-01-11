@@ -145,7 +145,9 @@ pub async fn ensure_api_secret(
         .flatten()
         .last()
         .flatten()
-        .ok_or(DatabricksKubeError::ConfigMapMissingError)?;
+        .ok_or(DatabricksKubeError::ConfigMapMissingError(
+            CONFIGMAP_NAME.clone(),
+        ))?;
 
     log::info!("Found API secret");
 
@@ -182,7 +184,9 @@ pub async fn ensure_configmap(cm_api: Api<ConfigMap>) -> Result<ConfigMap, Datab
         .flatten()
         .last()
         .flatten()
-        .ok_or(DatabricksKubeError::ConfigMapMissingError)?;
+        .ok_or(DatabricksKubeError::ConfigMapMissingError(
+            CONFIGMAP_NAME.clone(),
+        ))?;
 
     log::info!("Found config map");
 

@@ -91,9 +91,7 @@ impl RemoteAPIResource<APIRepo> for Repo {
             .spec()
             .repository
             .id
-            .ok_or(DatabricksKubeError::APIError(
-                "Remote resource cannot exist".to_string(),
-            ));
+            .ok_or(DatabricksKubeError::IDUnsetError);
 
         try_stream! {
             let config = APIRepo::get_rest_config(context.clone()).await.unwrap();

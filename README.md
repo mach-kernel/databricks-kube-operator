@@ -63,31 +63,52 @@ EOF
 
 ### Usage
 
-See the examples directory for samples of Databricks CRDs. Resources that are created via Kubernetes are owned by the operator: your checked-in manifests are the source of truth. It will not sync anything other than status back from the API, and overwrite changes made by users from the Databricks webapp.
-
-You may provide the `databricks-operator/owner` annotation as shown below (to be explicit). However, all resources created in Kube first (i.e. no associated API object found) are assumed to be owned by the operator.
+See the examples directory for samples of Databricks CRDs. Resources that are created via Kubernetes are owned by the operator: your checked-in manifests are the source of truth.
 
 ```yaml
 apiVersion: com.dstancu.databricks/v1
 kind: DatabricksJob
 metadata:
-  name: my-super-cool-job
+  name: my-word-count
   namespace: default
-  annotations:
-    databricks-operator/owner: operator
+spec:
+  job:
+    settings:
+      email_notifications:
+        no_alert_for_skipped_runs: false
+      format: MULTI_TASK
+      job_clusters:
+      - job_cluster_key: word-count-cluster
+        new_cluster:
+          ...
+      max_concurrent_runs: 1
+      name: my-word-count
+      git_source:
+        git_branch: misc-and-docs
+        git_provider: gitHub
+        git_url: https://github.com/mach-kernel/databricks-kube-operator
+      tasks:
+      - email_notifications: {}
+        job_cluster_key: word-count-cluster
+        notebook_task:
+          notebook_path: examples/job.py
+          source: GIT
+        task_key: my-word-count
+        timeout_seconds: 0
+      timeout_seconds: 0
 ```
 
-It is also possible to set a resource's owner to `api`, which will update the Kubernetes resource as it changes on Databricks. 
+Changes made by users in the Databricks webapp will be overwritten by the operator if drift is detected:
 
-```yaml
-apiVersion: com.dstancu.databricks/v1
-kind: DatabricksJob
-metadata:
-  annotations:
-    databricks-operator/owner: api
-  generation: 1
-  name: hello-world
-  ...
+```
+[2024-01-11T14:20:40Z INFO  databricks_kube::traits::remote_api_resource] Resource DatabricksJob my-word-count drifted!
+    Diff (remote, kube):
+    json atoms at path ".settings.tasks[0].notebook_task.notebook_path" are not equal:
+        lhs:
+            "examples/job_oops_is_this_right.py"
+        rhs:
+            "examples/job.py"
+[2024-01-11T14:20:40Z INFO  databricks_kube::traits::remote_api_resource] Resource DatabricksJob my-word-count reconciling drift...
 ```
 
 Look at jobs (allowed to be viewed by the operator's access token):
@@ -217,7 +238,6 @@ Want to add support for a new API? Provided it has an OpenAPI definition, these 
 * Download API definition into `openapi/` and make a [Rust generator configuration](https://openapi-generator.tech/docs/generators/rust/) (feel free to copy the others and change name)
 * Generate the SDK, add it to the Cargo workspace and dependencies for `databricks-kube/`
 * Implement `RestConfig<TSDKConfig>` for your new client
-* Implement `From<TSDKAPIError<E>>` for `DatabricksKubeError`
 * Define the new CRD Spec type ([follow kube-rs tutorial](https://kube.rs/getting-started/))
 * `impl RemoteAPIResource<TAPIResource> for MyNewCRD`
 * `impl StatusAPIResource<TStatusType> for MyNewCRD` and [specify `TStatusType` in your CRD](https://github.com/kube-rs/kube/blob/main/examples/crd_derive.rs#L20)
