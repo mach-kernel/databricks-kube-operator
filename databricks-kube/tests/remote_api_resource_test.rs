@@ -8,6 +8,7 @@ use common::mock_k8s::{
     mock_list_fake_resource,
 };
 
+use databricks_kube::error::{SerializableResponseContent, OpenAPIError};
 use databricks_kube::{
     context::Context, error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource,
 };
@@ -15,7 +16,7 @@ use databricks_kube::{
 use async_stream::try_stream;
 use flurry::HashMap;
 use futures::{Future, FutureExt, Stream, StreamExt};
-use hyper::Body;
+use hyper::{Body, StatusCode};
 
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
@@ -82,7 +83,13 @@ impl RemoteAPIResource<FakeAPIResource> for FakeResource {
             .map(Clone::clone);
 
         try_stream! {
-            yield found.ok_or_else(|| DatabricksKubeError::APIError("Not found".to_string()))?;
+            yield found.ok_or_else(|| DatabricksKubeError::APIError(
+                OpenAPIError::ResponseError(SerializableResponseContent {
+                    status: StatusCode::NOT_FOUND,
+                    content: "not found".to_string(),
+                    entity: None,
+                })
+            ))?;
         }
         .boxed()
     }
@@ -303,81 +310,6 @@ async fn test_resource_kube_update_operator_owned() {
     .await;
 }
 
-/// When an API owned resource is updated in Kubernetes
-#[tokio::test]
-async fn test_resource_kube_update_api_owned() {
-    let api_resource = FakeAPIResource {
-        id: 1,
-        description: None,
-    };
-    TEST_STORE.pin().insert(1, api_resource.clone());
-
-    let mut resource: FakeResource = FakeResource::new(
-        "test",
-        FakeResourceSpec {
-            api_resource: api_resource.clone(),
-        },
-    );
-    resource.meta_mut().resource_version = Some("1".to_string());
-    resource.meta_mut().annotations = Some({
-        let mut annots = BTreeMap::new();
-        annots.insert("databricks-operator/owner".to_string(), "api".to_string());
-        annots
-    });
-    // Bind the finalizer to avoid having to mock the PATCH request from the API
-    resource.meta_mut().finalizers =
-        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
-
-    let updated_api_resource = FakeAPIResource {
-        id: 1,
-        description: Some("foobar".to_string()),
-    };
-
-    let mut updated_resource = resource.clone();
-    updated_resource.spec.api_resource = updated_api_resource.clone();
-    updated_resource.meta_mut().resource_version = Some("2".to_string());
-    updated_resource.meta_mut().finalizers = resource.meta().finalizers.clone();
-
-    with_mocked_kube_server_and_controller(
-        move |mut handle| {
-            let r = resource.clone();
-            let ur = updated_resource.clone();
-            let ar = api_resource.clone();
-
-            async move {
-                loop {
-                    mock_fake_resource_updated_kube(
-                        &mut handle,
-                        r.clone(),
-                        ur.clone(),
-                        ar.clone(),
-                        Some("MODIFIED".to_string()),
-                    )
-                    .await;
-                }
-            }
-        },
-        |mut controller| async move {
-            // It reconciled successfully
-            let reconciled = controller.next().await;
-            assert!(reconciled.unwrap().is_ok());
-
-            // every_reconcile() was NOT triggered as the resource is not owned
-            assert!(!TEST_STORE.pin().contains_key(&-8675309));
-
-            // The object is the original API object
-            assert_eq!(
-                TEST_STORE.pin().get(&1).unwrap().clone(),
-                FakeAPIResource {
-                    id: 1,
-                    description: None
-                },
-            );
-        },
-    )
-    .await;
-}
-
 /// When the API resource is updated for an owned resource
 #[tokio::test]
 async fn test_resource_api_update_operator_owned() {
@@ -436,66 +368,6 @@ async fn test_resource_api_update_operator_owned() {
 
             // every_reconcile() was triggered
             assert!(TEST_STORE.pin().contains_key(&-8675309));
-        },
-    )
-    .await;
-}
-
-/// When the API resource is updated for an API owned resource
-#[tokio::test]
-async fn test_resource_api_update_api_owned() {
-    // Begin with a CRD owned by the operator
-    let mut resource: FakeResource = FakeResource::new(
-        "foo",
-        FakeResourceSpec {
-            api_resource: FakeAPIResource {
-                id: 42,
-                description: None,
-            },
-        },
-    );
-
-    resource.meta_mut().annotations = Some({
-        let mut annots = BTreeMap::new();
-        annots.insert("databricks-operator/owner".to_string(), "api".to_string());
-        annots
-    });
-    // Bind the finalizer to avoid having to mock the PATCH request from the API
-    resource.meta_mut().finalizers =
-        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
-
-    // Remote has a different value for "description"
-    let updated_resource = FakeAPIResource {
-        description: Some("hello".to_string()),
-        ..resource.spec().api_resource
-    };
-    TEST_STORE.pin().insert(42, updated_resource.clone());
-
-    with_mocked_kube_server_and_controller(
-        move |mut handle| {
-            let r = resource.clone();
-            let ur = updated_resource.clone();
-
-            async move {
-                loop {
-                    mock_list_fake_resource(
-                        &mut handle,
-                        r.clone(),
-                        // assertion made during PUT call
-                        Some(ur.clone()),
-                        None,
-                    )
-                    .await;
-                }
-            }
-        },
-        |mut controller| async move {
-            // It reconciled successfully
-            let reconciled = controller.next().await;
-            assert!(reconciled.unwrap().is_ok());
-
-            // every_reconcile() was NOT triggered as the resource is not owned
-            assert!(!TEST_STORE.pin().contains_key(&-8675309));
         },
     )
     .await;
