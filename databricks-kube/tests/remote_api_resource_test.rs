@@ -8,7 +8,6 @@ use common::mock_k8s::{
     mock_list_fake_resource,
 };
 
-use databricks_kube::error::{SerializableResponseContent, OpenAPIError};
 use databricks_kube::{
     context::Context, error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIResource,
 };
@@ -16,7 +15,7 @@ use databricks_kube::{
 use async_stream::try_stream;
 use flurry::HashMap;
 use futures::{Future, FutureExt, Stream, StreamExt};
-use hyper::{Body, StatusCode};
+use hyper::Body;
 
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;

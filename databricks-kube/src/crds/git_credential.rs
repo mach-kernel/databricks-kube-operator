@@ -99,11 +99,11 @@ impl RemoteAPIResource<APICredential> for GitCredential {
         &self,
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<APICredential, DatabricksKubeError>> + Send>> {
-        let credential_id =
-            self.spec()
-                .credential
-                .credential_id
-                .ok_or(DatabricksKubeError::IDUnsetError);
+        let credential_id = self
+            .spec()
+            .credential
+            .credential_id
+            .ok_or(DatabricksKubeError::IDUnsetError);
 
         try_stream! {
             let config = APICredential::get_rest_config(context.clone()).await.unwrap();
