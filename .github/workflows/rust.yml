@@ -55,11 +55,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: crd_gen
           path: target/release/crd_gen
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: databricks_kube
           path: target/release/databricks_kube
