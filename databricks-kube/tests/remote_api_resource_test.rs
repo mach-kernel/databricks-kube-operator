@@ -59,7 +59,7 @@ impl RemoteAPIResource<FakeAPIResource> for FakeResource {
         .boxed()
     }
 
-    fn every_reconcile_owned(
+    fn every_reconcile(
         &self,
         _context: Arc<Context>,
     ) -> Pin<Box<dyn futures::Future<Output = Result<(), DatabricksKubeError>> + Send>> {

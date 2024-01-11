@@ -103,9 +103,7 @@ impl RemoteAPIResource<APICredential> for GitCredential {
             self.spec()
                 .credential
                 .credential_id
-                .ok_or(DatabricksKubeError::ControllerError(
-                    "Cannot fetch remote resource when credential_id is undefined".to_string(),
-                ));
+                .ok_or(DatabricksKubeError::IDUnsetError);
 
         try_stream! {
             let config = APICredential::get_rest_config(context.clone()).await.unwrap();

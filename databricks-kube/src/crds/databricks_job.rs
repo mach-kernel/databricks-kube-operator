@@ -34,8 +34,6 @@ pub struct DatabricksJobStatus {
     pub latest_run_state: Option<RunState>,
 }
 
-// TODO: We added `NO_RUNS` to `RunLifeCycleState` because
-// it was the laziest way to surface this, but should probably revisit
 impl Default for DatabricksJobStatus {
     fn default() -> Self {
         Self {
@@ -178,7 +176,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
     }
 
     #[allow(irrefutable_let_patterns)]
-    fn every_reconcile_owned(
+    fn every_reconcile(
         &self,
         _: Arc<Context>,
     ) -> Pin<Box<dyn Future<Output = Result<(), DatabricksKubeError>> + Send>> {
@@ -193,9 +191,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
             .spec()
             .job
             .job_id
-            .ok_or(DatabricksKubeError::ControllerError(
-                "Cannot fetch remote resource when job_id is undefined".to_string(),
-            ));
+            .ok_or(DatabricksKubeError::IDUnsetError);
 
         try_stream! {
             let config = Job::get_rest_config(context.clone()).await.unwrap();
@@ -278,9 +274,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
             .spec()
             .job
             .job_id
-            .ok_or(DatabricksKubeError::ControllerError(
-                "Cannot fetch remote resource when job_id is undefined".to_string(),
-            ));
+            .ok_or(DatabricksKubeError::IDUnsetError);
 
         try_stream! {
             let config = Job::get_rest_config(context.clone()).await.unwrap();
@@ -312,9 +306,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
             .spec()
             .job
             .job_id
-            .ok_or(DatabricksKubeError::ControllerError(
-                "Cannot fetch remote resource when job_id is undefined".to_string(),
-            ));
+            .ok_or(DatabricksKubeError::IDUnsetError);
 
         try_stream! {
             let config = Job::get_rest_config(context.clone()).await.unwrap();

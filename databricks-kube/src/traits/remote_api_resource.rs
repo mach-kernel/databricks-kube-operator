@@ -5,7 +5,7 @@ use crate::{context::Context, error::DatabricksKubeError};
 use assert_json_diff::assert_json_matches_no_panic;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 
-use k8s_openapi::{DeepMerge, NamespaceResourceScope};
+use k8s_openapi::NamespaceResourceScope;
 
 use kube::{
     api::PostParams,
@@ -15,7 +15,6 @@ use kube::{
     Api, CustomResourceExt, Resource, ResourceExt,
 };
 
-use databricks_rust_jobs::apis::Error::Reqwest;
 use serde::{de::DeserializeOwned, Serialize};
 
 #[allow(dead_code)]
@@ -55,9 +54,7 @@ where
         .unwrap_or(300);
 
     match latest_remote {
-        Err(DatabricksKubeError::APIError(oae)) => {
-            log::info!("open api error! {}", oae);
-
+        Err(DatabricksKubeError::IDUnsetError) => {
             log::info!(
                 "Resource {} {} is missing in Databricks, creating",
                 TCRDType::api_resource().kind,
@@ -87,9 +84,7 @@ where
                 resource.name_unchecked()
             );
         }
-        Err(e) => {
-            panic!("rip")
-        }
+        Err(other) => return Err(other),
         Ok(remote) => {
             if remote != kube_as_api {
                 log::info!(
@@ -132,8 +127,7 @@ where
         }
     }
 
-    resource.every_reconcile_owned(context.clone()).await?;
-
+    resource.every_reconcile(context.clone()).await?;
     Ok(Action::requeue(Duration::from_secs(requeue_secs)))
 }
 
@@ -162,27 +156,19 @@ where
     TAPIType: Serialize,
     TAPIType: 'static,
 {
-    let owner = resource
-        .annotations()
-        .get("databricks-operator/owner")
-        .map(Clone::clone)
-        .unwrap_or("operator".to_string());
+    log::info!(
+        "Removing {} {} from Databricks",
+        TCRDType::api_resource().kind,
+        resource.name_unchecked()
+    );
 
-    if owner == "operator" {
-        log::info!(
-            "Removing {} {} from Databricks",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked()
-        );
+    resource.remote_delete(context.clone()).next().await;
 
-        resource.remote_delete(context.clone()).next().await;
-
-        log::info!(
-            "Removed {} {} from Databricks",
-            TCRDType::api_resource().kind,
-            resource.name_unchecked()
-        );
-    }
+    log::info!(
+        "Removed {} {} from Databricks",
+        TCRDType::api_resource().kind,
+        resource.name_unchecked()
+    );
 
     Ok(Action::await_change())
 }
@@ -288,7 +274,7 @@ pub trait RemoteAPIResource<TAPIType: 'static> {
         )
     }
 
-    fn every_reconcile_owned(
+    fn every_reconcile(
         &self,
         _context: Arc<Context>,
     ) -> Pin<Box<dyn Future<Output = Result<(), DatabricksKubeError>> + Send>> {

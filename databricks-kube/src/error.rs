@@ -1,9 +1,6 @@
-use databricks_rust_jobs::models::Job;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, to_value};
-use std::any::Any;
+use serde::Serialize;
+use serde_json::to_value;
 use std::fmt::{Debug, Display};
-use std::sync::Arc;
 use thiserror::Error;
 
 use databricks_rust_git_credentials::apis::{
@@ -141,11 +138,11 @@ pub enum DatabricksKubeError {
     )]
     CRDMissingError(String),
 
-    #[error("Secret {0} is missing")]
-    SecretMissingError(String),
+    #[error("Finalizer error: {0}")]
+    FinalizerError(String),
 
-    #[error("Shutdown requested: {0}")]
-    Shutdown(String),
+    #[error("The resource ID is unset")]
+    IDUnsetError,
 
     #[error("Unable to update resource for: {0}")]
     ResourceUpdateError(String),
@@ -153,6 +150,9 @@ pub enum DatabricksKubeError {
     #[error("Unable to get resource status for: {0}")]
     ResourceStatusError(String),
 
-    #[error("Finalizer error: {0}")]
-    FinalizerError(String),
+    #[error("Secret {0} is missing")]
+    SecretMissingError(String),
+
+    #[error("Shutdown requested: {0}")]
+    Shutdown(String),
 }

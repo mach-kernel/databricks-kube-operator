@@ -91,9 +91,7 @@ impl RemoteAPIResource<APIRepo> for Repo {
             .spec()
             .repository
             .id
-            .ok_or(DatabricksKubeError::ControllerError(
-                "Cannot fetch remote resource when repository_id is undefined".to_string(),
-            ));
+            .ok_or(DatabricksKubeError::IDUnsetError);
 
         try_stream! {
             let config = APIRepo::get_rest_config(context.clone()).await.unwrap();
