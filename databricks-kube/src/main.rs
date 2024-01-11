@@ -65,10 +65,11 @@ async fn main() -> Result<(), DatabricksKubeError> {
     log::info!("boot! (build: {})", git_version!());
 
     let kube_client = Client::try_default().await.expect("Must create client");
+    log::info!("Client namespace {}", kube_client.default_namespace());
 
     let cm_api = Api::<ConfigMap>::default_namespaced(kube_client.clone());
     let crd_api = Api::<CustomResourceDefinition>::all(kube_client.clone());
-    let secret_api = Api::<Secret>::all(kube_client.clone());
+    let secret_api = Api::<Secret>::default_namespaced(kube_client.clone());
 
     ensure_crd("databricksjobs.com.dstancu.databricks", crd_api.clone()).await?;
     ensure_crd("gitcredentials.com.dstancu.databricks", crd_api.clone()).await?;
