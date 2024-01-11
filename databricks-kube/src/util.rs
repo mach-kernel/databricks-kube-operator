@@ -145,9 +145,7 @@ pub async fn ensure_api_secret(
         .flatten()
         .last()
         .flatten()
-        .ok_or(DatabricksKubeError::ConfigMapMissingError(
-            CONFIGMAP_NAME.clone(),
-        ))?;
+        .ok_or(DatabricksKubeError::SecretMissingError(api_secret_name))?;
 
     log::info!("Found API secret");
 
