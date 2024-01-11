@@ -27,11 +27,11 @@ jobs:
         with:
           command: build
           args: --release --all-features
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: crd_gen
           path: target/release/crd_gen
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: databricks_kube
           path: target/release/databricks_kube
