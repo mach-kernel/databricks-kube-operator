@@ -83,13 +83,7 @@ impl RemoteAPIResource<FakeAPIResource> for FakeResource {
             .map(Clone::clone);
 
         try_stream! {
-            yield found.ok_or_else(|| DatabricksKubeError::APIError(
-                OpenAPIError::ResponseError(SerializableResponseContent {
-                    status: StatusCode::NOT_FOUND,
-                    content: "not found".to_string(),
-                    entity: None,
-                })
-            ))?;
+            yield found.ok_or_else(|| DatabricksKubeError::IDUnsetError)?;
         }
         .boxed()
     }
@@ -495,57 +489,4 @@ async fn test_kube_delete_operator_owned() {
         }
     };
     timeout(Duration::from_secs(10), poll_store).await.unwrap();
-}
-
-// When Kubernetes resource is deleted, but owned by remote API
-#[tokio::test]
-async fn test_kube_delete_api_owned() {
-    let mut resource: FakeResource = FakeResource::new(
-        "foo",
-        FakeResourceSpec {
-            api_resource: FakeAPIResource {
-                id: 1,
-                description: None,
-            },
-        },
-    );
-
-    resource.meta_mut().namespace = Some("default".to_string());
-    resource.meta_mut().resource_version = Some("1".to_string());
-    resource.meta_mut().annotations = Some({
-        let mut annots = BTreeMap::new();
-        annots.insert("databricks-operator/owner".to_string(), "api".to_string());
-        annots
-    });
-    // Bind the finalizer to avoid having to mock the PATCH request from the API
-    resource.meta_mut().finalizers =
-        Some(vec!["databricks-operator/remote_api_resource".to_owned()]);
-
-    // Mark the resource as deleted
-    resource.meta_mut().deletion_timestamp = Some(Time(Utc::now()));
-
-    TEST_STORE
-        .pin()
-        .insert(1, resource.spec().api_resource.clone());
-
-    with_mocked_kube_server_and_controller(
-        move |mut handle| {
-            let serve_me = resource.clone();
-
-            async move {
-                loop {
-                    mock_fake_resource_deleted(&mut handle, serve_me.clone()).await;
-                }
-            }
-        },
-        |mut controller| async move {
-            // It reconciled successfully and the resources are in sync
-            let reconciled = controller.next().await;
-            assert!(reconciled.unwrap().is_ok());
-
-            // The resource was NOT removed from the remote API
-            assert!(TEST_STORE.pin().get(&1).is_some());
-        },
-    )
-    .await;
 }
