@@ -1651,6 +1651,19 @@ components:
             by using the [List node
             types](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-node-types)
             API call.
+        data_security_mode:
+          description: Data security mode decides what data governance model to use when accessing data from a cluster.
+          enum:
+            - NONE
+            - SINGLE_USER
+            - USER_ISOLATION
+            - LEGACY_TABLE_ACL
+            - LEGACY_PASSTHROUGH
+            - LEGACY_SINGLE_USER
+          type: string
+        single_user_name:
+          description: Single user name if data_security_mode is SINGLE_USER
+          type: string
         driver_node_type_id:
           type: string
           description: >-
@@ -2979,16 +2992,6 @@ components:
           description: >-
             Cluster name requested by the user. This doesn’t have to be unique.
             If not specified at creation, the cluster name is an empty string.
-        data_security_mode:
-          description: This describes an enum
-          enum:
-            - NONE
-            - SINGLE_USER
-            - USER_ISOLATION
-            - LEGACY_TABLE_ACL
-            - LEGACY_PASSTHROUGH
-            - LEGACY_SINGLE_USER
-          type: string
         spark_version:
           type: string
           description: >-

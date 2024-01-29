@@ -15,7 +15,7 @@ use schemars::JsonSchema;
 
 #[derive(JsonSchema, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct JobSettingsQueue {
-    #[serde(rename = "enabled", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "enabled")]
     pub enabled: Option<bool>,
 }
 
@@ -23,7 +23,15 @@ impl JobSettingsQueue {
     /// The queue settings of the job.
     pub fn new() -> JobSettingsQueue {
         JobSettingsQueue {
-            enabled: None,
+            enabled: Some(false),
+        }
+    }
+}
+
+impl Default for JobSettingsQueue {
+    fn default() -> Self {
+        JobSettingsQueue {
+            enabled: Some(false),
         }
     }
 }

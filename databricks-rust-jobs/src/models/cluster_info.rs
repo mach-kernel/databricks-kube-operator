@@ -39,9 +39,6 @@ pub struct ClusterInfo {
     /// Cluster name requested by the user. This doesn’t have to be unique. If not specified at creation, the cluster name is an empty string.
     #[serde(rename = "cluster_name", skip_serializing_if = "Option::is_none")]
     pub cluster_name: Option<String>,
-    /// This describes an enum
-    #[serde(rename = "data_security_mode", skip_serializing_if = "Option::is_none")]
-    pub data_security_mode: Option<DataSecurityMode>,
     /// The runtime version of the cluster. You can retrieve a list of available runtime versions by using the [Runtime versions](https://docs.databricks.com/dev-tools/api/latest/clusters.html#runtime-versions) API call.
     #[serde(rename = "spark_version", skip_serializing_if = "Option::is_none")]
     pub spark_version: Option<String>,
@@ -127,7 +124,6 @@ impl ClusterInfo {
             spark_context_id: None,
             jdbc_port: None,
             cluster_name: None,
-            data_security_mode: None,
             spark_version: None,
             spark_conf: None,
             aws_attributes: None,
@@ -158,26 +154,4 @@ impl ClusterInfo {
     }
 }
 
-/// This describes an enum
-#[derive(JsonSchema, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum DataSecurityMode {
-    #[serde(rename = "NONE")]
-    None,
-    #[serde(rename = "SINGLE_USER")]
-    SingleUser,
-    #[serde(rename = "USER_ISOLATION")]
-    UserIsolation,
-    #[serde(rename = "LEGACY_TABLE_ACL")]
-    LegacyTableAcl,
-    #[serde(rename = "LEGACY_PASSTHROUGH")]
-    LegacyPassthrough,
-    #[serde(rename = "LEGACY_SINGLE_USER")]
-    LegacySingleUser,
-}
-
-impl Default for DataSecurityMode {
-    fn default() -> DataSecurityMode {
-        Self::None
-    }
-}
 

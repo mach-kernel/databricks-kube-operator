@@ -31,6 +31,12 @@ pub struct NewTaskCluster {
     /// This field encodes, through a single value, the resources available to each of the Spark nodes in this cluster. For example, the Spark nodes can be provisioned and optimized for memory or compute intensive workloads A list of available node types can be retrieved by using the [List node types](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-node-types) API call.
     #[serde(rename = "node_type_id", skip_serializing_if = "Option::is_none")]
     pub node_type_id: Option<String>,
+    /// Data security mode decides what data governance model to use when accessing data from a cluster.
+    #[serde(rename = "data_security_mode", skip_serializing_if = "Option::is_none")]
+    pub data_security_mode: Option<DataSecurityMode>,
+    /// Single user name if data_security_mode is SINGLE_USER
+    #[serde(rename = "single_user_name", skip_serializing_if = "Option::is_none")]
+    pub single_user_name: Option<String>,
     /// The node type of the Spark driver. This field is optional; if unset, the driver node type is set as the same value as `node_type_id` defined above.
     #[serde(rename = "driver_node_type_id", skip_serializing_if = "Option::is_none")]
     pub driver_node_type_id: Option<String>,
@@ -80,6 +86,8 @@ impl NewTaskCluster {
             spark_conf: None,
             aws_attributes: None,
             node_type_id: None,
+            data_security_mode: None,
+            single_user_name: None,
             driver_node_type_id: None,
             ssh_public_keys: None,
             custom_tags: None,
@@ -97,4 +105,26 @@ impl NewTaskCluster {
     }
 }
 
+/// Data security mode decides what data governance model to use when accessing data from a cluster.
+#[derive(JsonSchema, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum DataSecurityMode {
+    #[serde(rename = "NONE")]
+    None,
+    #[serde(rename = "SINGLE_USER")]
+    SingleUser,
+    #[serde(rename = "USER_ISOLATION")]
+    UserIsolation,
+    #[serde(rename = "LEGACY_TABLE_ACL")]
+    LegacyTableAcl,
+    #[serde(rename = "LEGACY_PASSTHROUGH")]
+    LegacyPassthrough,
+    #[serde(rename = "LEGACY_SINGLE_USER")]
+    LegacySingleUser,
+}
+
+impl Default for DataSecurityMode {
+    fn default() -> DataSecurityMode {
+        Self::None
+    }
+}
 
