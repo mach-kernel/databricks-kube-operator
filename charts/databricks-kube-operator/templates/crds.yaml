@@ -262,6 +262,17 @@ spec:
                                   description: 'An object with key value pairs. The key length must be between 1 and 127 UTF-8 characters, inclusive. The value length must be less than or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag Restrictions: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>'
                                   nullable: true
                                   type: object
+                                data_security_mode:
+                                  description: Data security mode decides what data governance model to use when accessing data from a cluster.
+                                  enum:
+                                  - NONE
+                                  - SINGLE_USER
+                                  - USER_ISOLATION
+                                  - LEGACY_TABLE_ACL
+                                  - LEGACY_PASSTHROUGH
+                                  - LEGACY_SINGLE_USER
+                                  nullable: true
+                                  type: string
                                 docker_image:
                                   nullable: true
                                   properties:
@@ -374,6 +385,10 @@ spec:
                                   description: 'The type of runtime engine to use. If not specified, the runtime engine type is inferred based on the `spark_version` value. Allowed values include:  * `PHOTON`: Use the Photon runtime engine type. * `STANDARD`: Use the standard runtime engine type.  This field is optional.'
                                   nullable: true
                                   type: string
+                                single_user_name:
+                                  description: Single user name if data_security_mode is SINGLE_USER
+                                  nullable: true
+                                  type: string
                                 spark_conf:
                                   additionalProperties: true
                                   description: An arbitrary object where the object key is a configuration propery name and the value is a configuration property value.
@@ -410,6 +425,14 @@ spec:
                         description: An optional name for the job.
                         nullable: true
                         type: string
+                      queue:
+                        description: 'JobSettingsQueue : The queue settings of the job.'
+                        nullable: true
+                        properties:
+                          enabled:
+                            nullable: true
+                            type: boolean
+                        type: object
                       schedule:
                         nullable: true
                         properties:
@@ -716,6 +739,17 @@ spec:
                                   description: 'An object with key value pairs. The key length must be between 1 and 127 UTF-8 characters, inclusive. The value length must be less than or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag Restrictions: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>'
                                   nullable: true
                                   type: object
+                                data_security_mode:
+                                  description: Data security mode decides what data governance model to use when accessing data from a cluster.
+                                  enum:
+                                  - NONE
+                                  - SINGLE_USER
+                                  - USER_ISOLATION
+                                  - LEGACY_TABLE_ACL
+                                  - LEGACY_PASSTHROUGH
+                                  - LEGACY_SINGLE_USER
+                                  nullable: true
+                                  type: string
                                 docker_image:
                                   nullable: true
                                   properties:
@@ -826,6 +860,10 @@ spec:
                                   type: string
                                 runtime_engine:
                                   description: 'The type of runtime engine to use. If not specified, the runtime engine type is inferred based on the `spark_version` value. Allowed values include:  * `PHOTON`: Use the Photon runtime engine type. * `STANDARD`: Use the standard runtime engine type.  This field is optional.'
+                                  nullable: true
+                                  type: string
+                                single_user_name:
+                                  description: Single user name if data_security_mode is SINGLE_USER
                                   nullable: true
                                   type: string
                                 spark_conf:
@@ -1275,4 +1313,6 @@ spec:
     served: true
     storage: true
     subresources: {}
+
+
 {{- end -}}
