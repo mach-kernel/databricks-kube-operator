@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **spark_context_id** | Option<**i64**> | A canonical SparkContext identifier. This value _does_ change when the Spark driver restarts. The pair `(cluster_id, spark_context_id)` is a globally unique identifier over all Spark contexts. | [optional]
 **jdbc_port** | Option<**i32**> | Port on which Spark JDBC server is listening in the driver node. No service listens on this port in executor nodes. | [optional]
 **cluster_name** | Option<**String**> | Cluster name requested by the user. This doesn’t have to be unique. If not specified at creation, the cluster name is an empty string. | [optional]
+**data_security_mode** | Option<**String**> | This describes an enum | [optional]
 **spark_version** | Option<**String**> | The runtime version of the cluster. You can retrieve a list of available runtime versions by using the [Runtime versions](https://docs.databricks.com/dev-tools/api/latest/clusters.html#runtime-versions) API call. | [optional]
 **spark_conf** | Option<[**::std::collections::HashMap<String, serde_json::Value>**](serde_json::Value.md)> | An arbitrary object where the object key is a configuration propery name and the value is a configuration property value. | [optional]
 **aws_attributes** | Option<[**crate::models::AwsAttributes**](AwsAttributes.md)> |  | [optional]

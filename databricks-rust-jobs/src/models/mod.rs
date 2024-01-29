@@ -80,6 +80,8 @@ pub mod job_email_notifications;
 pub use self::job_email_notifications::JobEmailNotifications;
 pub mod job_settings;
 pub use self::job_settings::JobSettings;
+pub mod job_settings_queue;
+pub use self::job_settings_queue::JobSettingsQueue;
 pub mod job_task;
 pub use self::job_task::JobTask;
 pub mod job_task_settings;

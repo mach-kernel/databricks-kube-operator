@@ -87,6 +87,7 @@ Class | Method | HTTP request | Description
  - [JobCluster](docs/JobCluster.md)
  - [JobEmailNotifications](docs/JobEmailNotifications.md)
  - [JobSettings](docs/JobSettings.md)
+ - [JobSettingsQueue](docs/JobSettingsQueue.md)
  - [JobTask](docs/JobTask.md)
  - [JobTaskSettings](docs/JobTaskSettings.md)
  - [JobsCreate200Response](docs/JobsCreate200Response.md)
