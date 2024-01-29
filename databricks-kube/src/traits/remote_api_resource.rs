@@ -1,6 +1,6 @@
 use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
 
-use crate::{context::Context, error::DatabricksKubeError};
+use crate::{context::Context, error::{DatabricksKubeError, OpenAPIError}};
 
 use assert_json_diff::assert_json_matches_no_panic;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
@@ -55,6 +55,37 @@ where
 
     match latest_remote {
         Err(DatabricksKubeError::IDUnsetError) => {
+            log::info!(
+                "Resource {} {} does not have an ID set, creating...",
+                TCRDType::api_resource().kind,
+                resource.name_unchecked()
+            );
+
+            let created = resource
+                .remote_create(context.clone())
+                .next()
+                .await
+                .unwrap()?;
+
+            log::info!(
+                "Created {} {} in Databricks",
+                TCRDType::api_resource().kind,
+                resource.name_unchecked()
+            );
+
+            kube_api
+                .replace(&resource.name_unchecked(), &PostParams::default(), &created)
+                .await
+                .map_err(|e| DatabricksKubeError::ResourceUpdateError(e.to_string()))?;
+
+            log::info!(
+                "Updated {} {} in K8S",
+                TCRDType::api_resource().kind,
+                resource.name_unchecked()
+            );
+        },
+        // TODO: stricter assertion that doesn't rely on dbx error presentation
+        Err(DatabricksKubeError::APIError(OpenAPIError::ResponseError(re))) if re.status == 400 && re.content.contains("does not exist") => {
             log::info!(
                 "Resource {} {} is missing in Databricks, creating",
                 TCRDType::api_resource().kind,
