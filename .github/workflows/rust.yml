@@ -11,22 +11,33 @@ jobs:
         with:
           api-key: ${{secrets.FOSSA_API_KEY}}
   test:
-    name: Build, test (x86)
+    name: Test (x86)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
+      - uses: houseabsolute/actions-rust-cross@v0
         with:
-          command: test
-          args: -- --test-threads=1
-      - uses: actions-rs/cargo@v1
+          command: "test"
+          toolchain: stable
+          args: "--test-threads=1"
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+    strategy: 
+      matrix:
+        target: [ aarch64-unknown-linux-gnu, x86_64-unknown-linux-gnu ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
         with:
-          command: build
-          args: --release --all-features
+          command: "build"
+          target: ${{ matrix.target }}
+          toolchain: stable
+          args: "--locked --release --all-features"
+          strip: true
       - uses: actions/upload-artifact@v4
         with:
           name: crd_gen
@@ -34,11 +45,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: databricks_kube
-          path: target/release/databricks_kube
-  publish_image:
+          path: target/release/databricks_kube 
+  publish:
     name: Docker
     runs-on: ubuntu-latest
-    needs: test
+    needs: build
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v4
@@ -48,6 +59,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Docker meta
@@ -68,5 +83,6 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/amd64, linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
