@@ -1203,6 +1203,14 @@ components:
             cluster as cluster tags for jobs clusters, and are subject to the
             same limitations as cluster tags. A maximum of 25 tags can be added
             to the job.
+        queue:
+          type: object
+          description: The queue settings of the job.
+          example:
+            enabled: true
+          properties:
+            enabled:
+              type: boolean
         tasks:
           type: array
           maxItems: 100
@@ -1643,6 +1651,19 @@ components:
             by using the [List node
             types](https://docs.databricks.com/dev-tools/api/latest/clusters.html#list-node-types)
             API call.
+        data_security_mode:
+          description: Data security mode decides what data governance model to use when accessing data from a cluster.
+          enum:
+            - NONE
+            - SINGLE_USER
+            - USER_ISOLATION
+            - LEGACY_TABLE_ACL
+            - LEGACY_PASSTHROUGH
+            - LEGACY_SINGLE_USER
+          type: string
+        single_user_name:
+          description: Single user name if data_security_mode is SINGLE_USER
+          type: string
         driver_node_type_id:
           type: string
           description: >-

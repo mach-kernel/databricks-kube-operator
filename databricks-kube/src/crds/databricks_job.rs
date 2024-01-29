@@ -244,6 +244,7 @@ impl RemoteAPIResource<Job> for DatabricksJob {
                     git_source: job_settings.git_source,
                     format: job_settings.format.map(job_settings_to_create_format),
                     continuous: job_settings.continuous,
+                    queue: job_settings.queue,
                     ..JobsCreateRequest::default()
                 }
             ).await?;

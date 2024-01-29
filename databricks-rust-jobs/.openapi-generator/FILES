@@ -45,6 +45,7 @@ docs/Job.md
 docs/JobCluster.md
 docs/JobEmailNotifications.md
 docs/JobSettings.md
+docs/JobSettingsQueue.md
 docs/JobTask.md
 docs/JobTaskSettings.md
 docs/JobsCreate200Response.md
@@ -176,6 +177,7 @@ src/models/job.rs
 src/models/job_cluster.rs
 src/models/job_email_notifications.rs
 src/models/job_settings.rs
+src/models/job_settings_queue.rs
 src/models/job_task.rs
 src/models/job_task_settings.rs
 src/models/jobs_create_200_response.rs
