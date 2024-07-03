@@ -12,3 +12,7 @@ nodeSelector:
   kubernetes.io/arch: amd64
 resources: {}
 affinity: {}
+
+serviceAccount:
+  create: true
+  name: "databricks-kube-operator"

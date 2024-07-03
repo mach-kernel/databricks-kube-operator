@@ -1,14 +1,15 @@
+{{- $svcAccount := include "databricks-kube-operator.serviceAccountName" . }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: databricks-kube-operator
+  name: "{{ $svcAccount }}"
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: databricks-kube-operator
+  name: {{ .Release.Name }}
   namespace: {{ .Release.Namespace }}
 rules:
   - apiGroups:
@@ -37,13 +38,13 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: databricks-kube-operator
+  name: {{ .Release.Name }}
   namespace: {{ .Release.Namespace }}
 subjects:
 - namespace: {{ .Release.Namespace }}
   kind: ServiceAccount
-  name: databricks-kube-operator
+  name: "{{ $svcAccount }}"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: databricks-kube-operator
+  name: {{ .Release.Name }}
