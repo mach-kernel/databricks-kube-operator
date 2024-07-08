@@ -1,4 +1,3 @@
-{{- $svcAccount := include "databricks-kube-operator.serviceAccountName" . }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -21,7 +20,7 @@ spec:
       labels:
         app: {{ template "databricks-kube-operator.name" . }}
     spec:
-      serviceAccountName: "{{ $svcAccount }}"
+      serviceAccountName: {{ .Values.serviceAccount.name }}
       terminationGracePeriodSeconds: 10
       containers:
       - name: dko

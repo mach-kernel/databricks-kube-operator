@@ -1,10 +1,9 @@
-{{- $svcAccount := include "databricks-kube-operator.serviceAccountName" . }}
 {{- if .Values.serviceAccount.create }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: "{{ $svcAccount }}"
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
 {{- end }}
 ---
@@ -45,7 +44,7 @@ metadata:
 subjects:
 - namespace: {{ .Release.Namespace }}
   kind: ServiceAccount
-  name: "{{ $svcAccount }}"
+  name: {{ .Values.serviceAccount.name }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
