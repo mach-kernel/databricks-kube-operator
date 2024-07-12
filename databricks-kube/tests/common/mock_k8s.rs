@@ -1,12 +1,13 @@
 #![allow(dead_code)]
 
+use std::time::{self, SystemTime};
+
 use crate::common::fake_resource::FakeResource;
 
-use kube::Resource;
+use kube::{client::Body, Resource};
 use tower_test::mock::Handle;
 
-use hyper::Body;
-use k8s_openapi::http::{Request, Response};
+use http::{Request, Response};
 
 use super::fake_resource::{FakeAPIResource, FakeAPIResourceStatus};
 
@@ -41,7 +42,7 @@ pub async fn mock_fake_resource_created(
                             "apiVersion": "v1",
                             "kind": "List",
                             "metadata": {
-                                "resourceVersion": ""
+                                "resourceVersion": "1"
                             },
                             "items": []
                         }
@@ -52,10 +53,7 @@ pub async fn mock_fake_resource_created(
             serde_json::to_vec(&resource).unwrap()
         }
         ("PUT", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/test") => {
-            hyper::body::to_bytes(request.into_body())
-                .await
-                .unwrap()
-                .into()
+            request.into_body().collect_bytes().await.unwrap().into()
         }
         _ => panic!("Unexpected API request {:?}", request),
     };
@@ -92,7 +90,7 @@ pub async fn mock_fake_resource_updated_kube(
                             "apiVersion": "v1",
                             "kind": "List",
                             "metadata": {
-                                "resourceVersion": ""
+                                "resourceVersion": "1"
                             },
                             "items": [
                                 resource
@@ -106,7 +104,7 @@ pub async fn mock_fake_resource_updated_kube(
         }
         ("PUT", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/test") => {
             let parsed: FakeResource =
-                serde_json::from_slice(&hyper::body::to_bytes(request.into_body()).await.unwrap())
+                serde_json::from_slice(&request.into_body().collect_bytes().await.unwrap())
                     .unwrap();
 
             assert_eq!(assert_put, parsed.spec.api_resource,);
@@ -153,7 +151,7 @@ pub async fn mock_list_fake_resource(
         }
         ("PUT", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/foo") => {
             let parsed: FakeResource =
-                serde_json::from_slice(&hyper::body::to_bytes(request.into_body()).await.unwrap())
+                serde_json::from_slice(&request.into_body().collect_bytes().await.unwrap())
                     .unwrap();
 
             assert_eq!(assert_put_resource.unwrap(), parsed.spec.api_resource);
@@ -161,7 +159,7 @@ pub async fn mock_list_fake_resource(
         }
         ("PUT", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/foo/status") => {
             let parsed: FakeResource =
-                serde_json::from_slice(&hyper::body::to_bytes(request.into_body()).await.unwrap())
+                serde_json::from_slice(&request.into_body().collect_bytes().await.unwrap())
                     .unwrap();
 
             assert_eq!(assert_put_status.unwrap(), parsed.status.clone().unwrap());
@@ -209,7 +207,7 @@ pub async fn mock_fake_resource_deleted(
         }
         ("PATCH", "/apis/com.dstancu.test/v1/namespaces/default/fakeresources/foo") => {
             let parsed: Vec<serde_json::Value> =
-                serde_json::from_slice(&hyper::body::to_bytes(request.into_body()).await.unwrap())
+                serde_json::from_slice(&request.into_body().collect_bytes().await.unwrap())
                     .unwrap();
 
             // Make sure the request is for stripping the finalizers
@@ -275,7 +273,7 @@ pub async fn mock_ingest_resources(
         }
         ("POST", _) => {
             let parsed: FakeResource =
-                serde_json::from_slice(&hyper::body::to_bytes(request.into_body()).await.unwrap())
+                serde_json::from_slice(&request.into_body().collect_bytes().await.unwrap())
                     .unwrap();
 
             assert_eq!(

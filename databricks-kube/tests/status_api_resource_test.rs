@@ -11,12 +11,12 @@ use databricks_kube::traits::remote_api_status::RemoteAPIStatus;
 use databricks_kube::{context::Context, error::DatabricksKubeError};
 
 use futures::{FutureExt, StreamExt};
-use hyper::Body;
+use http::{Request, Response};
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
-use k8s_openapi::http::{Request, Response};
 use k8s_openapi::DeepMerge;
 use kube::core::object::HasStatus;
 use kube::{
+    client::Body,
     runtime::reflector::{self, store::Writer, Store},
     Client,
 };

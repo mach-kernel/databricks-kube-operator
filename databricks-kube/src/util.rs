@@ -47,21 +47,18 @@ pub async fn watch_api_secret(
         while let Ok(maybe_event) = rf.try_next().await {
             if let Some(event) = maybe_event {
                 match event {
-                    Event::Deleted(cm) => {
+                    Event::Delete(cm) => {
                         log::error!("Secret {} was deleted, exiting", cm.metadata.name.unwrap());
                         panic!("Secret deleted");
                     }
-                    Event::Applied(cm) => {
+                    Event::Apply(cm) => {
                         ensure_api_secret(api_secret_name.clone(), secret_api.clone())
                             .await
                             .unwrap();
                         log::info!("Secret {} applied", cm.metadata.name.unwrap());
                     }
-                    Event::Restarted(v) => {
-                        log::info!(
-                            "Watching secret {}",
-                            v.get(0).unwrap().metadata.name.clone().unwrap()
-                        )
+                    Event::Init | Event::InitApply(_) | Event::InitDone => {
+                        log::info!("Watching secret {}", api_secret_name)
                     }
                 };
             };
@@ -88,22 +85,19 @@ pub async fn watch_configmap(
         while let Ok(maybe_event) = rf.try_next().await {
             if let Some(event) = maybe_event {
                 match event {
-                    Event::Deleted(cm) => {
+                    Event::Delete(cm) => {
                         log::error!(
                             "Config map {} was deleted, exiting",
                             cm.metadata.name.unwrap()
                         );
                         panic!("Config map deleted");
                     }
-                    Event::Applied(cm) => {
+                    Event::Apply(cm) => {
                         ensure_configmap(cm_api.clone()).await.unwrap();
                         log::info!("Config map {} applied", cm.metadata.name.unwrap());
                     }
-                    Event::Restarted(v) => {
-                        log::info!(
-                            "Watching config map {}",
-                            v.get(0).unwrap().metadata.name.clone().unwrap()
-                        )
+                    Event::Init | Event::InitApply(_) | Event::InitDone => {
+                        log::info!("Watching config map {}", *CONFIGMAP_NAME)
                     }
                 };
             };
