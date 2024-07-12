@@ -204,6 +204,9 @@ openapi-generator generate -g rust -i openapi/repos-2.0-aws.yaml -c openapi/conf
 gsed -i -e 's/derive(Clone/derive(JsonSchema, Clone/' dbr_repo/src/models/*
 gsed -i -e 's/\/\*/use schemars::JsonSchema;\n\/\*/' dbr_repo/src/models/*
 gsed -r -i -e 's/(\[dependencies\])/\1\nschemars = "0.8.11"/' dbr_repo/Cargo.toml
+
+# Secrets API
+openapi-generator generate -g rust -i openapi/secrets-aws.yaml -c openapi/config-secrets.yaml -o dbr_secrets
 ```
 
 ### Expand CRD macros

@@ -68,8 +68,13 @@
         paths (if f
                 (into {} (keep #(emit-matching f %)) paths)
                 paths)
-        component-refs (set (walk/postwalk collect-refs paths))
-        components (emit-components component-refs components)]
+        path-component-refs (set (walk/postwalk collect-refs paths))
+        path-components (emit-components path-component-refs components)
+
+        component-refs (set (walk/postwalk collect-refs path-components))
+        component-components (emit-components component-refs components)
+
+        components (merge-with merge path-components component-components)]
     (-> parsed-spec
         (assoc :components components)
         (assoc :paths paths)

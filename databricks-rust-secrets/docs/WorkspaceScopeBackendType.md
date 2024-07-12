@@ -1,0 +1,13 @@
+# WorkspaceScopeBackendType
+
+## Enum Variants
+
+| Name | Value |
+|---- | -----|
+| Databricks | DATABRICKS |
+| AzureKeyvault | AZURE_KEYVAULT |
+
+
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+
