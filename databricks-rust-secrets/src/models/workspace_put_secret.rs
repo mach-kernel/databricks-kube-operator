@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 /*
  * Databricks Accounts and Workspace REST API on ALL
  *
@@ -11,7 +12,7 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(JsonSchema, Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WorkspacePutSecret {
     /// If specified, value will be stored as bytes.
     #[serde(rename = "bytes_value", skip_serializing_if = "Option::is_none")]

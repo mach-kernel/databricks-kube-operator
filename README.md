@@ -207,6 +207,9 @@ gsed -r -i -e 's/(\[dependencies\])/\1\nschemars = "0.8.11"/' dbr_repo/Cargo.tom
 
 # Secrets API
 openapi-generator generate -g rust -i openapi/secrets-aws.yaml -c openapi/config-secrets.yaml -o dbr_secrets
+sed -i -e 's/derive(Clone/derive(JsonSchema, Clone/' dbr_secrets/src/models/*
+sed -i -e 's/\/\*/use schemars::JsonSchema;\n\/\*/' dbr_secrets/src/models/*
+sed -r -i -e 's/(\[dependencies\])/\1\nschemars = "0.8.11"/' dbr_secrets/Cargo.toml
 ```
 
 ### Expand CRD macros

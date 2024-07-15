@@ -545,6 +545,7 @@ name = "databricks_rust_secrets"
 version = "2.0.0"
 dependencies = [
  "reqwest 0.12.5",
+ "schemars",
  "serde",
  "serde_json",
  "url",

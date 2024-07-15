@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 /*
  * Databricks Accounts and Workspace REST API on ALL
  *
@@ -12,7 +13,7 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 /// 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(JsonSchema, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum WorkspaceScopeBackendType {
     #[serde(rename = "DATABRICKS")]
     Databricks,
