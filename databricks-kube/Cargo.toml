@@ -12,6 +12,7 @@ edition = "2021"
 databricks_rust_jobs = { path = "../databricks-rust-jobs" }
 databricks_rust_git_credentials = { path = "../databricks-rust-git-credentials" }
 databricks_rust_repos = { path = "../databricks-rust-repos" }
+databricks_rust_secrets = { path = "../databricks-rust-secrets" }
 
 async-stream = "0.3.3"
 assert-json-diff = "2.0.2"
@@ -34,7 +35,7 @@ tokio-stream = "0.1.11"
 thiserror = "1.0.56"
 
 [dependencies.reqwest]
-version = "^0.11"
+version = "^0.12"
 features = ["json", "multipart"]
 
 [dev-dependencies]
