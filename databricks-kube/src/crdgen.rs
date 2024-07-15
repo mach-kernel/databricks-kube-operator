@@ -20,4 +20,8 @@ fn main() {
         "---\n{}\n",
         to_string(&crate::crds::repo::Repo::crd()).unwrap()
     );
+    print!(
+        "---\n{}\n",
+        to_string(&crate::crds::databricks_secret_scope::DatabricksSecretScope::crd()).unwrap()
+    );
 }

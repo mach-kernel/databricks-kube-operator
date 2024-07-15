@@ -36,4 +36,3 @@ impl Default for WorkspaceScopeBackendType {
         Self::Databricks
     }
 }
-

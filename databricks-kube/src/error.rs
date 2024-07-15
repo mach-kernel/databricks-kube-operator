@@ -28,11 +28,13 @@ macro_rules! openapi_error_glue {
                         status,
                         content,
                         entity,
-                    }) => Self::APIError(OpenAPIError::ResponseError(SerializableResponseContent {
-                        status,
-                        content,
-                        entity: entity.and_then(|e| to_value(e).ok()),
-                    })),
+                    }) => {
+                        Self::APIError(OpenAPIError::ResponseError(SerializableResponseContent {
+                            status,
+                            content,
+                            entity: entity.and_then(|e| to_value(e).ok()),
+                        }))
+                    }
                     $error::Io(e) => Self::APIError(OpenAPIError::Io(e)),
                     $error::Serde(e) => Self::APIError(OpenAPIError::Serde(e)),
                     $error::Reqwest(e) => Self::APIError(OpenAPIError::Reqwest(e)),

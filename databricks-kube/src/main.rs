@@ -9,6 +9,7 @@ use std::{collections::BTreeMap, hash::Hash, sync::Arc, time::Duration};
 use databricks_kube::{
     context::Context,
     crds::databricks_job::DatabricksJob,
+    crds::databricks_secret_scope::DatabricksSecretScope,
     crds::git_credential::GitCredential,
     crds::repo::Repo,
     error::DatabricksKubeError,
@@ -73,7 +74,8 @@ async fn main() -> Result<(), DatabricksKubeError> {
 
     ensure_crd("databricksjobs.com.dstancu.databricks", crd_api.clone()).await?;
     ensure_crd("gitcredentials.com.dstancu.databricks", crd_api.clone()).await?;
-    ensure_crd("repos.com.dstancu.databricks", crd_api).await?;
+    ensure_crd("repos.com.dstancu.databricks", crd_api.clone()).await?;
+    ensure_crd("databrickssecretscopes.com.dstancu.databricks", crd_api).await?;
     ensure_configmap(cm_api.clone()).await?;
 
     let configmap_store = watch_configmap(cm_api.clone()).await?;
@@ -95,6 +97,7 @@ async fn main() -> Result<(), DatabricksKubeError> {
 
     let git_credential_controller = GitCredential::controller(ctx.clone());
     let repo_controller = Repo::controller(ctx.clone());
+    let secret_scope_controller = DatabricksSecretScope::controller(ctx.clone());
 
     Toplevel::new()
         .start(
@@ -135,6 +138,17 @@ async fn main() -> Result<(), DatabricksKubeError> {
                     let res: Result<(), DatabricksKubeError> = Ok(());
                     res
                 })
+            },
+        )
+        .start(
+            "secret_scope_controller",
+            |_: SubsystemHandle<DatabricksKubeError>| {
+                secret_scope_controller
+                    .for_each(log_controller_event)
+                    .map(|_| {
+                        let res: Result<(), DatabricksKubeError> = Ok(());
+                        res
+                    })
             },
         )
         .catch_signals()

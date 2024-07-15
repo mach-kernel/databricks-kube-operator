@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use std::time::{self, SystemTime};
 
 use crate::common::fake_resource::FakeResource;
 
