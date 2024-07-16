@@ -21,6 +21,8 @@ rules:
         - configmaps
         - customresourcedefinitions
         - databricksjobs
+        - databrickssecrets
+        - databrickssecretscopes
         - databricksjobs/status
         - repos
         - gitcredentials
@@ -31,6 +33,8 @@ rules:
         - com.dstancu.databricks
     resources:
         - databricksjobs
+        - databrickssecrets
+        - databrickssecretscopes
         - databricksjobs/status
         - repos
         - gitcredentials
