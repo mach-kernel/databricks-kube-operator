@@ -414,7 +414,7 @@ dependencies = [
 
 [[package]]
 name = "databricks_kube"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "assert-json-diff",
  "async-stream",
