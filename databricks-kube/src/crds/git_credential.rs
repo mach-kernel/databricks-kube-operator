@@ -81,7 +81,7 @@ impl RemoteAPIResource<APICredential> for GitCredential {
         try_stream! {
             let config = APICredential::get_rest_config(context.clone()).await.unwrap();
 
-            while let GetCredentialsResponse {
+            if let GetCredentialsResponse {
                 credentials,
                 ..
             } = default_api::get_git_credential_list(&config).await? {

@@ -1,6 +1,9 @@
 use std::{fmt::Debug, hash::Hash, pin::Pin, sync::Arc, time::Duration};
 
-use crate::{context::Context, error::{DatabricksKubeError, OpenAPIError}};
+use crate::{
+    context::Context,
+    error::{DatabricksKubeError, OpenAPIError},
+};
 
 use assert_json_diff::assert_json_matches_no_panic;
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
@@ -83,9 +86,11 @@ where
                 TCRDType::api_resource().kind,
                 resource.name_unchecked()
             );
-        },
+        }
         // TODO: stricter assertion that doesn't rely on dbx error presentation
-        Err(DatabricksKubeError::APIError(OpenAPIError::ResponseError(re))) if re.status == 400 && re.content.contains("does not exist") => {
+        Err(DatabricksKubeError::APIError(OpenAPIError::ResponseError(re)))
+            if re.status == 400 && re.content.contains("does not exist") =>
+        {
             log::info!(
                 "Resource {} {} is missing in Databricks, creating",
                 TCRDType::api_resource().kind,

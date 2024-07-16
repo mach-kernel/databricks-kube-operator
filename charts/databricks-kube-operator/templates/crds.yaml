@@ -1314,5 +1314,107 @@ spec:
     storage: true
     subresources: {}
 
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databrickssecretscopes.com.dstancu.databricks
+spec:
+  group: com.dstancu.databricks
+  names:
+    categories: []
+    kind: DatabricksSecretScope
+    plural: databrickssecretscopes
+    shortNames: []
+    singular: databrickssecretscope
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for DatabricksSecretScopeSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              initial_manage_principal:
+                nullable: true
+                type: string
+              scope:
+                properties:
+                  backend_type:
+                    description: The type of secret scope backend.
+                    enum:
+                    - DATABRICKS
+                    - AZURE_KEYVAULT
+                    nullable: true
+                    type: string
+                  keyvault_metadata:
+                    description: The metadata for the secret scope if the type is `AZURE_KEYVAULT`
+                    nullable: true
+                    properties:
+                      dns_name:
+                        description: The DNS of the KeyVault
+                        type: string
+                      resource_id:
+                        description: The resource id of the azure KeyVault that user wants to associate the scope with.
+                        type: string
+                    required:
+                    - dns_name
+                    - resource_id
+                    type: object
+                  name:
+                    description: A unique name to identify the secret scope.
+                    nullable: true
+                    type: string
+                type: object
+            required:
+            - scope
+            type: object
+        required:
+        - spec
+        title: DatabricksSecretScope
+        type: object
+    served: true
+    storage: true
+    subresources: {}
 
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databrickssecrets.com.dstancu.databricks
+spec:
+  group: com.dstancu.databricks
+  names:
+    categories: []
+    kind: DatabricksSecret
+    plural: databrickssecrets
+    shortNames: []
+    singular: databrickssecret
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for DatabricksSecretSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              scope:
+                type: string
+              secret_name:
+                type: string
+            required:
+            - scope
+            - secret_name
+            type: object
+        required:
+        - spec
+        title: DatabricksSecret
+        type: object
+    served: true
+    storage: true
+    subresources: {}
 {{- end -}}

@@ -1,0 +1,11 @@
+apiVersion: com.dstancu.databricks/v1
+kind: Repo
+metadata:
+  annotations:
+    databricks-operator/owner: operator
+  name: databricks-kube-operator
+spec:
+  repository:
+    path: /Repos/Test/databricks-kube-operator
+    provider: gitHub
+    url: https://github.com/mach-kernel/databricks-kube-operator.git

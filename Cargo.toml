@@ -3,5 +3,6 @@ members = [
     "databricks-kube",
     "databricks-rust-jobs",
     "databricks-rust-git-credentials",
-    "databricks-rust-repos"
+    "databricks-rust-repos",
+    "databricks-rust-secrets"
 ]

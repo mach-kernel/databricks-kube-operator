@@ -15,12 +15,12 @@ use databricks_kube::{
 use async_stream::try_stream;
 use flurry::HashMap;
 use futures::{Future, FutureExt, Stream, StreamExt};
-use hyper::Body;
+use http::{Request, Response};
 
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use k8s_openapi::chrono::Utc;
-use k8s_openapi::http::{Request, Response};
+use kube::client::Body;
 use kube::runtime::controller::Action;
 use kube::runtime::reflector::ObjectRef;
 use kube::{

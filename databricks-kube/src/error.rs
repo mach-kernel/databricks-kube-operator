@@ -10,73 +10,44 @@ use databricks_rust_jobs::apis::{Error as JobsAPIError, ResponseContent as JobsR
 use databricks_rust_repos::apis::{
     Error as ReposAPIError, ResponseContent as ReposResponseContent,
 };
+use databricks_rust_secrets::apis::{
+    Error as SecretsAPIError, ResponseContent as SecretsResponseContent,
+};
 use kube::runtime::finalizer::Error as KubeFinalizerError;
 
-impl<T> From<JobsAPIError<T>> for DatabricksKubeError
-where
-    T: Debug + Serialize + 'static,
-{
-    fn from(e: JobsAPIError<T>) -> Self {
-        match e {
-            JobsAPIError::ResponseError(JobsResponseContent {
-                status,
-                content,
-                entity,
-            }) => Self::APIError(OpenAPIError::ResponseError(SerializableResponseContent {
-                status,
-                content,
-                entity: entity.and_then(|e| to_value(e).ok()),
-            })),
-            JobsAPIError::Io(e) => Self::APIError(OpenAPIError::Io(e)),
-            JobsAPIError::Serde(e) => Self::APIError(OpenAPIError::Serde(e)),
-            JobsAPIError::Reqwest(e) => Self::APIError(OpenAPIError::Reqwest(e)),
+#[macro_export]
+macro_rules! openapi_error_glue {
+    ($error:ident, $response:ident) => {
+        impl<T> From<$error<T>> for DatabricksKubeError
+        where
+            T: Debug + Serialize + 'static,
+        {
+            fn from(e: $error<T>) -> Self {
+                match e {
+                    $error::ResponseError($response {
+                        status,
+                        content,
+                        entity,
+                    }) => {
+                        Self::APIError(OpenAPIError::ResponseError(SerializableResponseContent {
+                            status,
+                            content,
+                            entity: entity.and_then(|e| to_value(e).ok()),
+                        }))
+                    }
+                    $error::Io(e) => Self::APIError(OpenAPIError::Io(e)),
+                    $error::Serde(e) => Self::APIError(OpenAPIError::Serde(e)),
+                    $error::Reqwest(e) => Self::APIError(OpenAPIError::Reqwest(e)),
+                }
+            }
         }
-    }
+    };
 }
 
-impl<T> From<GitCredentialAPIError<T>> for DatabricksKubeError
-where
-    T: Debug + Serialize + 'static,
-{
-    fn from(e: GitCredentialAPIError<T>) -> Self {
-        match e {
-            GitCredentialAPIError::ResponseError(GitCredentialsResponseContent {
-                status,
-                content,
-                entity,
-            }) => Self::APIError(OpenAPIError::ResponseError(SerializableResponseContent {
-                status,
-                content,
-                entity: entity.and_then(|e| to_value(e).ok()),
-            })),
-            GitCredentialAPIError::Io(e) => Self::APIError(OpenAPIError::Io(e)),
-            GitCredentialAPIError::Serde(e) => Self::APIError(OpenAPIError::Serde(e)),
-            GitCredentialAPIError::Reqwest(e) => Self::APIError(OpenAPIError::Reqwest(e)),
-        }
-    }
-}
-
-impl<T> From<ReposAPIError<T>> for DatabricksKubeError
-where
-    T: Debug + Serialize + 'static,
-{
-    fn from(e: ReposAPIError<T>) -> Self {
-        match e {
-            ReposAPIError::ResponseError(ReposResponseContent {
-                status,
-                content,
-                entity,
-            }) => Self::APIError(OpenAPIError::ResponseError(SerializableResponseContent {
-                status,
-                content,
-                entity: entity.and_then(|e| to_value(e).ok()),
-            })),
-            ReposAPIError::Io(e) => Self::APIError(OpenAPIError::Io(e)),
-            ReposAPIError::Serde(e) => Self::APIError(OpenAPIError::Serde(e)),
-            ReposAPIError::Reqwest(e) => Self::APIError(OpenAPIError::Reqwest(e)),
-        }
-    }
-}
+openapi_error_glue!(JobsAPIError, JobsResponseContent);
+openapi_error_glue!(GitCredentialAPIError, GitCredentialsResponseContent);
+openapi_error_glue!(ReposAPIError, ReposResponseContent);
+openapi_error_glue!(SecretsAPIError, SecretsResponseContent);
 
 impl<T> From<KubeFinalizerError<T>> for DatabricksKubeError
 where
