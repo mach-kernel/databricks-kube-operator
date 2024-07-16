@@ -67,7 +67,7 @@ pub async fn create_git_credential(
 
     let local_var_client = &local_var_configuration.client;
 
-    let local_var_uri_str = format!("{}/git-credentials", local_var_configuration.base_path);
+    let local_var_uri_str = format!("{}/2.0/git-credentials", local_var_configuration.base_path);
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -116,7 +116,7 @@ pub async fn delete_git_credential(
     let local_var_client = &local_var_configuration.client;
 
     let local_var_uri_str = format!(
-        "{}/git-credentials/{credential_id}",
+        "{}/2.0/git-credentials/{credential_id}",
         local_var_configuration.base_path,
         credential_id = crate::apis::urlencode(credential_id)
     );
@@ -167,7 +167,7 @@ pub async fn get_git_credential(
     let local_var_client = &local_var_configuration.client;
 
     let local_var_uri_str = format!(
-        "{}/git-credentials/{credential_id}",
+        "{}/2.0/git-credentials/{credential_id}",
         local_var_configuration.base_path,
         credential_id = crate::apis::urlencode(credential_id)
     );
@@ -216,7 +216,7 @@ pub async fn get_git_credential_list(
 
     let local_var_client = &local_var_configuration.client;
 
-    let local_var_uri_str = format!("{}/git-credentials", local_var_configuration.base_path);
+    let local_var_uri_str = format!("{}/2.0/git-credentials", local_var_configuration.base_path);
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::GET, local_var_uri_str.as_str());
 
@@ -265,7 +265,7 @@ pub async fn update_git_credential(
     let local_var_client = &local_var_configuration.client;
 
     let local_var_uri_str = format!(
-        "{}/git-credentials/{credential_id}",
+        "{}/2.0/git-credentials/{credential_id}",
         local_var_configuration.base_path,
         credential_id = crate::apis::urlencode(credential_id)
     );

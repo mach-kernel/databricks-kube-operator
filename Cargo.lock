@@ -449,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "databricks_rust_git_credentials"
-version = "2.1.1"
+version = "2.1.2"
 dependencies = [
  "reqwest 0.12.5",
  "schemars",
