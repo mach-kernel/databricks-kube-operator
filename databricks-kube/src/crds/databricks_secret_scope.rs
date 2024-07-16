@@ -56,7 +56,7 @@ impl RemoteAPIResource<WorkspaceSecretScope> for DatabricksSecretScope {
         context: Arc<Context>,
     ) -> Pin<Box<dyn Stream<Item = Result<WorkspaceSecretScope, DatabricksKubeError>> + Send>> {
         try_stream! {
-            let config = WorkspaceListScopesResponse::get_rest_config(context.clone()).await.unwrap();
+            let config = WorkspaceSecretScope::get_rest_config(context.clone()).await.unwrap();
 
             if let WorkspaceListScopesResponse {
                 scopes

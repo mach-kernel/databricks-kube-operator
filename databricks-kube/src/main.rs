@@ -10,6 +10,7 @@ use databricks_kube::{
     context::Context,
     crds::databricks_job::DatabricksJob,
     crds::databricks_secret_scope::DatabricksSecretScope,
+    crds::databricks_secret::DatabricksSecret,
     crds::git_credential::GitCredential,
     crds::repo::Repo,
     error::DatabricksKubeError,
@@ -98,6 +99,7 @@ async fn main() -> Result<(), DatabricksKubeError> {
     let git_credential_controller = GitCredential::controller(ctx.clone());
     let repo_controller = Repo::controller(ctx.clone());
     let secret_scope_controller = DatabricksSecretScope::controller(ctx.clone());
+    let secrets_controller = DatabricksSecret::controller(ctx.clone());
 
     Toplevel::new()
         .start(
@@ -144,6 +146,17 @@ async fn main() -> Result<(), DatabricksKubeError> {
             "secret_scope_controller",
             |_: SubsystemHandle<DatabricksKubeError>| {
                 secret_scope_controller
+                    .for_each(log_controller_event)
+                    .map(|_| {
+                        let res: Result<(), DatabricksKubeError> = Ok(());
+                        res
+                    })
+            },
+        )
+        .start(
+            "secrets_controller",
+            |_: SubsystemHandle<DatabricksKubeError>| {
+                secrets_controller
                     .for_each(log_controller_event)
                     .map(|_| {
                         let res: Result<(), DatabricksKubeError> = Ok(());

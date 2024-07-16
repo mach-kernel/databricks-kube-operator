@@ -66,4 +66,3 @@ openapi_config_glue!(GitCredentialClientConfig, GitCredential);
 openapi_config_glue!(RepoClientConfig, Repo);
 openapi_config_glue!(SecretClientConfig, Secret);
 openapi_config_glue!(SecretClientConfig, Scope);
-openapi_config_glue!(SecretClientConfig, Scopes);
