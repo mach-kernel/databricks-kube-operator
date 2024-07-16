@@ -26,6 +26,7 @@ use crate::{error::DatabricksKubeError, traits::remote_api_resource::RemoteAPIRe
 )]
 pub struct DatabricksSecretScopeSpec {
     pub scope: WorkspaceSecretScope,
+    pub initial_manage_principal: Option<String>,
 }
 
 // API -> CRD
@@ -39,7 +40,7 @@ impl From<WorkspaceSecretScope> for DatabricksSecretScope {
                 .as_secs()
         ));
 
-        Self::new(&k8s_name, DatabricksSecretScopeSpec { scope })
+        Self::new(&k8s_name, DatabricksSecretScopeSpec { scope, initial_manage_principal: None })
     }
 }
 
@@ -99,6 +100,7 @@ impl RemoteAPIResource<WorkspaceSecretScope> for DatabricksSecretScope {
             // Endpoint has no response value
             secret_api::create_scope(&config, Some(WorkspaceCreateScope {
                 scope: scope.name.unwrap(),
+                initial_manage_principal: self.spec().initial_manage_principal.clone(),
                 ..Default::default()
             })).await?;
 
