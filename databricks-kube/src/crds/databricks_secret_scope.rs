@@ -40,7 +40,13 @@ impl From<WorkspaceSecretScope> for DatabricksSecretScope {
                 .as_secs()
         ));
 
-        Self::new(&k8s_name, DatabricksSecretScopeSpec { scope, initial_manage_principal: None })
+        Self::new(
+            &k8s_name,
+            DatabricksSecretScopeSpec {
+                scope,
+                initial_manage_principal: None,
+            },
+        )
     }
 }
 

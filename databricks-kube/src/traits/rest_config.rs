@@ -14,8 +14,7 @@ use databricks_rust_repos::{
 
 use databricks_rust_secrets::{
     apis::configuration::Configuration as SecretClientConfig,
-    models::WorkspaceGetSecretResponse as Secret, models::WorkspaceListScopesResponse as Scopes,
-    models::WorkspaceSecretScope as Scope,
+    models::WorkspaceGetSecretResponse as Secret, models::WorkspaceSecretScope as Scope,
 };
 
 use futures::FutureExt;

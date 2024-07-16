@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-
 use crate::common::fake_resource::FakeResource;
 
 use kube::{client::Body, Resource};

@@ -9,8 +9,8 @@ use std::{collections::BTreeMap, hash::Hash, sync::Arc, time::Duration};
 use databricks_kube::{
     context::Context,
     crds::databricks_job::DatabricksJob,
-    crds::databricks_secret_scope::DatabricksSecretScope,
     crds::databricks_secret::DatabricksSecret,
+    crds::databricks_secret_scope::DatabricksSecretScope,
     crds::git_credential::GitCredential,
     crds::repo::Repo,
     error::DatabricksKubeError,
@@ -156,12 +156,10 @@ async fn main() -> Result<(), DatabricksKubeError> {
         .start(
             "secrets_controller",
             |_: SubsystemHandle<DatabricksKubeError>| {
-                secrets_controller
-                    .for_each(log_controller_event)
-                    .map(|_| {
-                        let res: Result<(), DatabricksKubeError> = Ok(());
-                        res
-                    })
+                secrets_controller.for_each(log_controller_event).map(|_| {
+                    let res: Result<(), DatabricksKubeError> = Ok(());
+                    res
+                })
             },
         )
         .catch_signals()
