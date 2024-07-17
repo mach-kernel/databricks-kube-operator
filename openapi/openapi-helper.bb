@@ -47,18 +47,36 @@
     :else
     form))
 
-(defn emit-components
+(defn clean-databricks
+  [form]
+  (if (map? form)
+    (let [to-remove (filter #(str/starts-with? % "x-databricks")
+                            (keys form))]
+      (apply dissoc form to-remove))
+    form))
+
+(defn select-refs
   "Collect referenced schema/parameter/response refs from OpenAPI components"
   [cs components]
-  (let [filtered-components (->> cs
-                                 ; #/components/kind/name split /
-                                 (map #(str/split % #"/"))
-                                 ; drop #, components
-                                 (map #(map keyword (drop 2 %)))
-                                 (map last))] 
-    {:schemas    (select-keys (:schemas components) filtered-components)
-     :parameters (select-keys (:parameters components) filtered-components)
-     :responses  (select-keys (:responses components) filtered-components)}))
+  (let [component-keys (->> cs
+                            ; #/components/kind/name split /
+                            (map #(str/split % #"/"))
+                            ; drop #, components
+                            (map #(map keyword (drop 2 %)))
+                            (map last))]
+    {:schemas    (select-keys (:schemas components) component-keys)
+     :parameters (select-keys (:parameters components) component-keys)
+     :responses  (select-keys (:responses components) component-keys)}))
+
+(defn emit-components-for
+  ([all form]
+   (emit-components-for all form (set (walk/postwalk collect-refs form))))
+  ([all form refs]
+   (let [new-form (select-refs refs all)
+         new-refs (set (walk/postwalk collect-refs new-form))]
+     (if (> (count new-refs) (count refs))
+       (emit-components-for all form new-refs)
+       new-form))))
 
 (defn emit-subspec
   "Emit a subset of the larger spec"
@@ -68,19 +86,12 @@
         paths (if f
                 (into {} (keep #(emit-matching f %)) paths)
                 paths)
-        path-component-refs (set (walk/postwalk collect-refs paths))
-        path-components (emit-components path-component-refs components)
 
-        component-refs (set (walk/postwalk collect-refs path-components))
-        component-components (emit-components component-refs components)
-
-        components (merge-with merge path-components component-components)]
+        components (emit-components-for components paths)]
     (-> parsed-spec
         (assoc :components components)
         (assoc :paths paths)
-        (dissoc :tags)
-        (dissoc :x-databricks-groups)
-        (walk/stringify-keys))))
+        (dissoc :tags))))
 
 (defn -main
   [args]
@@ -93,8 +104,11 @@
     (when-not spec
       (println "Usage\n" (cli/format-opts cli-spec))
       (System/exit 1))
-    
-    (let [new-spec (walk/postwalk repascalize (emit-subspec filter spec))]
+
+    (let [new-spec (->> (emit-subspec filter spec)
+                        (walk/stringify-keys)
+                        (walk/postwalk repascalize)
+                        (walk/postwalk clean-databricks))]
       (println (json/encode new-spec {:pretty true})))))
 
 (-main *command-line-args*)
