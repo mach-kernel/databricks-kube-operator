@@ -120,6 +120,8 @@ pub enum DataSecurityMode {
     LegacyPassthrough,
     #[serde(rename = "LEGACY_SINGLE_USER")]
     LegacySingleUser,
+    #[serde(rename = "LEGACY_SINGLE_USER_STANDARD")]
+    LegacySingleUserStandard,
 }
 
 impl Default for DataSecurityMode {
