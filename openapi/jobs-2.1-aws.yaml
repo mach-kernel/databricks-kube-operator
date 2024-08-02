@@ -3759,7 +3759,7 @@ components:
             File location of init script. Destination must be provided. For
             example, `{ "file" : { "destination" : "file:/my/local/file.sh" } }`
           $ref: '#/components/schemas/FileStorageInfo'
-        S3:
+        s3:
           description: >-
             S3 location of init script. Destination and either region or
             endpoint must be provided. For example, `{ "s3": { "destination" :
