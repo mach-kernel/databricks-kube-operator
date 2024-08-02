@@ -271,6 +271,7 @@ spec:
                                   - LEGACY_TABLE_ACL
                                   - LEGACY_PASSTHROUGH
                                   - LEGACY_SINGLE_USER
+                                  - LEGACY_SINGLE_USER_STANDARD
                                   nullable: true
                                   type: string
                                 docker_image:
@@ -313,7 +314,23 @@ spec:
                                   description: The configuration for storing init scripts. Any number of scripts can be specified. The scripts are executed sequentially in the order provided. If `cluster_log_conf` is specified, init script logs are sent to `<destination>/<cluster-id>/init_scripts`.
                                   items:
                                     properties:
-                                      S3:
+                                      dbfs:
+                                        nullable: true
+                                        properties:
+                                          destination:
+                                            description: 'DBFS destination. Example: `dbfs:/my/path`'
+                                            nullable: true
+                                            type: string
+                                        type: object
+                                      file:
+                                        nullable: true
+                                        properties:
+                                          destination:
+                                            description: 'File destination. Example: `file:/my/file.sh`'
+                                            nullable: true
+                                            type: string
+                                        type: object
+                                      s3:
                                         nullable: true
                                         properties:
                                           canned_acl:
@@ -342,22 +359,6 @@ spec:
                                             type: string
                                           region:
                                             description: 'S3 region. For example: `us-west-2`. Either region or endpoint must be set. If both are set, endpoint is used.'
-                                            nullable: true
-                                            type: string
-                                        type: object
-                                      dbfs:
-                                        nullable: true
-                                        properties:
-                                          destination:
-                                            description: 'DBFS destination. Example: `dbfs:/my/path`'
-                                            nullable: true
-                                            type: string
-                                        type: object
-                                      file:
-                                        nullable: true
-                                        properties:
-                                          destination:
-                                            description: 'File destination. Example: `file:/my/file.sh`'
                                             nullable: true
                                             type: string
                                         type: object
@@ -748,6 +749,7 @@ spec:
                                   - LEGACY_TABLE_ACL
                                   - LEGACY_PASSTHROUGH
                                   - LEGACY_SINGLE_USER
+                                  - LEGACY_SINGLE_USER_STANDARD
                                   nullable: true
                                   type: string
                                 docker_image:
@@ -790,7 +792,23 @@ spec:
                                   description: The configuration for storing init scripts. Any number of scripts can be specified. The scripts are executed sequentially in the order provided. If `cluster_log_conf` is specified, init script logs are sent to `<destination>/<cluster-id>/init_scripts`.
                                   items:
                                     properties:
-                                      S3:
+                                      dbfs:
+                                        nullable: true
+                                        properties:
+                                          destination:
+                                            description: 'DBFS destination. Example: `dbfs:/my/path`'
+                                            nullable: true
+                                            type: string
+                                        type: object
+                                      file:
+                                        nullable: true
+                                        properties:
+                                          destination:
+                                            description: 'File destination. Example: `file:/my/file.sh`'
+                                            nullable: true
+                                            type: string
+                                        type: object
+                                      s3:
                                         nullable: true
                                         properties:
                                           canned_acl:
@@ -819,22 +837,6 @@ spec:
                                             type: string
                                           region:
                                             description: 'S3 region. For example: `us-west-2`. Either region or endpoint must be set. If both are set, endpoint is used.'
-                                            nullable: true
-                                            type: string
-                                        type: object
-                                      dbfs:
-                                        nullable: true
-                                        properties:
-                                          destination:
-                                            description: 'DBFS destination. Example: `dbfs:/my/path`'
-                                            nullable: true
-                                            type: string
-                                        type: object
-                                      file:
-                                        nullable: true
-                                        properties:
-                                          destination:
-                                            description: 'File destination. Example: `file:/my/file.sh`'
                                             nullable: true
                                             type: string
                                         type: object

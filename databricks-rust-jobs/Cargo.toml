@@ -1,6 +1,6 @@
 [package]
 name = "databricks_rust_jobs"
-version = "2.1.2"
+version = "2.1.3"
 authors = ["OpenAPI Generator team and contributors"]
 description = "The Jobs API allows you to create, edit, and delete jobs. You should never hard code secrets or store them in plain text. Use the [Secrets API](https://docs.databricks.com/dev-tools/api/latest/secrets.html) to manage secrets in the [Databricks CLI](https://docs.databricks.com/dev-tools/cli/index.html). Use the [Secrets utility](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-secrets) to reference secrets in notebooks and jobs."
 # Override this license by providing a License Object in the OpenAPI.

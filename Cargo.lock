@@ -414,7 +414,7 @@ dependencies = [
 
 [[package]]
 name = "databricks_kube"
-version = "0.8.2"
+version = "0.8.3"
 dependencies = [
  "assert-json-diff",
  "async-stream",
@@ -463,7 +463,7 @@ dependencies = [
 
 [[package]]
 name = "databricks_rust_jobs"
-version = "2.1.2"
+version = "2.1.3"
 dependencies = [
  "reqwest 0.12.5",
  "schemars",

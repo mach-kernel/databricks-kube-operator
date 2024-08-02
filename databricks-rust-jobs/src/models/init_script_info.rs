@@ -18,7 +18,7 @@ pub struct InitScriptInfo {
     pub dbfs: Option<Box<crate::models::DbfsStorageInfo>>,
     #[serde(rename = "file", skip_serializing_if = "Option::is_none")]
     pub file: Option<Box<crate::models::FileStorageInfo>>,
-    #[serde(rename = "S3", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "s3", skip_serializing_if = "Option::is_none")]
     pub s3: Option<Box<crate::models::S3StorageInfo>>,
 }
 
