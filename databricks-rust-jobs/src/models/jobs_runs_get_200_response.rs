@@ -66,7 +66,7 @@ pub struct JobsRunsGet200Response {
     pub end_time: Option<i64>,
     /// The time in milliseconds it took the job run and all of its repairs to finish. This field is only set for multitask job runs and not task runs. The duration of a task run is the sum of the `setup_duration`, `execution_duration`, and the `cleanup_duration`.
     #[serde(rename = "run_duration", skip_serializing_if = "Option::is_none")]
-    pub run_duration: Option<i32>,
+    pub run_duration: Option<i64>,
     #[serde(rename = "trigger", skip_serializing_if = "Option::is_none")]
     pub trigger: Option<crate::models::TriggerType>,
     /// An optional name for the run. The maximum allowed length is 4096 bytes in UTF-8 encoding.
