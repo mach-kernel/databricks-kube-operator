@@ -463,7 +463,7 @@ dependencies = [
 
 [[package]]
 name = "databricks_rust_jobs"
-version = "2.1.3"
+version = "2.1.4"
 dependencies = [
  "reqwest 0.12.5",
  "schemars",
