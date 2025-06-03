@@ -5,6 +5,9 @@ coverY: 0
 
 # 🦀 databricks-kube-operator
 
+> [!IMPORTANT]  
+> As of 2025/06 this project is archived. We recommend using [Upjet](https://github.com/crossplane/upjet) to generate a Crossplane provider from the official [Databricks Terraform Provider](https://registry.terraform.io/providers/databricks/databricks/latest/docs)
+
 [![Rust](https://github.com/mach-kernel/databricks-kube-operator/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/mach-kernel/databricks-kube-operator/actions/workflows/rust.yml)
 [![FOSSA Status](https://app.fossa.com/api/projects/custom%2B34302%2Fgithub.com%2Fmach-kernel%2Fdatabricks-kube-operator.svg?type=shield)](https://app.fossa.com/projects/custom%2B34302%2Fgithub.com%2Fmach-kernel%2Fdatabricks-kube-operator?ref=badge_shield)
 
